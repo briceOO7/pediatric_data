@@ -1,0 +1,12 @@
+# All contents under data/ (patient / study extracts); keep locally, not in git
+data/
+
+# Python / Quarto / OS
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.quarto/
+_quarto_output/
+.DS_Store
+*.quarto_ipynb

@@ -1,0 +1,16 @@
+project:
+  type: default
+  output-dir: _quarto_output
+
+format:
+  html:
+    toc: true
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+
+execute:
+  echo: false
+  warning: false
+
+jupyter: python3

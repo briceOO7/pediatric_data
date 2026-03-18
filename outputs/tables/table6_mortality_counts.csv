@@ -1,0 +1,4 @@
+outcome,n_events,pct_of_journeys
+24hr_mortality,3,0.78
+7d_mortality,3,0.78
+30d_mortality,5,1.3

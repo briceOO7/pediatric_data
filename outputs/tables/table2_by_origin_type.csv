@@ -1,0 +1,5 @@
+origin_type,journeys,patients,medevacs_mean,journey_hours_median
+cah_hub,71,69,1.01,79.5
+cah_outside,4,4,1.0,3.8
+village_cah,296,259,1.11,32.2
+village_hub,13,13,1.08,51.7

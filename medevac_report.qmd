@@ -1,0 +1,183 @@
+---
+title: "Pediatric medevac: descriptive report"
+subtitle: "Summary tables and figures"
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+#| include: false
+import os
+import sys
+from pathlib import Path
+
+# Quarto sets this when rendering a project; otherwise assume cwd is repo root
+_proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
+sys.path.insert(0, str(_proj / "analysis"))
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from IPython.display import Markdown, display
+
+from medevac_summaries import (
+    load_data,
+    build_table0_medevac_routes,
+    build_table1_patient_characteristics,
+    build_table1_cohort,
+    build_table2_by_origin,
+    build_table3_by_year,
+    build_timing_category_tables,
+    build_table5_timing_minutes,
+    build_table6_mortality,
+    plot_fig1_journeys_by_month,
+    plot_fig2_origin_pie,
+    plot_fig2_origin_bar,
+    plot_fig3_journey_duration,
+    plot_fig4_activation_vs_arrival_village_cah,
+    plot_fig5_medevacs_per_journey,
+    plot_fig6_medevacs_per_patient,
+)
+
+df = load_data()
+
+
+def show_tbl(d: pd.DataFrame):
+    """Render tables without the leading 0,1,2… index column."""
+    return d.style.hide(axis="index")
+```
+
+## Data
+
+Journeys come from `pediatric_medevac_journeys.csv`, merged with `pediatric_medevac_timing.csv` and `pediatric_outcomes.csv`. Village clinics use **Maniilaq community names** (see `docs/village_name_codebook.md`).
+
+## Table 0. Medevac legs by route
+
+Each **leg** is one explicit origin→destination pair on a travel authorization (up to three legs per journey). **% (n)** is percent of all legs. Every observed route is listed (no “Other” bucket).
+
+```{python}
+show_tbl(build_table0_medevac_routes())
+```
+
+## Table 1. Patient characteristics
+
+**Denominator:** unique patients (*n* = earliest medevac per patient by `medevac1_date`) for % (n) rows. The first two rows are cohort totals. Age is mean (SD) in years at first medevac. Villages are **first medevac origin** (`facility_1_name`).
+
+```{python}
+show_tbl(build_table1_patient_characteristics(df))
+```
+
+^* Add column **`AI_AN`** (1 = yes) or **`RaceDSC`** to `pediatric_patients.csv` for AI/AN row.  
+^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor shown as % (n).  
+^*** Village rows are mutually exclusive with “Non-village first site.”
+
+## Cohort overview (journeys)
+
+```{python}
+show_tbl(build_table1_cohort(df))
+```
+
+## By origin type
+
+```{python}
+show_tbl(build_table2_by_origin(df))
+```
+
+## Journeys by calendar year
+
+```{python}
+show_tbl(build_table3_by_year(df))
+```
+
+## Timing categories
+
+```{python}
+for col, tbl in build_timing_category_tables(df).items():
+    display(Markdown(f"**{col.replace('_', ' ')}**"))
+    display(show_tbl(tbl))
+```
+
+## Continuous timing (minutes)
+
+Village → CAH only:
+
+```{python}
+show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
+```
+
+All origin types:
+
+```{python}
+show_tbl(build_table5_timing_minutes(df, village_cah_only=False))
+```
+
+## Mortality (journey-level)
+
+```{python}
+_m = build_table6_mortality(df)
+show_tbl(_m if _m is not None else pd.DataFrame({"note": ["No mortality columns in outcomes."]}))
+```
+
+## Figures
+
+```{python}
+#| label: fig-monthly
+#| fig-cap: "Medevac journeys by calendar month."
+plot_fig1_journeys_by_month(df)
+```
+
+```{python}
+#| label: fig-origin-pie
+#| fig-cap: "Share of journeys by origin type."
+plot_fig2_origin_pie(df)
+```
+
+```{python}
+#| label: fig-origin-bar
+#| fig-cap: "Journey counts by origin type."
+plot_fig2_origin_bar(df)
+```
+
+```{python}
+#| label: fig-duration
+#| fig-cap: "Journey duration (hours); upper tail truncated at 99th percentile for display."
+plot_fig3_journey_duration(df)
+```
+
+```{python}
+#| label: fig-timing-scatter
+#| fig-cap: "Time to activation vs. activation to CAH arrival (village → CAH); extremes trimmed at 98th percentile."
+_f4 = plot_fig4_activation_vs_arrival_village_cah(df)
+_f4 if _f4 is not None else print("Figure skipped (missing timing columns).")
+```
+
+```{python}
+#| label: fig-n-medevacs
+#| fig-cap: "Number of medevac legs per journey."
+plot_fig5_medevacs_per_journey(df)
+```
+
+```{python}
+#| label: fig-medevacs-per-patient
+#| fig-cap: "Patients by total medevac legs (sum of legs across all journeys per MRN)."
+plot_fig6_medevacs_per_patient(df)
+```
+
+---
+
+To refresh standalone CSV/PNG files: `python analysis/medevac_summaries.py`
+
+To render this report: `quarto render medevac_report.qmd` (from the project directory).

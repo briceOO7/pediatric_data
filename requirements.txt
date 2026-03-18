@@ -1,0 +1,8 @@
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.13
+ipykernel>=6.0
+tabulate>=0.9
+# For `quarto render` (Python engine):
+pyyaml>=6.0
+jupyter>=1.0
