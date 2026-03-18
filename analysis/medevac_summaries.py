@@ -143,6 +143,8 @@ def _is_mhc_cah_destination(to_raw: object) -> bool:
     return (
         b == "CAH_01"
         or b.startswith("CAH")
+        or b.upper() == "MHC"
+        or " mhc" in f" {bl}"
         or "maniilaq health center" in bl
         or (("maniilaq" in bl) and ("health" in bl) and ("center" in bl))
     )
