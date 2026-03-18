@@ -148,6 +148,22 @@ def _is_mhc_cah_destination(to_raw: object) -> bool:
     )
 
 
+def _origin_for_leg_with_fallback(r: pd.Series, leg_idx: int) -> str:
+    """
+    Origin used for village logic for a medevac leg.
+
+    PHI extracts can encode first-leg medevac origin as a non-village facility even when
+    journey starts in a village clinic. For leg 1 only, fall back to facility_1_name.
+    """
+    fc = f"medevac{leg_idx}_from"
+    a = str(r.get(fc, "")).strip()
+    if leg_idx == 1 and (not a or _is_study_facility_origin(a)):
+        f1 = str(r.get("facility_1_name", "")).strip()
+        if f1:
+            return f1
+    return a
+
+
 def count_village_to_mhc_legs(df: pd.DataFrame) -> int:
     """Count legs where origin is a village clinic and destination is MHC (CAH)."""
     n = 0
@@ -158,7 +174,8 @@ def count_village_to_mhc_legs(df: pd.DataFrame) -> int:
                 continue
             if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
                 continue
-            a, b = str(r[fc]).strip(), str(r[tc]).strip()
+            a = _origin_for_leg_with_fallback(r, i)
+            b = str(r[tc]).strip()
             if is_village_medevac_origin(a) and _is_mhc_cah_destination(b):
                 n += 1
     return n
@@ -174,7 +191,8 @@ def filter_journeys_village_to_mhc(df: pd.DataFrame) -> pd.DataFrame:
                 continue
             if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
                 continue
-            a, b = str(r[fc]).strip(), str(r[tc]).strip()
+            a = _origin_for_leg_with_fallback(r, i)
+            b = str(r[tc]).strip()
             if is_village_medevac_origin(a) and _is_mhc_cah_destination(b):
                 return True
         return False
