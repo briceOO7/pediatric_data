@@ -2,14 +2,23 @@
 
 ## One-shot pipeline (PHI / Linux / local)
 
-From the **project root**, after `pip install -r requirements.txt` and placing `data/*.csv` (+ `mapping_data/` for the map):
+From the **project root**, after placing `data/*.csv` (+ `mapping_data/` for the map):
 
 ```bash
-python scripts/run_full_pipeline.py              # PHI (default): real data, full pipeline
-python scripts/run_full_pipeline.py -synthetic   # this machine: de-ID + village codebook
+bash scripts/run_full_pipeline.sh               # auto-creates/uses .venv, installs deps, PHI default real-data
+bash scripts/run_full_pipeline.sh -synthetic    # local de-ID + village codebook
 ```
 
 This runs **`analysis/medevac_summaries.py`** (all `outputs/tables/*.csv` and `outputs/figures/*.png`, including Figure 1 map) then **`quarto render medevac_report.qmd --to html`**. Uses **headless Matplotlib** (`MPLBACKEND=Agg`) if no display.
+
+If you prefer manual activation instead of the wrapper:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python scripts/run_full_pipeline.py
+```
 
 | Flag | Meaning |
 |------|--------|
@@ -20,7 +29,9 @@ This runs **`analysis/medevac_summaries.py`** (all `outputs/tables/*.csv` and `o
 | `--quarto-to default` | Use all formats in the `.qmd` YAML |
 | `-synthetic` / `--synthetic` | Local de-ID run: village logic from `village_name_codebook.csv`. **Omit on PHI** (default is real-data infer mode). |
 
-Shell shortcut: `bash scripts/run_full_pipeline.sh` (same args).
+Shell wrapper notes:
+- Uses active `VIRTUAL_ENV` if already set.
+- Otherwise uses `MEDEVAC_VENV_DIR` or defaults to `.venv` in repo root.
 
 ### PHI extract (full data — default)
 
