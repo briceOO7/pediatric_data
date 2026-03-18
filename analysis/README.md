@@ -82,6 +82,18 @@ pip install -r requirements.txt
 python analysis/medevac_summaries.py
 ```
 
+## PHI diagnostics (schema + pipeline readiness)
+
+If a PHI run behaves unexpectedly (e.g., empty Table 1 cohort), generate a full data inventory:
+
+```bash
+python scripts/diagnose_phi_data.py
+```
+
+Outputs:
+- `outputs/diagnostics/phi_data_diagnostic.md` (human-readable)
+- `outputs/diagnostics/phi_data_diagnostic.json` (machine-readable)
+
 ## Village names
 
 Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq community names** using rank alignment to reference journey shares. See **`docs/village_name_codebook.md`** and **`docs/village_name_codebook.csv`**. To re-apply after restoring anonymous data: `python scripts/apply_village_names.py`.
