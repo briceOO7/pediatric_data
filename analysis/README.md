@@ -119,6 +119,8 @@ Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq
 - **Table 2** (`table2_village_visit_vitals.csv`): complete-vitals rate (HR, O2, BP sys+dia, RR, Temp) by cohort/age/village.
 - **Table 2.1** (`table2_1_vitals_missingness.csv`): patient-level missingness `n(%)` for each vital measure.
 - **Table 2.2** (`table2_2_vitals_repeated.csv`): patient-level repeat rate `n(%)` with >1 value for each vital measure.
+- **Table 2.3** (`table2_3_vitals_missingness_by_age.csv`): Table 2.1 missingness, stratified by age groups.
+- **Table 2.4** (`table2_4_vitals_repeated_by_age.csv`): Table 2.2 repeated-vitals rate, stratified by age groups.
 - **Table 3** (`table3_chief_complaints_overall.csv`): top 10 village **CEDIS code + complaint** pairs per journey (first non-missing village CEDIS slot); **%** of cohort journeys. **Tables 3.1–3.4** (`table3_1` … `table3_4_chief_complaints.csv`): same within age bucket; **%** of journeys in that age group.
 - **Table 3.5** (`table3_followup_prior_visit_check.csv`): validation for **Follow-up visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
 

@@ -1,0 +1,25 @@
+Group,Patients with >1 value n(%)
+<1 year (N=63),
+  HR,9 (14.3%)
+  O2 sat,9 (14.3%)
+  BP (paired systolic+diastolic),0 (0.0%)
+  RR,9 (14.3%)
+  Temp,8 (12.7%)
+1 to <5 years (N=51),
+  HR,4 (7.8%)
+  O2 sat,4 (7.8%)
+  BP (paired systolic+diastolic),2 (3.9%)
+  RR,4 (7.8%)
+  Temp,4 (7.8%)
+5–12 years (N=63),
+  HR,9 (14.3%)
+  O2 sat,8 (12.7%)
+  BP (paired systolic+diastolic),9 (14.3%)
+  RR,9 (14.3%)
+  Temp,9 (14.3%)
+13–18 years (N=82),
+  HR,11 (13.4%)
+  O2 sat,11 (13.4%)
+  BP (paired systolic+diastolic),11 (13.4%)
+  RR,11 (13.4%)
+  Temp,11 (13.4%)

@@ -960,6 +960,134 @@ def build_table2_2_vitals_repeated(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _vital_present_sets(vit: pd.DataFrame, cm: dict[str, str]) -> dict[str, set[object]]:
+    """Patient sets with at least one value for each vital."""
+    def _has_any(col: str) -> set[object]:
+        p = _value_present_series(vit[col])
+        return set(vit.loc[p, "_mrn_k"])
+
+    p_sys = _value_present_series(vit[cm["bp_sys"]])
+    p_dia = _value_present_series(vit[cm["bp_dia"]])
+    return {
+        "HR": _has_any(cm["hr"]),
+        "O2 sat": _has_any(cm["o2"]),
+        "BP (systolic+diastolic)": set(vit.loc[p_sys & p_dia, "_mrn_k"]),
+        "RR": _has_any(cm["rr"]),
+        "Temp": _has_any(cm["temp"]),
+    }
+
+
+def _vital_repeated_sets(vit: pd.DataFrame, cm: dict[str, str]) -> dict[str, set[object]]:
+    """Patient sets with >1 value for each vital."""
+    def _rep(col: str) -> set[object]:
+        p = _value_present_series(vit[col]).astype(int)
+        c = vit.assign(_p=p).groupby("_mrn_k", dropna=False)["_p"].sum()
+        return set(c[c > 1].index)
+
+    bp_paired = (_value_present_series(vit[cm["bp_sys"]]) & _value_present_series(vit[cm["bp_dia"]])).astype(int)
+    bp_counts = vit.assign(_bp=bp_paired).groupby("_mrn_k", dropna=False)["_bp"].sum()
+    bp_rep = set(bp_counts[bp_counts > 1].index)
+    return {
+        "HR": _rep(cm["hr"]),
+        "O2 sat": _rep(cm["o2"]),
+        "BP (paired systolic+diastolic)": bp_rep,
+        "RR": _rep(cm["rr"]),
+        "Temp": _rep(cm["temp"]),
+    }
+
+
+def build_table2_3_vitals_missingness_by_age(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 2.3: patient-level missingness by vital, stratified by age group.
+    """
+    first = _first_cohort_patients(df)
+    if len(first) == 0:
+        return pd.DataFrame([{"Group": "—", "Missing n(%)": "—"}])
+    vit, cm, err = _load_vitals_for_cohort()
+    if err is not None or vit is None or cm is None:
+        return pd.DataFrame([{"Group": "Note", "Missing n(%)": f"Unable to compute ({err})"}])
+
+    cohort_mrns = set(first["_mrn_k"])
+    vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
+    present = _vital_present_sets(vit, cm)
+
+    age = pd.to_numeric(first["age_at_medevac"], errors="coerce")
+    ag = age.map(_age_bucket_key)
+    rows: list[dict[str, str]] = []
+    age_labels = [
+        ("<1 year", "b0"),
+        ("1 to <5 years", "b1"),
+        ("5–12 years", "b2"),
+        ("13–18 years", "b3"),
+    ]
+    for label, key in age_labels:
+        sub_mrns = set(first.loc[ag == key, "_mrn_k"])
+        nd = len(sub_mrns)
+        if nd == 0:
+            continue
+        rows.append({"Group": f"{label} (N={nd})", "Missing n(%)": ""})
+        for vital_label in ("HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp"):
+            n_miss = int(len(sub_mrns - present[vital_label]))
+            rows.append({"Group": f"  {vital_label}", "Missing n(%)": fmt_n_pct(n_miss, nd)})
+    sub_other = set(first.loc[ag.isna() | (ag == "other"), "_mrn_k"])
+    if len(sub_other) > 0:
+        nd = len(sub_other)
+        rows.append({"Group": f"Age missing or >18 y (N={nd})", "Missing n(%)": ""})
+        for vital_label in ("HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp"):
+            n_miss = int(len(sub_other - present[vital_label]))
+            rows.append({"Group": f"  {vital_label}", "Missing n(%)": fmt_n_pct(n_miss, nd)})
+    return pd.DataFrame(rows)
+
+
+def build_table2_4_vitals_repeated_by_age(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 2.4: patient-level repeated-vitals (>1 value) by measure, stratified by age group.
+    """
+    first = _first_cohort_patients(df)
+    if len(first) == 0:
+        return pd.DataFrame([{"Group": "—", "Patients with >1 value n(%)": "—"}])
+    vit, cm, err = _load_vitals_for_cohort()
+    if err is not None or vit is None or cm is None:
+        return pd.DataFrame(
+            [{"Group": "Note", "Patients with >1 value n(%)": f"Unable to compute ({err})"}]
+        )
+
+    cohort_mrns = set(first["_mrn_k"])
+    vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
+    repeated = _vital_repeated_sets(vit, cm)
+
+    age = pd.to_numeric(first["age_at_medevac"], errors="coerce")
+    ag = age.map(_age_bucket_key)
+    rows: list[dict[str, str]] = []
+    age_labels = [
+        ("<1 year", "b0"),
+        ("1 to <5 years", "b1"),
+        ("5–12 years", "b2"),
+        ("13–18 years", "b3"),
+    ]
+    for label, key in age_labels:
+        sub_mrns = set(first.loc[ag == key, "_mrn_k"])
+        nd = len(sub_mrns)
+        if nd == 0:
+            continue
+        rows.append({"Group": f"{label} (N={nd})", "Patients with >1 value n(%)": ""})
+        for vital_label in ("HR", "O2 sat", "BP (paired systolic+diastolic)", "RR", "Temp"):
+            n_rep = int(len(sub_mrns & repeated[vital_label]))
+            rows.append(
+                {"Group": f"  {vital_label}", "Patients with >1 value n(%)": fmt_n_pct(n_rep, nd)}
+            )
+    sub_other = set(first.loc[ag.isna() | (ag == "other"), "_mrn_k"])
+    if len(sub_other) > 0:
+        nd = len(sub_other)
+        rows.append({"Group": f"Age missing or >18 y (N={nd})", "Patients with >1 value n(%)": ""})
+        for vital_label in ("HR", "O2 sat", "BP (paired systolic+diastolic)", "RR", "Temp"):
+            n_rep = int(len(sub_other & repeated[vital_label]))
+            rows.append(
+                {"Group": f"  {vital_label}", "Patients with >1 value n(%)": fmt_n_pct(n_rep, nd)}
+            )
+    return pd.DataFrame(rows)
+
+
 def _format_cedis_code(x: object) -> object:
     """Normalize numeric-like CEDIS codes (e.g., 888.0 -> 888)."""
     if pd.isna(x):
@@ -1510,6 +1638,8 @@ def main():
     write_table(build_table2_village_visit_vitals(df_vtm), "table2_village_visit_vitals")
     write_table(build_table2_1_vitals_missingness(df_vtm), "table2_1_vitals_missingness")
     write_table(build_table2_2_vitals_repeated(df_vtm), "table2_2_vitals_repeated")
+    write_table(build_table2_3_vitals_missingness_by_age(df_vtm), "table2_3_vitals_missingness_by_age")
+    write_table(build_table2_4_vitals_repeated_by_age(df_vtm), "table2_4_vitals_repeated_by_age")
     write_table(build_table1_cohort(df_vtm), "table_cohort_overview")
     write_table(build_table2_by_origin(df_vtm), "table2_by_origin_type")
     write_table(build_table3_chief_complaints_overall(df_vtm), "table3_chief_complaints_overall")

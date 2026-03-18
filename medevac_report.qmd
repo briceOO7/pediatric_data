@@ -44,6 +44,8 @@ from medevac_summaries import (
     build_table2_village_visit_vitals,
     build_table2_1_vitals_missingness,
     build_table2_2_vitals_repeated,
+    build_table2_3_vitals_missingness_by_age,
+    build_table2_4_vitals_repeated_by_age,
     build_table3_chief_complaints_overall,
     build_table3_chief_complaints_by_age,
     build_table3_followup_prior_visit_check,
@@ -153,6 +155,22 @@ Patient-level repeat rate: >1 documented value for each measure (BP uses paired 
 
 ```{python}
 show_tbl(build_table2_2_vitals_repeated(df))
+```
+
+### Table 2.3. Vital missingness by age group
+
+Missingness (`n(%)`) by measure, stratified by Table 1 age groups.
+
+```{python}
+show_tbl(build_table2_3_vitals_missingness_by_age(df))
+```
+
+### Table 2.4. Repeated vitals by age group
+
+Patients with >1 value (`n(%)`) by measure, stratified by Table 1 age groups.
+
+```{python}
+show_tbl(build_table2_4_vitals_repeated_by_age(df))
 ```
 
 ## Table 3. Chief complaints (reason for visit)
