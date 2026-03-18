@@ -24,6 +24,7 @@ FAC_SHP = MAP_DIR / "healthcare_facilities_safetynet" / "healthcare_facilities_s
 BOROUGH_SHP = MAP_DIR / "Boroughs2020" / "Boroughs2020.shp"
 # 2020 Census DHC: under-18 count per place (refresh: scripts/fetch_maniilaq_census_pediatric.py)
 POP_CSV = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
+VILLAGE_CODEBOOK_CSV = ROOT / "docs" / "village_name_codebook.csv"
 
 # ── Label placement groups (EPSG:3338 m) ────────────────────────────────────
 # Fixed-right  : label left-edge starts to the right of the dot, vertically centered
@@ -172,10 +173,40 @@ def _is_hub_facility_medevac_origin(s: str) -> bool:
     return False
 
 
+def _is_mhc_destination_label(s: str) -> bool:
+    """Accept CAH/MHC variants for Maniilaq destination labels in PHI exports."""
+    b = str(s).strip()
+    bl = b.lower()
+    return (
+        b == "CAH_01"
+        or b.startswith("CAH")
+        or b.upper() == "MHC"
+        or " mhc" in f" {bl}"
+        or "maniilaq health center" in bl
+        or (("maniilaq" in bl) and ("health" in bl) and ("center" in bl))
+    )
+
+
 def _canonical_census_village(origin: str, census: frozenset[str]) -> str | None:
     a = str(origin).strip()
     if a in census:
         return a
+    # Local synthetic fallback: Village_* placeholders -> community names.
+    if a.startswith("Village_") and VILLAGE_CODEBOOK_CSV.is_file():
+        try:
+            cb = pd.read_csv(VILLAGE_CODEBOOK_CSV)
+            m = dict(
+                zip(
+                    cb["anonymous_code"].astype(str),
+                    cb["community_name"].astype(str),
+                    strict=True,
+                )
+            )
+            b = m.get(a)
+            if b in census:
+                return b
+        except Exception:
+            pass
     by_lower = {n.lower(): n for n in census}
     return by_lower.get(a.lower())
 
@@ -196,7 +227,13 @@ def _village_to_mhc_leg_counts(
             if pd.isna(r[fc]) or pd.isna(r[tc]):
                 continue
             a, b = str(r[fc]).strip(), str(r[tc]).strip()
-            if not (b == "CAH_01" or b.startswith("CAH_")):
+            # PHI fallback: first leg origin may be encoded as non-village medevac origin
+            # while facility_1_name still records the village clinic start.
+            if i == 1 and (not a or _is_hub_facility_medevac_origin(a)):
+                f1 = str(r.get("facility_1_name", "")).strip()
+                if f1:
+                    a = f1
+            if not _is_mhc_destination_label(b):
                 continue
             if infer:
                 if _is_hub_facility_medevac_origin(a) or census is None:

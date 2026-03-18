@@ -42,6 +42,8 @@ from medevac_summaries import (
     build_table0_medevac_routes,
     build_table1_patient_characteristics,
     build_table2_village_visit_vitals,
+    build_table2_1_vitals_missingness,
+    build_table2_2_vitals_repeated,
     build_table3_chief_complaints_overall,
     build_table3_chief_complaints_by_age,
     build_table3_followup_prior_visit_check,
@@ -59,6 +61,7 @@ from medevac_summaries import (
     plot_fig4_activation_vs_arrival_village_cah,
     plot_fig5_medevacs_per_journey,
     plot_fig6_medevacs_per_patient,
+    plot_fig7_journeys_per_patient,
 )
 
 _df_all = load_data()
@@ -90,10 +93,12 @@ show_tbl(build_table0_medevac_routes())
 #| fig-height: 6.5
 #| out-width: 100%
 #| fig-align: center
-# Avoid duplicate map: interactive mode would show the figure on subplots() and again on return.
+# Avoid duplicate map display by explicitly rendering once then closing.
 plt.ioff()
 plt.close("all")
-plot_fig1_medevac_activation_map(_df_all)
+_map_fig = plot_fig1_medevac_activation_map(_df_all)
+display(_map_fig)
+plt.close(_map_fig)
 ```
 
 ```{python}
@@ -115,17 +120,14 @@ show_tbl(build_table1_patient_characteristics(df))
 ^* On PHI, populate **`AI_AN`** (1 = yes) or **`RaceDSC`** on `pediatric_patients.csv`. De-ID / synthetic runs may show NR until added.
 ^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor as % (n). Expected on full PHI extract.
 
-## Figure 2. Number of Medevacs per Patient, 2020-2024
+## Figure 2. Number of Journeys per Patient
 
 ```{python}
-#| label: fig2-medevacs-per-patient-2020-2024
-#| fig-cap: "Histogram of total medevac legs per patient, restricted to journeys in 2020-2024."
-plot_fig6_medevacs_per_patient(
+#| label: fig2-journeys-per-patient-village-mhc
+#| fig-cap: "Histogram of number of journeys per patient (distinct journey_id per MRN) in the village→MHC cohort."
+plot_fig7_journeys_per_patient(
     df,
-    start_year=2020,
-    end_year=2024,
-    title="Number of Medevacs per Patient, 2020-2024",
-    village_to_mhc_only=True,
+    title="Number of Journeys per Patient",
 )
 ```
 
@@ -135,6 +137,22 @@ plot_fig6_medevacs_per_patient(
 
 ```{python}
 show_tbl(build_table2_village_visit_vitals(df))
+```
+
+### Table 2.1. Vital missingness by measure
+
+Patient-level missingness for each vital: no documented value for that measure in any village-visit row.
+
+```{python}
+show_tbl(build_table2_1_vitals_missingness(df))
+```
+
+### Table 2.2. Repeated vitals by measure
+
+Patient-level repeat rate: >1 documented value for each measure (BP uses paired systolic+diastolic rows).
+
+```{python}
+show_tbl(build_table2_2_vitals_repeated(df))
 ```
 
 ## Table 3. Chief complaints (reason for visit)

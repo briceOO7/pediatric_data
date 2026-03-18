@@ -692,6 +692,47 @@ def _mrns_complete_village_vitals(vitals: pd.DataFrame, cm: dict[str, str]) -> s
     return out
 
 
+def _value_present_series(s: pd.Series) -> pd.Series:
+    """True for non-missing/non-blank values."""
+    if s.dtype == object:
+        return s.notna() & (s.astype(str).str.strip() != "")
+    return s.notna()
+
+
+def _first_cohort_patients(df: pd.DataFrame) -> pd.DataFrame:
+    """One row per patient from earliest qualifying journey, with normalized MRN key."""
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    j["medevac1_date"] = pd.to_datetime(j["medevac1_date"], errors="coerce")
+    first = j.sort_values("medevac1_date").groupby("MRN", as_index=False).first()
+    first["_mrn_k"] = first["MRN"].map(_mrn_normalize)
+    return first[first["_mrn_k"].notna()].copy()
+
+
+def _load_vitals_for_cohort() -> tuple[pd.DataFrame | None, dict[str, str] | None, str | None]:
+    """
+    Load vitals file and return (vitals_df, column_map, error_note).
+    error_note is None when successful.
+    """
+    vpath = vitals_csv_path()
+    if not vpath.is_file():
+        return None, None, "no vitals file"
+    vit = pd.read_csv(vpath, low_memory=False)
+    cm = _vital_column_map(vit)
+    if cm is None:
+        return vit, None, "missing required vital columns"
+    mrn_col = _pick_vitals_col(vit, _MRN_ALIASES)
+    if not mrn_col:
+        return vit, cm, "missing MRN column"
+    vit["_mrn_k"] = vit[mrn_col].map(_mrn_normalize)
+    vit = vit[vit["_mrn_k"].notna()].copy()
+    # Prefer village rows when phase metadata exists.
+    if "facility_phase" in vit.columns:
+        phase = vit["facility_phase"].astype(str).str.lower()
+        if phase.str.contains("village", na=False).any():
+            vit = vit[phase.str.contains("village", na=False)].copy()
+    return vit, cm, None
+
+
 def _age_bucket_key(a: float) -> str | None:
     if pd.isna(a):
         return None
@@ -838,6 +879,84 @@ def build_table2_village_visit_vitals(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
+    return pd.DataFrame(rows)
+
+
+def build_table2_1_vitals_missingness(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 2.1: n(%) of cohort patients missing each vital at village visit.
+    Missing = no documented value for that vital in any village-visit row.
+    """
+    first = _first_cohort_patients(df)
+    n_pat = len(first)
+    if n_pat == 0:
+        return pd.DataFrame([{"Vital": "—", "Missing n(%)": "—"}])
+    vit, cm, err = _load_vitals_for_cohort()
+    if err is not None or vit is None or cm is None:
+        return pd.DataFrame([{"Vital": "Note", "Missing n(%)": f"Unable to compute ({err})"}])
+
+    cohort_mrns = set(first["_mrn_k"])
+    vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
+    def has_any(col: str) -> set[object]:
+        p = _value_present_series(vit[col])
+        return set(vit.loc[p, "_mrn_k"])
+
+    present_hr = has_any(cm["hr"])
+    present_o2 = has_any(cm["o2"])
+    present_rr = has_any(cm["rr"])
+    present_temp = has_any(cm["temp"])
+    p_sys = _value_present_series(vit[cm["bp_sys"]])
+    p_dia = _value_present_series(vit[cm["bp_dia"]])
+    present_bp = set(vit.loc[p_sys & p_dia, "_mrn_k"])
+
+    rows: list[dict[str, str]] = []
+    for label, present in [
+        ("HR", present_hr),
+        ("O2 sat", present_o2),
+        ("BP (systolic+diastolic)", present_bp),
+        ("RR", present_rr),
+        ("Temp", present_temp),
+    ]:
+        n_miss = int(len(cohort_mrns - present))
+        rows.append({"Vital": label, "Missing n(%)": fmt_n_pct(n_miss, n_pat)})
+    return pd.DataFrame(rows)
+
+
+def build_table2_2_vitals_repeated(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 2.2: n(%) of cohort patients with >1 value for each vital at village visit.
+    For BP, count repeated paired sets where systolic and diastolic are both present.
+    """
+    first = _first_cohort_patients(df)
+    n_pat = len(first)
+    if n_pat == 0:
+        return pd.DataFrame([{"Vital": "—", "Patients with >1 value n(%)": "—"}])
+    vit, cm, err = _load_vitals_for_cohort()
+    if err is not None or vit is None or cm is None:
+        return pd.DataFrame(
+            [{"Vital": "Note", "Patients with >1 value n(%)": f"Unable to compute ({err})"}]
+        )
+
+    cohort_mrns = set(first["_mrn_k"])
+    vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
+
+    def repeated_count(col: str) -> int:
+        p = _value_present_series(vit[col]).astype(int)
+        c = vit.assign(_p=p).groupby("_mrn_k", dropna=False)["_p"].sum()
+        return int((c > 1).sum())
+
+    # BP repeated paired rows (both systolic + diastolic present)
+    bp_paired = (_value_present_series(vit[cm["bp_sys"]]) & _value_present_series(vit[cm["bp_dia"]])).astype(int)
+    bp_counts = vit.assign(_bp=bp_paired).groupby("_mrn_k", dropna=False)["_bp"].sum()
+    bp_rep = int((bp_counts > 1).sum())
+
+    rows = [
+        {"Vital": "HR", "Patients with >1 value n(%)": fmt_n_pct(repeated_count(cm["hr"]), n_pat)},
+        {"Vital": "O2 sat", "Patients with >1 value n(%)": fmt_n_pct(repeated_count(cm["o2"]), n_pat)},
+        {"Vital": "BP (paired systolic+diastolic)", "Patients with >1 value n(%)": fmt_n_pct(bp_rep, n_pat)},
+        {"Vital": "RR", "Patients with >1 value n(%)": fmt_n_pct(repeated_count(cm["rr"]), n_pat)},
+        {"Vital": "Temp", "Patients with >1 value n(%)": fmt_n_pct(repeated_count(cm["temp"]), n_pat)},
+    ]
     return pd.DataFrame(rows)
 
 
@@ -1334,6 +1453,30 @@ def plot_fig6_medevacs_per_patient(
     return fig
 
 
+def plot_fig7_journeys_per_patient(df: pd.DataFrame, title: str | None = None) -> plt.Figure:
+    """Histogram: number of journeys per patient (distinct journey_id per MRN)."""
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    per = j.groupby("MRN", as_index=False)["journey_id"].nunique()
+    x = pd.to_numeric(per["journey_id"], errors="coerce").dropna().astype(int)
+    if x.empty:
+        fig, ax = plt.subplots()
+        ax.axis("off")
+        ax.set_title(title or "Number of journeys per patient")
+        ax.text(0.5, 0.5, "No journeys available.", ha="center", va="center")
+        fig.tight_layout()
+        return fig
+    xmax = int(x.max())
+    fig, ax = plt.subplots()
+    bins = range(1, xmax + 2)
+    ax.hist(x, bins=bins, align="left", rwidth=0.85, color="steelblue", edgecolor="white")
+    ax.set_xticks(range(1, xmax + 1))
+    ax.set_xlabel("Journeys per patient")
+    ax.set_ylabel("Patients")
+    ax.set_title(title or "Number of journeys per patient")
+    fig.tight_layout()
+    return fig
+
+
 def save_all_figures(df: pd.DataFrame) -> None:
     OUT_FIGS.mkdir(parents=True, exist_ok=True)
     specs = [
@@ -1365,6 +1508,8 @@ def main():
     df_vtm = filter_journeys_village_to_mhc(df_all)
     write_table(build_table1_patient_characteristics(df_vtm), "table1_patient_characteristics")
     write_table(build_table2_village_visit_vitals(df_vtm), "table2_village_visit_vitals")
+    write_table(build_table2_1_vitals_missingness(df_vtm), "table2_1_vitals_missingness")
+    write_table(build_table2_2_vitals_repeated(df_vtm), "table2_2_vitals_repeated")
     write_table(build_table1_cohort(df_vtm), "table_cohort_overview")
     write_table(build_table2_by_origin(df_vtm), "table2_by_origin_type")
     write_table(build_table3_chief_complaints_overall(df_vtm), "table3_chief_complaints_overall")
