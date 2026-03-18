@@ -1,0 +1,4 @@
+group,journeys_n,with_prior_visit_n,with_prior_visit_pct
+Follow-up visit (CEDIS 888),61,19,31.1
+All other chief complaints with CEDIS,189,53,28.0
+All cohort journeys,296,83,28.0

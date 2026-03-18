@@ -25,24 +25,33 @@ BOROUGH_SHP = MAP_DIR / "Boroughs2020" / "Boroughs2020.shp"
 # 2020 Census DHC: under-18 count per place (refresh: scripts/fetch_maniilaq_census_pediatric.py)
 POP_CSV = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
 
-# Label center in EPSG:3338 m: from village, move (along) away from Kotzebue along hub→village ray,
-# then (perp) along perpendicular (m) to separate neighbors. No leader lines — box sits near its village.
-_VILLAGE_LABEL_ALONG_PERP_M: dict[str, tuple[float, float]] = {
-    "Point Hope": (45_000, -12_000),
-    "Kivalina": (26_000, -38_000),
-    "Selawik": (44_000, 32_000),
-    "Noorvik": (18_000, -28_000),
-    "Kiana": (38_000, 24_000),
-    "Ambler": (24_000, -18_000),
-    "Kobuk": (20_000, 16_000),
-    "Shungnak": (18_000, -14_000),
-    "Noatak": (48_000, 8000),
-    "Deering": (40_000, -26_000),
-    "Buckland": (30_000, 26_000),
+# ── Label placement groups (EPSG:3338 m) ────────────────────────────────────
+# Fixed-right  : label left-edge starts to the right of the dot, vertically centered
+_LABEL_FIXED_RIGHT: frozenset[str] = frozenset({"Point Hope", "Kivalina", "Noatak", "Buckland"})
+# Fixed-above  : label centered above the dot
+_LABEL_FIXED_ABOVE: frozenset[str] = frozenset({"Deering", "Kiana", "Ambler"})
+# Fixed-below  : label centered below the dot
+_LABEL_FIXED_BELOW: frozenset[str] = frozenset({"Selawik", "Shungnak"})
+# Fixed-below, right-aligned to dot centre (right margin = dot x)
+_LABEL_FIXED_BELOW_RIGHT: frozenset[str] = frozenset({"Noorvik"})
+# Radial placement with a thin leader line drawn to the dot
+# (Kobuk placed above-left of Ambler label area, line drawn back to Kobuk dot)
+
+_LABEL_OFFSET_RIGHT_M: float = 8_000.0    # gap from dot centre to text left edge
+_LABEL_OFFSET_VERT_M: float  = 4_000.0    # gap from dot centre to text top/bottom
+
+# Radial placement for leader-line villages: not used for Kobuk (special override below)
+_VILLAGE_LABEL_ALONG_PERP_M: dict[str, tuple[float, float]] = {}
+
+# Villages whose label is placed at a fixed absolute offset (dx, dy in m) from their dot,
+# with a leader line drawn. Format: name -> (dx_m, dy_m, ha, va)
+_VILLAGE_LABEL_ABSOLUTE_OFFSET_M: dict[str, tuple[float, float, str, str]] = {
+    "Kobuk": (0.0, 50_000.0, "center", "bottom"),
 }
 
 # Borough label nudge in EPSG:3338 m (east, north) after viewport clip
 _BOROUGH_LABEL_OFFSET_M: dict[str, tuple[float, float]] = {
+    "Northwest Arctic Borough": (0.0, 14_000.0),  # (east, north) m — nudge label north
     "North Slope Borough": (0.0, 14_000.0),
 }
 
@@ -146,26 +155,68 @@ def _borough_label_point_in_view(
     return best.representative_point()
 
 
-def _village_to_mhc_leg_counts(j: pd.DataFrame, village_names: set[str]) -> Counter[str]:
+def _census_village_names_excl_hub() -> frozenset[str]:
+    """Community names with pediatric census rows (excl. Kotzebue = hub)."""
+    pop = pd.read_csv(POP_CSV)
+    return frozenset(pop["NAME"].astype(str).str.strip()) - {"Kotzebue"}
+
+
+def _is_hub_facility_medevac_origin(s: str) -> bool:
+    """Same facility-code rule as medevac_summaries._is_study_facility_origin."""
+    t = str(s).strip()
+    if not t:
+        return True
+    u = t.upper().replace("_", "")
+    if u.startswith("CAH") or u.startswith("HUB") or "OUTSIDEHOSPITAL" in u:
+        return True
+    return False
+
+
+def _canonical_census_village(origin: str, census: frozenset[str]) -> str | None:
+    a = str(origin).strip()
+    if a in census:
+        return a
+    by_lower = {n.lower(): n for n in census}
+    return by_lower.get(a.lower())
+
+
+def _village_to_mhc_leg_counts(
+    j: pd.DataFrame,
+    village_names: set[str],
+    *,
+    infer: bool = False,
+) -> Counter[str]:
     """Count medevac legs originating at village clinic with destination CAH (MHC)."""
     c: Counter[str] = Counter()
     j = j.drop_duplicates(subset=["journey_id"])
+    census = _census_village_names_excl_hub() if infer else None
     for i in range(1, 4):
         fc, tc = f"medevac{i}_from", f"medevac{i}_to"
         for _, r in j.iterrows():
             if pd.isna(r[fc]) or pd.isna(r[tc]):
                 continue
             a, b = str(r[fc]).strip(), str(r[tc]).strip()
-            if a in village_names and (b == "CAH_01" or b.startswith("CAH_")):
-                c[a] += 1
+            if not (b == "CAH_01" or b.startswith("CAH_")):
+                continue
+            if infer:
+                if _is_hub_facility_medevac_origin(a) or census is None:
+                    continue
+                key = _canonical_census_village(a, census)
+                if key is None:
+                    continue
+                a = key
+            elif a not in village_names:
+                continue
+            c[a] += 1
     return c
 
 
 def plot_fig1_medevac_map(
     journeys: pd.DataFrame,
-    village_names: set[str],
+    village_names: set[str] | None,
     *,
-    figsize: tuple[float, float] = (16, 16),
+    infer: bool = False,
+    figsize: tuple[float, float] | None = None,
 ) -> plt.Figure:
     import geopandas as gpd
     from shapely.geometry import LineString, Point
@@ -183,7 +234,22 @@ def plot_fig1_medevac_map(
         ax.set_axis_off()
         return fig
 
-    counts = _village_to_mhc_leg_counts(journeys, village_names)
+    if infer:
+        village_names = set(_census_village_names_excl_hub())
+    elif not village_names:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(
+            0.5,
+            0.5,
+            "village_names required when infer=False.",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        ax.set_axis_off()
+        return fig
+
+    counts = _village_to_mhc_leg_counts(journeys, village_names, infer=infer)
     fac = gpd.read_file(FAC_SHP)
     man_full = fac[fac["ManagingOr"] == "Maniilaq Association"].copy()
     man_full = man_full.rename(columns={"CommunityN": "NAME"})
@@ -260,6 +326,15 @@ def plot_fig1_medevac_map(
 
     # Map extent (EPSG:3338 m) — same values later applied with set_xlim/set_ylim
     bx0, bx1, by0, by1 = _map_bounds_manuscript(man_full_g)
+    _dw = max(bx1 - bx0, 1.0)
+    _dh = max(by1 - by0, 1.0)
+    _geo_aspect = _dw / _dh
+    # Figure aspect ≈ map aspect so equal-aspect data fills the canvas (no huge letterboxing).
+    if figsize is None:
+        _h = 9.2
+        _w_map = _h * _geo_aspect
+        _w_cbar = max(0.9, min(1.45, 0.06 * _w_map + 0.85))
+        figsize = (_w_map + _w_cbar, _h + 0.95)
 
     fig, ax = plt.subplots(figsize=figsize)
     fs_title, fs_cbar_lbl, fs_cbar_tick = 17, 13, 11
@@ -305,35 +380,6 @@ def plot_fig1_medevac_map(
         line = LineString([vg, hub_pt])
         ax.plot(*line.xy, color=line_col, linewidth=lw, alpha=alpha, zorder=4, solid_capstyle="round")
 
-    for _, row in non_kot.iterrows():
-        vg = row.geometry
-        if not isinstance(vg, Point):
-            vg = vg.centroid
-        nleg = int(row["medevac_count"])
-        dot_col = gs_cmap(rate_norm(np.clip(row["rate_per_1k"], colorbar_min, colorbar_max)))
-        if nleg < 1:
-            dot_col = (0.85, 0.85, 0.85)
-        ax.scatter(
-            vg.x,
-            vg.y,
-            s=marker_size(float(row["pediatric_pop"])),
-            c=[dot_col],
-            edgecolors="white",
-            linewidths=0.8,
-            zorder=5,
-        )
-
-    ax.scatter(
-        hub_pt.x,
-        hub_pt.y,
-        s=2400,
-        c="black",
-        edgecolors="white",
-        linewidths=1.5,
-        zorder=6,
-        marker="s",
-    )
-
     def _village_verbose_label(r: pd.Series) -> str:
         name = str(r["NAME"])
         ped = r.get("pediatric_pop_census")
@@ -350,44 +396,33 @@ def plot_fig1_medevac_map(
             f"{pct_s}% of children w/ medevac per year"
         )
 
+    # ── Village dots ─────────────────────────────────────────────────────────
     for _, row in non_kot.iterrows():
-        name = str(row["NAME"])
         vg = row.geometry
         if not isinstance(vg, Point):
             vg = vg.centroid
-        tcx, tcy = _village_label_center_xy(
-            float(vg.x),
-            float(vg.y),
-            float(hub_pt.x),
-            float(hub_pt.y),
-            name,
-            bx0,
-            bx1,
-            by0,
-            by1,
+        nleg = int(row["medevac_count"])
+        dot_col = gs_cmap(rate_norm(np.clip(row["rate_per_1k"], colorbar_min, colorbar_max)))
+        if nleg < 1:
+            dot_col = (0.85, 0.85, 0.85)
+        ax.scatter(
+            vg.x, vg.y,
+            s=marker_size(float(row["pediatric_pop"])),
+            c=[dot_col],
+            edgecolors="white",
+            linewidths=0.8,
+            zorder=10,
         )
-        ax.annotate(
-            _village_verbose_label(row),
-            xy=(float(vg.x), float(vg.y)),
-            xytext=(tcx, tcy),
-            textcoords="data",
-            ha="center",
-            va="center",
-            fontsize=fs_village,
-            linespacing=1.1,
-            bbox=dict(
-                boxstyle="round,pad=0.26",
-                facecolor="white",
-                edgecolor="0.55",
-                alpha=0.93,
-                linewidth=0.45,
-            ),
-            zorder=7,
-        )
+
+    # Hub marker removed — Kotzebue is identified by its text label only
+
+    ax.set_xlim(bx0, bx1)
+    ax.set_ylim(by0, by1)
+    ax.set_aspect("equal")
 
     sm = plt.cm.ScalarMappable(cmap=gs_cmap, norm=rate_norm)
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=ax, shrink=0.45, pad=0.02)
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.72, pad=0.015, aspect=22)
     cbar.set_label(
         "Medevac legs to MHC per 1,000 residents under 18 (2020 Census)",
         fontsize=fs_cbar_lbl,
@@ -397,7 +432,7 @@ def plot_fig1_medevac_map(
     ax.set_title(
         "Figure 1. Pediatric medevac activations to Maniilaq Health Center by village clinic",
         fontsize=fs_title,
-        pad=14,
+        pad=8,
     )
     ax.set_xlabel("Alaska Albers (m)", fontsize=fs_xlab)
     ax.set_ylabel("")
@@ -405,40 +440,215 @@ def plot_fig1_medevac_map(
 
     from matplotlib.lines import Line2D
 
-    leg = ax.legend(
-        handles=[
-            Line2D([0], [0], color="0.4", lw=2.2, label="Thicker line = more MHC-bound legs"),
-            Line2D(
-                [0],
-                [0],
-                marker="o",
-                color="w",
-                markerfacecolor="0.5",
-                markersize=11,
-                label="Larger dot = more residents <18 (2020 Census)",
-            ),
-            Line2D(
-                [0],
-                [0],
-                marker="s",
-                color="w",
-                markerfacecolor="black",
-                markeredgecolor="white",
-                markeredgewidth=0.8,
-                markersize=10,
-                linestyle="None",
-                label="MHC (Kotzebue)",
-            ),
-        ],
-        loc="lower left",
-        fontsize=fs_leg,
+    # Legend: min / midpoint / max counts from data — linewidths match map via leg_lw()
+    if len(mc_pos) == 0:
+        legend_ns = [0]
+    else:
+        n_lo = int(mc_pos.min())
+        n_hi = int(mc_pos.max())
+        if n_lo == n_hi:
+            legend_ns = [n_lo]
+        else:
+            n_mid = (n_lo + n_hi) // 2
+            if n_mid <= n_lo:
+                n_mid = n_lo + 1
+            if n_mid >= n_hi:
+                n_mid = n_hi - 1
+            if n_lo < n_mid < n_hi:
+                legend_ns = [n_lo, n_mid, n_hi]
+            else:
+                legend_ns = [n_lo, n_hi]
+
+    leg_handles = [
+        Line2D(
+            [0],
+            [0],
+            color="0.35",
+            lw=leg_lw(n),
+            label=f"n = {n} medevac legs",
+            solid_capstyle="round",
+        )
+        for n in legend_ns
+    ]
+    ax.legend(
+        handles=leg_handles,
+        loc="upper right",
+        fontsize=fs_leg + 1,
         framealpha=0.95,
+        title="Route volume",
+        title_fontsize=fs_leg + 2,
+        handlelength=5.5,
+        handleheight=2.8,
+        labelspacing=1.15,
+        borderpad=1.15,
+        handletextpad=1.4,
+        borderaxespad=0.8,
     )
 
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.03)
+    fig.canvas.draw()
+
+    _EDGE_LW = 0.8
+    _LABEL_GAP_PTS = 2.8
+
+    def _scatter_r_pts(s_area: float) -> float:
+        """Scatter marker radius + half edge stroke, display points."""
+        return float(np.sqrt(max(s_area, 1.0) / np.pi)) + _EDGE_LW * 0.5
+
+    def _anchor_east_of_dot(ax_, vx: float, vy: float, s_area: float) -> tuple[float, float]:
+        """Left edge of text (ha=left) just outside right side of marker."""
+        r = _scatter_r_pts(s_area) + _LABEL_GAP_PTS
+        cx, cy = ax_.transData.transform((vx, vy))
+        xd, yd = cx + r, cy
+        out = ax_.transData.inverted().transform((xd, yd))
+        return float(out[0]), float(out[1])
+
+    def _anchor_along_data_y(
+        ax_, vx: float, vy: float, s_area: float, sign: float
+    ) -> tuple[float, float]:
+        """Move from dot center along ±data Y by (r+gap) in display space."""
+        r = _scatter_r_pts(s_area) + _LABEL_GAP_PTS
+        p0 = np.array(ax_.transData.transform((vx, vy)))
+        p1 = np.array(ax_.transData.transform((vx, vy + sign * 50_000.0)))
+        u = p1 - p0
+        n = float(np.linalg.norm(u)) or 1.0
+        u = u / n
+        out = p0 + u * r
+        inv = ax_.transData.inverted().transform((float(out[0]), float(out[1])))
+        return float(inv[0]), float(inv[1])
+
+    def _anchor_southeast_of_dot(ax_, vx: float, vy: float, s_area: float) -> tuple[float, float]:
+        """Top-right corner of text (ha=right, va=top) just outside SE of marker."""
+        r = _scatter_r_pts(s_area) + _LABEL_GAP_PTS
+        p0 = np.array(ax_.transData.transform((vx, vy)))
+        ue = np.array([1.0, 0.0])
+        vs = np.array([0.0, 1.0])
+        u = ue + vs
+        u = u / (float(np.linalg.norm(u)) or 1.0)
+        out = p0 + u * r
+        inv = ax_.transData.inverted().transform((float(out[0]), float(out[1])))
+        return float(inv[0]), float(inv[1])
+
+    def _edge_on_ray_to(ax_, vx: float, vy: float, tx: float, ty: float, s_area: float) -> tuple[float, float]:
+        """Point on marker rim toward (tx, ty), data coords."""
+        r = _scatter_r_pts(s_area) + 0.5
+        p0 = np.array(ax_.transData.transform((vx, vy)))
+        p1 = np.array(ax_.transData.transform((tx, ty)))
+        d = p1 - p0
+        L = float(np.linalg.norm(d))
+        if L < 1e-9:
+            d = np.array([1.0, 0.0])
+            L = 1.0
+        u = d / L
+        out = p0 + u * r
+        inv = ax_.transData.inverted().transform((float(out[0]), float(out[1])))
+        return float(inv[0]), float(inv[1])
+
+    def _push_label_outside_dot(
+        ax_, vx: float, vy: float, tcx: float, tcy: float, s_area: float
+    ) -> tuple[float, float]:
+        """Ensure label center (tcx,tcy) is at least (r+gap) from dot in display."""
+        r = _scatter_r_pts(s_area) + _LABEL_GAP_PTS
+        p0 = np.array(ax_.transData.transform((vx, vy)))
+        p1 = np.array(ax_.transData.transform((tcx, tcy)))
+        d = p1 - p0
+        L = float(np.linalg.norm(d))
+        if L < r:
+            u = d / (L if L > 1e-9 else 1.0) if L > 1e-9 else np.array([1.0, 0.0])
+            p1 = p0 + u * r
+        inv = ax_.transData.inverted().transform((float(p1[0]), float(p1[1])))
+        return float(inv[0]), float(inv[1])
+
+    # ── Village labels (anchor touches marker rim, no overlap) ───────────────
+    adjustable_texts: list = []
+    adjustable_anchor_x: list[float] = []
+    adjustable_anchor_y: list[float] = []
+
+    _LABEL_Z = 13
+
+    def _txt_kwargs(ha: str, va: str) -> dict:
+        return dict(
+            ha=ha, va=va,
+            fontsize=fs_village,
+            linespacing=1.1,
+            bbox=dict(
+                boxstyle="round,pad=0.26",
+                facecolor="white",
+                edgecolor="0.55",
+                alpha=1.0,
+                linewidth=0.45,
+            ),
+            zorder=_LABEL_Z,
+        )
+
+    for _, row in non_kot.iterrows():
+        name = str(row["NAME"])
+        vg = row.geometry
+        if not isinstance(vg, Point):
+            vg = vg.centroid
+        vx, vy = float(vg.x), float(vg.y)
+        lbl = _village_verbose_label(row)
+        s_area = float(marker_size(float(row["pediatric_pop"])))
+
+        if name in _LABEL_FIXED_RIGHT:
+            tx, ty = _anchor_east_of_dot(ax, vx, vy, s_area)
+            ax.text(tx, ty, lbl, **_txt_kwargs("left", "center"))
+
+        elif name in _LABEL_FIXED_ABOVE:
+            tx, ty = _anchor_along_data_y(ax, vx, vy, s_area, +1.0)
+            ax.text(tx, ty, lbl, **_txt_kwargs("center", "bottom"))
+
+        elif name in _LABEL_FIXED_BELOW:
+            tx, ty = _anchor_along_data_y(ax, vx, vy, s_area, -1.0)
+            ax.text(tx, ty, lbl, **_txt_kwargs("center", "top"))
+
+        elif name in _LABEL_FIXED_BELOW_RIGHT:
+            tx, ty = _anchor_southeast_of_dot(ax, vx, vy, s_area)
+            ax.text(tx, ty, lbl, **_txt_kwargs("right", "top"))
+
+        elif name in _VILLAGE_LABEL_ABSOLUTE_OFFSET_M:
+            dx, dy, ha, va = _VILLAGE_LABEL_ABSOLUTE_OFFSET_M[name]
+            tcx, tcy = vx + dx, vy + dy
+            tcx, tcy = _push_label_outside_dot(ax, vx, vy, tcx, tcy, s_area)
+            ex, ey = _edge_on_ray_to(ax, vx, vy, tcx, tcy, s_area)
+            ax.plot([ex, tcx], [ey, tcy], color="0.45", lw=0.8, alpha=0.65, zorder=6)
+            ax.text(tcx, tcy, lbl, **_txt_kwargs(ha, va))
+
+        else:
+            tcx, tcy = _village_label_center_xy(vx, vy, float(hub_pt.x), float(hub_pt.y),
+                                                 name, bx0, bx1, by0, by1)
+            tcx, tcy = _push_label_outside_dot(ax, vx, vy, tcx, tcy, s_area)
+            ex, ey = _edge_on_ray_to(ax, vx, vy, tcx, tcy, s_area)
+            ax.plot([ex, tcx], [ey, tcy], color="0.45", lw=0.8, alpha=0.65, zorder=6)
+            txt = ax.text(tcx, tcy, lbl, **_txt_kwargs("center", "center"))
+            adjustable_texts.append(txt)
+            adjustable_anchor_x.append(vx)
+            adjustable_anchor_y.append(vy)
+
+    fig.canvas.draw()
+
+    if adjustable_texts:
+        try:
+            from adjustText import adjust_text
+
+            adjust_text(
+                adjustable_texts,
+                x=adjustable_anchor_x,
+                y=adjustable_anchor_y,
+                ax=ax,
+                ensure_inside_axes=True,
+                expand_axes=False,
+                expand=(1.12, 1.4),
+                force_text=(0.25, 0.4),
+                force_pull=(0.04, 0.08),
+                iter_lim=350,
+            )
+        except (ImportError, ValueError):
+            pass
+
+    # Restore bounds (adjustText can drift them slightly)
     ax.set_xlim(bx0, bx1)
     ax.set_ylim(by0, by1)
-    ax.set_aspect("equal")
-    fig.tight_layout()
 
     ax.annotate(
         "Maniilaq Health Center\n(Kotzebue)",
@@ -454,10 +664,10 @@ def plot_fig1_medevac_map(
             boxstyle="round,pad=0.22",
             facecolor="white",
             edgecolor="0.35",
-            alpha=0.96,
+            alpha=1.0,
             linewidth=0.6,
         ),
-        zorder=12,
+        zorder=14,
     )
 
     return fig

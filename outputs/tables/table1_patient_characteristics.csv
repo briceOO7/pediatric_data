@@ -1,24 +1,24 @@
 characteristic,value
-Unique patients,334
-Unique medevac records (distinct IDs),418
-Female sex,45.2 (151)
+Unique patients,259
+Village→CAH medevac records (distinct IDs),296
+Female sex,123 (47.5%)
 American Indian / Alaska Native,NR — add AI_AN (1=yes) or RaceDSC to pediatric_patients.csv
 Insurance (PrimaryPayorNM),NR — add PrimaryPayorNM to pediatric_patients.csv (PHI sync)
-"Age at first medevac, y, mean (SD)",7.8 (6.4)
-<1 year,22.8 (76)
-1 to <5 years,20.4 (68)
-5–12 years,24.6 (82)
-13–18 years,32.3 (108)
-Origin village at first medevac***,
-Ambler,2.1 (7)
-Buckland,11.7 (39)
-Deering,2.4 (8)
-Kiana,4.5 (15)
-Kivalina,6.9 (23)
-Kobuk,1.8 (6)
-Noatak,4.8 (16)
-Noorvik,9.9 (33)
-Point Hope,18.0 (60)
-Selawik,14.4 (48)
-Shungnak,3.6 (12)
-Non-village first site (e.g. CAH),20.1 (67)
+"Age at first medevac, y, mean (SD)",7.7 (6.5)
+"Age Groups, n(%)",
+  <1 year,63 (24.3%)
+  1 to <5 years,51 (19.7%)
+  5–12 years,63 (24.3%)
+  13–18 years,82 (31.7%)
+"Origin Village, n(%)",
+  Point Hope,58 (22.4%)
+  Selawik,46 (17.8%)
+  Buckland,34 (13.1%)
+  Noorvik,34 (13.1%)
+  Kivalina,23 (8.9%)
+  Noatak,16 (6.2%)
+  Kiana,15 (5.8%)
+  Shungnak,12 (4.6%)
+  Deering,8 (3.1%)
+  Ambler,7 (2.7%)
+  Kobuk,6 (2.3%)

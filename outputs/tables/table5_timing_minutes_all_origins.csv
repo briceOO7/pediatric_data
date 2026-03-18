@@ -1,6 +1,6 @@
 variable,n,median,q25,q75,mean
-medevac_minutes,384,62.0,60.0,154.7,184.6
-destination_minutes,370,332.5,213.7,596.3,630.1
-flight_time_minutes,384,35.4,25.4,43.6,39.2
-time_to_activate_min,232,83.8,45.0,181.4,204.8
-activate_to_arrive_min,370,221.9,135.5,413.0,465.8
+medevac_minutes,296,61.1,60.0,131.0,171.2
+destination_minutes,288,302.0,208.1,560.1,603.3
+flight_time_minutes,296,41.8,32.5,46.6,45.4
+time_to_activate_min,224,83.8,46.0,181.4,207.2
+activate_to_arrive_min,288,178.5,127.4,378.1,451.3

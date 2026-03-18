@@ -5,9 +5,11 @@ date: today
 date-format: long
 format:
   html:
-    toc: true
+    toc: false
+    format-links: false
     number-sections: true
     theme: cosmo
+    css: styles/report-no-scroll.css
     df-print: paged
     embed-resources: true
   pdf:
@@ -35,8 +37,14 @@ from IPython.display import Markdown, display
 
 from medevac_summaries import (
     load_data,
+    count_village_to_mhc_legs,
+    filter_journeys_village_to_mhc,
     build_table0_medevac_routes,
     build_table1_patient_characteristics,
+    build_table2_village_visit_vitals,
+    build_table3_chief_complaints_overall,
+    build_table3_chief_complaints_by_age,
+    build_table3_followup_prior_visit_check,
     build_table1_cohort,
     build_table2_by_origin,
     build_table3_by_year,
@@ -53,7 +61,9 @@ from medevac_summaries import (
     plot_fig6_medevacs_per_patient,
 )
 
-df = load_data()
+_df_all = load_data()
+N_VILLAGE_TO_MHC_LEGS = count_village_to_mhc_legs(_df_all)
+df = filter_journeys_village_to_mhc(_df_all)
 
 
 def show_tbl(d: pd.DataFrame):
@@ -67,23 +77,91 @@ Journeys come from `pediatric_medevac_journeys.csv`, merged with `pediatric_mede
 
 ## Table 0. Medevac legs by route
 
-Each **leg** is one medevac on a travel authorization (up to three per journey). **Origins** are grouped: all village clinics in one row, and legs starting at Maniilaq Health Center (MHC) separately. **Destinations** are explicit: MHC, ANMC, UW, or Providence. **% (n)** is percent of all legs.
+Each **leg** is one medevac on a travel authorization (up to three per journey). **Origins** are grouped: all village clinics in one row, and legs starting at Maniilaq Health Center (MHC) separately. **Destinations** are explicit: MHC, ANMC, UW, or Providence. **Medevacs n (%)** is count and percent of all legs. Rows are sorted by leg count **high → low**; **All legs** is last.
 
 ```{python}
 show_tbl(build_table0_medevac_routes())
 ```
 
-## Table 1. Patient characteristics
+```{python}
+#| label: fig-map-mhc
+#| fig-cap: "Village clinic medevac legs to Maniilaq Health Center (Kotzebue). Line width scales with leg count; color with legs per 1,000 residents under 18 (2020 Census); marker size with village pediatric population."
+#| fig-width: 8.5
+#| fig-height: 6.5
+#| out-width: 100%
+#| fig-align: center
+# Avoid duplicate map: interactive mode would show the figure on subplots() and again on return.
+plt.ioff()
+plt.close("all")
+plot_fig1_medevac_activation_map(_df_all)
+```
 
-**Denominator:** unique patients (*n* = earliest medevac per patient by `medevac1_date`) for % (n) rows. The first two rows are cohort totals. Age is mean (SD) in years at first medevac. Villages are **first medevac origin** (`facility_1_name`).
+```{python}
+display(
+    Markdown(
+        f"## Table 1. Patient characteristics of village to critical access hospital medevacs (*n* = {N_VILLAGE_TO_MHC_LEGS})"
+    )
+)
+```
+
+**Cohort:** journeys with ≥1 medevac leg from a **village clinic** to **Maniilaq Health Center (CAH)**. *n* in the title is the count of such legs (matches Table 0, village→MHC). Counts below are **n (%)** of unique patients (earliest qualifying journey by `medevac1_date`), except mean age (SD). **Age Groups** and **Origin Village** are section headers with indented subrows; origin villages are sorted by **n** descending.
+
+**Tables 1–6** and the **remaining figures** use the village→MHC journey cohort only (`df`). The map above uses all journeys (same village→MHC leg counts as Table 0).
 
 ```{python}
 show_tbl(build_table1_patient_characteristics(df))
 ```
 
-^* Add column **`AI_AN`** (1 = yes) or **`RaceDSC`** to `pediatric_patients.csv` for AI/AN row.  
-^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor shown as % (n).  
-^*** Village rows are mutually exclusive with “Non-village first site.”
+^* On PHI, populate **`AI_AN`** (1 = yes) or **`RaceDSC`** on `pediatric_patients.csv`. De-ID / synthetic runs may show NR until added.
+^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor as % (n). Expected on full PHI extract.
+
+## Table 2. Village visit vitals completeness
+
+**Complete vitals** = at least one row per patient with **HR**, **O2 sat**, **BP systolic**, **BP diastolic**, **RR**, and **Temp** (all non-missing). Counts are **n (%)** of patients in each group (same cohort as Table 1: earliest village→MHC journey per `MRN`). Uses **`data/pediatric_village_visit_vitals.csv`** or **`data/pediatric_vitals_wide.csv`** (see `docs/pediatric_village_visit_vitals.md`).
+
+```{python}
+show_tbl(build_table2_village_visit_vitals(df))
+```
+
+## Table 3. Chief complaints (reason for visit)
+
+**Chief complaint** uses village **CEDIS code + complaint** from `pediatric_chiefcomplaints.csv` (`village_cedis_code_*`, `village_cedis_complaint_*`). For each journey, we use the first non-missing village CEDIS slot. Journeys without village CEDIS are not assigned a complaint; **%** is of **all village→MHC journeys** in the cohort (same denominator for each row). Tables 3.1–3.4 use the same age groups as Table 1; **%** is of journeys in that age group.
+
+```{python}
+show_tbl(build_table3_chief_complaints_overall(df))
+```
+
+### Table 3.1. Age \<1 year
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b0", "<1 year"))
+```
+
+### Table 3.2. Age 1 to \<5 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b1", "1 to <5 years"))
+```
+
+### Table 3.3. Age 5–12 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b2", "5–12 years"))
+```
+
+### Table 3.4. Age 13–18 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b3", "13–18 years"))
+```
+
+### Table 3.5. Follow-up CC prior-visit check
+
+This validation checks whether follow-up chief complaints have a documented prior encounter before medevac start (`pediatric_missed_opportunities.csv`, `days_until_medevac > 0`).
+
+```{python}
+show_tbl(build_table3_followup_prior_visit_check(df))
+```
 
 ## Cohort overview (journeys)
 
@@ -132,13 +210,7 @@ _m = build_table6_mortality(df)
 show_tbl(_m if _m is not None else pd.DataFrame({"note": ["No mortality columns in outcomes."]}))
 ```
 
-## Figures
-
-```{python}
-#| label: fig-map-mhc
-#| fig-cap: "Figure 1. Village clinic medevac legs to Maniilaq Health Center (Kotzebue). Line width scales with leg count; color with legs per 1,000 population (2020 approx.); marker size with village population."
-plot_fig1_medevac_activation_map(df)
-```
+## Figures (village→MHC cohort)
 
 ```{python}
 #| label: fig-monthly

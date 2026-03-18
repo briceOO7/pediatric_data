@@ -1,0 +1,25 @@
+/* Prevent horizontal page scrolling in rendered report. */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Keep figures/images inside the content column. */
+.quarto-figure,
+.quarto-figure img,
+figure img,
+img {
+  max-width: 100% !important;
+  height: auto;
+}
+
+/* Prevent wide containers from forcing page overflow. */
+.page-columns,
+.column-page,
+.column-body,
+.cell-output-display,
+.cell-output-stdout {
+  max-width: 100%;
+  overflow-x: clip;
+}
