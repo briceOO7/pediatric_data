@@ -198,6 +198,16 @@ def load_data():
     out_keep = ["journey_id"] + [c for c in outcome_extra if c in outcomes.columns]
     df = df.merge(outcomes[out_keep], on="journey_id", how="left")
     df = df.merge(patients, on="MRN", how="left")
+    # Some PHI extracts omit precomputed journey_start_year/month; derive from medevac1_date.
+    if (
+        ("journey_start_year" not in df.columns or "journey_start_month" not in df.columns)
+        and "medevac1_date" in df.columns
+    ):
+        d = pd.to_datetime(df["medevac1_date"], errors="coerce")
+        if "journey_start_year" not in df.columns:
+            df["journey_start_year"] = d.dt.year
+        if "journey_start_month" not in df.columns:
+            df["journey_start_month"] = d.dt.month
     # For de-identified synthetic extracts, decode Village_* placeholders so
     # tables and map use community names consistently.
     if village_origin_mode() == "codebook":
@@ -465,6 +475,35 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     n_miss = int(ag.isna().sum() + (ag == "other").sum())
     if n_miss:
         rows.append({"characteristic": "  Age missing or >18 y", "value": fmt_n_pct(n_miss, N)})
+
+    # Seasonal pattern across study years: month of each patient's first qualifying medevac.
+    msrc = pd.Series(pd.NaT, index=p.index, dtype="datetime64[ns]")
+    if "journey_start_date" in p.columns:
+        msrc = pd.to_datetime(p["journey_start_date"], errors="coerce")
+    if msrc.isna().all() and "medevac1_date" in p.columns:
+        msrc = pd.to_datetime(p["medevac1_date"], errors="coerce")
+    mon = msrc.dt.month
+    month_labels = [
+        (1, "Jan"),
+        (2, "Feb"),
+        (3, "Mar"),
+        (4, "Apr"),
+        (5, "May"),
+        (6, "Jun"),
+        (7, "Jul"),
+        (8, "Aug"),
+        (9, "Sep"),
+        (10, "Oct"),
+        (11, "Nov"),
+        (12, "Dec"),
+    ]
+    rows.append({"characteristic": "Month of Medevac, n(%)", "value": ""})
+    for mnum, mlab in month_labels:
+        n = int((mon == mnum).sum())
+        rows.append({"characteristic": f"  {mlab}", "value": fmt_n_pct(n, N)})
+    n_miss_month = int(mon.isna().sum())
+    if n_miss_month:
+        rows.append({"characteristic": "  Month missing", "value": fmt_n_pct(n_miss_month, N)})
 
     fac = p["facility_1_name"].fillna("").astype(str)
     villages = {v for v in fac.unique() if str(v).strip() and is_village_medevac_origin(v)}
@@ -979,6 +1018,11 @@ def build_table2_by_origin(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_table3_by_year(df: pd.DataFrame) -> pd.DataFrame:
+    if "journey_start_year" not in df.columns and "medevac1_date" in df.columns:
+        x = pd.to_datetime(df["medevac1_date"], errors="coerce").dt.year
+        df = df.assign(journey_start_year=x)
+    if "journey_start_year" not in df.columns:
+        return pd.DataFrame([{"journey_start_year": "Missing", "journeys": len(df), "patients": df["MRN"].nunique()}])
     return (
         df.groupby("journey_start_year", dropna=False)
         .agg(journeys=("journey_id", "count"), patients=("MRN", "nunique"))
@@ -1157,19 +1201,54 @@ def plot_fig1_medevac_activation_map(df: pd.DataFrame) -> plt.Figure:
     return plot_fig1_medevac_map(j, vnames, infer=infer)
 
 
-def plot_fig6_medevacs_per_patient(df: pd.DataFrame) -> plt.Figure:
-    """Histogram: total medevac legs per patient (sum of num_medevacs over journeys)."""
-    j = df.drop_duplicates(subset=["journey_id"])
+def plot_fig6_medevacs_per_patient(
+    df: pd.DataFrame,
+    start_year: int | None = None,
+    end_year: int | None = None,
+    title: str | None = None,
+) -> plt.Figure:
+    """Histogram: total medevac legs per patient (sum over journeys)."""
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    if (start_year is not None or end_year is not None) and "journey_start_year" not in j.columns:
+        if "medevac1_date" in j.columns:
+            j["journey_start_year"] = pd.to_datetime(j["medevac1_date"], errors="coerce").dt.year
+    if "journey_start_year" in j.columns:
+        y = pd.to_numeric(j["journey_start_year"], errors="coerce")
+        if start_year is not None:
+            j = j[y >= int(start_year)]
+            y = pd.to_numeric(j["journey_start_year"], errors="coerce")
+        if end_year is not None:
+            j = j[y <= int(end_year)]
+    if j.empty:
+        fig, ax = plt.subplots()
+        ax.axis("off")
+        ax.set_title(title or "Number of medevacs per patient")
+        ax.text(0.5, 0.5, "No journeys in selected year range.", ha="center", va="center")
+        fig.tight_layout()
+        return fig
     per = j.groupby("MRN", as_index=False)["num_medevacs"].sum()
-    x = per["num_medevacs"].astype(int)
+    x = pd.to_numeric(per["num_medevacs"], errors="coerce").dropna().astype(int)
+    if x.empty:
+        fig, ax = plt.subplots()
+        ax.axis("off")
+        ax.set_title(title or "Number of medevacs per patient")
+        ax.text(0.5, 0.5, "No medevac counts available.", ha="center", va="center")
+        fig.tight_layout()
+        return fig
     xmax = int(x.max())
     fig, ax = plt.subplots()
     bins = range(1, xmax + 2)
     ax.hist(x, bins=bins, align="left", rwidth=0.85, color="steelblue", edgecolor="white")
     ax.set_xticks(range(1, xmax + 1))
-    ax.set_xlabel("Total medevac legs per patient (all journeys)")
+    ax.set_xlabel("Total medevac legs per patient")
     ax.set_ylabel("Patients")
-    ax.set_title("Distribution of medevacs per patient")
+    if title is None:
+        if start_year is not None and end_year is not None:
+            ax.set_title(f"Number of Medevacs per Patient, {int(start_year)}-{int(end_year)}")
+        else:
+            ax.set_title("Distribution of medevacs per patient")
+    else:
+        ax.set_title(title)
     fig.tight_layout()
     return fig
 

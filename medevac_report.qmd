@@ -115,6 +115,19 @@ show_tbl(build_table1_patient_characteristics(df))
 ^* On PHI, populate **`AI_AN`** (1 = yes) or **`RaceDSC`** on `pediatric_patients.csv`. De-ID / synthetic runs may show NR until added.
 ^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor as % (n). Expected on full PHI extract.
 
+## Figure 2. Number of Medevacs per Patient, 2020-2024
+
+```{python}
+#| label: fig2-medevacs-per-patient-2020-2024
+#| fig-cap: "Histogram of total medevac legs per patient, restricted to journeys in 2020-2024."
+plot_fig6_medevacs_per_patient(
+    df,
+    start_year=2020,
+    end_year=2024,
+    title="Number of Medevacs per Patient, 2020-2024",
+)
+```
+
 ## Table 2. Village visit vitals completeness
 
 **Complete vitals** = at least one row per patient with **HR**, **O2 sat**, **BP systolic**, **BP diastolic**, **RR**, and **Temp** (all non-missing). Counts are **n (%)** of patients in each group (same cohort as Table 1: earliest village→MHC journey per `MRN`). Uses **`data/pediatric_village_visit_vitals.csv`** or **`data/pediatric_vitals_wide.csv`** (see `docs/pediatric_village_visit_vitals.md`).
@@ -247,12 +260,6 @@ _f4 if _f4 is not None else print("Figure skipped (missing timing columns).")
 #| label: fig-n-medevacs
 #| fig-cap: "Number of medevac legs per journey."
 plot_fig5_medevacs_per_journey(df)
-```
-
-```{python}
-#| label: fig-medevacs-per-patient
-#| fig-cap: "Patients by total medevac legs (sum of legs across all journeys per MRN)."
-plot_fig6_medevacs_per_patient(df)
 ```
 
 ---
