@@ -1,5 +1,13 @@
 # Medevac analysis outputs
 
+## Figure 1 map (`plot_fig1_medevac_activation_map`)
+
+Requires **`mapping data/`** shapefiles (boroughs + Maniilaq healthcare facilities). Counts **village → MHC (CAH_01)** medevac legs. Rates use **residents under 18** from **`docs/maniilaq_village_census2020_pediatric.csv`** (2020 Census DHC). Refresh: `python scripts/fetch_maniilaq_census_pediatric.py`. Needs **`geopandas`**.
+
+## Facility display names
+
+`docs/facility_name_codebook.csv`: CAH → Maniilaq Health Center, Hub → ANMC, outside hospitals → UW / Providence. Applied in Table 0 routes and selected figure labels.
+
 ## `data/` (local only)
 
 The whole **`data/`** directory is listed in **`.gitignore`** so patient/study extracts are never committed. After cloning, copy CSVs into `data/` (e.g. `pediatric_medevac_journeys.csv`, `pediatric_patients.csv`, …). The village mapping file lives in **`docs/village_name_codebook.csv`** (tracked in git).
@@ -43,7 +51,7 @@ Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq
 - **`outputs/tables/`** — CSV tables for manuscripts or supplements  
 - **`outputs/figures/`** — PNG figures (temporal trend, origin mix, duration, timing scatter, medevacs per journey)
 
-- **Table 0** (`table0_medevac_routes.csv`): every distinct medevac leg (origin→destination) with n and % (n); no “Other” bucket.
+- **Table 0** (`table0_medevac_routes.csv`): medevac legs with **villages aggregated** as one origin group, **MHC** as a second origin group; **destinations** explicit (MHC, ANMC, UW, Providence).
 - **Table 1** (`table1_patient_characteristics.csv`): % (n) by patient (first medevac); age mean (SD); villages at first medevac. Optional columns on `pediatric_patients.csv`: **`AI_AN`** (`1` = yes) or **`RaceDSC`**; **`PrimaryPayorNM`** (insurance / primary payor, one row per patient).
 
 Extend `medevac_summaries.py` to add models, chief-complaint stratification, or facility-level summaries.

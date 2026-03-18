@@ -43,6 +43,7 @@ from medevac_summaries import (
     build_timing_category_tables,
     build_table5_timing_minutes,
     build_table6_mortality,
+    plot_fig1_medevac_activation_map,
     plot_fig1_journeys_by_month,
     plot_fig2_origin_pie,
     plot_fig2_origin_bar,
@@ -66,7 +67,7 @@ Journeys come from `pediatric_medevac_journeys.csv`, merged with `pediatric_mede
 
 ## Table 0. Medevac legs by route
 
-Each **leg** is one explicit origin→destination pair on a travel authorization (up to three legs per journey). **% (n)** is percent of all legs. Every observed route is listed (no “Other” bucket).
+Each **leg** is one medevac on a travel authorization (up to three per journey). **Origins** are grouped: all village clinics in one row, and legs starting at Maniilaq Health Center (MHC) separately. **Destinations** are explicit: MHC, ANMC, UW, or Providence. **% (n)** is percent of all legs.
 
 ```{python}
 show_tbl(build_table0_medevac_routes())
@@ -112,7 +113,7 @@ for col, tbl in build_timing_category_tables(df).items():
 
 ## Continuous timing (minutes)
 
-Village → CAH only:
+Village → Maniilaq Health Center only:
 
 ```{python}
 show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
@@ -132,6 +133,12 @@ show_tbl(_m if _m is not None else pd.DataFrame({"note": ["No mortality columns 
 ```
 
 ## Figures
+
+```{python}
+#| label: fig-map-mhc
+#| fig-cap: "Figure 1. Village clinic medevac legs to Maniilaq Health Center (Kotzebue). Line width scales with leg count; color with legs per 1,000 population (2020 approx.); marker size with village population."
+plot_fig1_medevac_activation_map(df)
+```
 
 ```{python}
 #| label: fig-monthly
@@ -159,7 +166,7 @@ plot_fig3_journey_duration(df)
 
 ```{python}
 #| label: fig-timing-scatter
-#| fig-cap: "Time to activation vs. activation to CAH arrival (village → CAH); extremes trimmed at 98th percentile."
+#| fig-cap: "Time to activation vs. arrival at Maniilaq Health Center (village → MHC); extremes trimmed at 98th percentile."
 _f4 = plot_fig4_activation_vs_arrival_village_cah(df)
 _f4 if _f4 is not None else print("Figure skipped (missing timing columns).")
 ```

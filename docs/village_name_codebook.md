@@ -1,3 +1,9 @@
+# Location codebooks
+
+**Facility codes** (CAH, hub, outside hospitals): see [`facility_name_codebook.md`](facility_name_codebook.md).
+
+---
+
 # Village name codebook (de-identified → Maniilaq community)
 
 ## Purpose

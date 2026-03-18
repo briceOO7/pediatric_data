@@ -13,6 +13,7 @@ import seaborn as sns
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 VILLAGE_CODEBOOK = ROOT / "docs" / "village_name_codebook.csv"
+FACILITY_CODEBOOK = ROOT / "docs" / "facility_name_codebook.csv"
 OUT_TABLES = ROOT / "outputs" / "tables"
 OUT_FIGS = ROOT / "outputs" / "figures"
 
@@ -22,6 +23,26 @@ plt.rcParams["savefig.dpi"] = 150
 plt.rcParams["figure.figsize"] = (10, 6)
 
 _VILLAGE_NAMES_CACHE: frozenset[str] | None = None
+_FACILITY_DISPLAY_CACHE: dict[str, str] | None = None
+
+
+def facility_display_map() -> dict[str, str]:
+    """Study facility code → display label for tables and figures."""
+    global _FACILITY_DISPLAY_CACHE
+    if _FACILITY_DISPLAY_CACHE is None:
+        cb = pd.read_csv(FACILITY_CODEBOOK)
+        _FACILITY_DISPLAY_CACHE = dict(
+            zip(cb["code"].astype(str), cb["display_name"].astype(str), strict=True)
+        )
+    return _FACILITY_DISPLAY_CACHE
+
+
+def expand_facility_label(text: str) -> str:
+    """Replace known facility codes with display names (longest codes first)."""
+    out = str(text)
+    for code in sorted(facility_display_map().keys(), key=len, reverse=True):
+        out = out.replace(code, facility_display_map()[code])
+    return out
 
 
 def maniilaq_village_names() -> frozenset[str]:
@@ -80,12 +101,30 @@ def fmt_pct_n(count: int, denominator: int, digits: int = 1) -> str:
     return f"{pct:.{digits}f} ({count})"
 
 
+def _table0_destination_label(to_raw: str) -> str:
+    """Map raw medevac *to* code to display destination (MHC / ANMC / UW / Providence)."""
+    b = str(to_raw).strip()
+    if b.startswith("CAH") or b == "CAH_01":
+        return "Maniilaq Health Center"
+    if b.startswith("Hub") or b == "Hub_01":
+        return "ANMC"
+    if b == "OutsideHospital02":
+        return "UW"
+    if b == "OutsideHospital03":
+        return "Providence"
+    return expand_facility_label(b)
+
+
 def build_table0_medevac_routes(journeys: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Each row = one explicit origin→destination leg (medevac1/2/3); no aggregate Other."""
+    """
+    Medevac legs: **origins** grouped (all villages aggregated; MHC as hub origin).
+    **Destinations** explicit: Maniilaq Health Center, ANMC, UW, Providence.
+    """
     if journeys is None:
         journeys = pd.read_csv(DATA / "pediatric_medevac_journeys.csv")
     from collections import Counter
 
+    vset = maniilaq_village_names()
     c: Counter[tuple[str, str]] = Counter()
     for i in range(1, 4):
         fc, tc = f"medevac{i}_from", f"medevac{i}_to"
@@ -97,20 +136,45 @@ def build_table0_medevac_routes(journeys: pd.DataFrame | None = None) -> pd.Data
                 and str(r[tc]).strip()
             ):
                 a, b = str(r[fc]).strip(), str(r[tc]).strip()
-                c[(a, b)] += 1
+                if a in vset:
+                    origin = "Villages (aggregated)"
+                elif a.startswith("CAH") or a == "CAH_01":
+                    origin = "Maniilaq Health Center"
+                else:
+                    origin = f"Other origin ({expand_facility_label(a)})"
+                dest = _table0_destination_label(b)
+                c[(origin, dest)] += 1
+
     total = sum(c.values())
+    # Stable sort: villages first, then MHC origin; destinations MHC, ANMC, UW, Prov, then alpha
+    dest_order = {
+        "Maniilaq Health Center": 0,
+        "ANMC": 1,
+        "UW": 2,
+        "Providence": 3,
+    }
+    orig_order = {"Villages (aggregated)": 0, "Maniilaq Health Center": 1}
+
+    def sort_key(item: tuple[tuple[str, str], int]) -> tuple:
+        (og, dg), n = item
+        oo = orig_order.get(og, 99)
+        do = dest_order.get(dg, 50)
+        return (oo, do, og, dg)
+
     rows = []
-    for (frm, to), n in sorted(c.items(), key=lambda x: (-x[1], x[0][0].lower(), x[0][1].lower())):
+    for (og, dg), n in sorted(c.items(), key=sort_key):
         rows.append(
             {
-                "route": f"{frm} → {to}",
+                "origin": og,
+                "destination": dg,
                 "n_legs": n,
                 "pct_n": fmt_pct_n(n, total),
             }
         )
     rows.append(
         {
-            "route": "Total",
+            "origin": "All legs",
+            "destination": "—",
             "n_legs": total,
             "pct_n": f"100.0 ({total})",
         }
@@ -266,7 +330,7 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     n_non = int((~fac.isin(vset)).sum())
     rows.append(
         {
-            "characteristic": "Non-village first site (e.g. CAH)",
+            "characteristic": "Non-village first site (e.g. Maniilaq Health Center)",
             "value": fmt_pct_n(n_non, N),
         }
     )
@@ -458,8 +522,8 @@ def plot_fig4_activation_vs_arrival_village_cah(df: pd.DataFrame) -> plt.Figure 
         color="teal",
     )
     ax.set_xlabel("Time to medevac activation (hours)")
-    ax.set_ylabel("Activation to arrival at CAH (hours)")
-    ax.set_title("Timing (village → CAH journeys)")
+    ax.set_ylabel("Activation to arrival at Maniilaq Health Center (hours)")
+    ax.set_title("Timing (village → Maniilaq Health Center)")
     fig.tight_layout()
     return fig
 
@@ -473,6 +537,14 @@ def plot_fig5_medevacs_per_journey(df: pd.DataFrame) -> plt.Figure:
     ax.set_title("Medevacs per journey")
     fig.tight_layout()
     return fig
+
+
+def plot_fig1_medevac_activation_map(df: pd.DataFrame) -> plt.Figure:
+    """NW Alaska map: village→MHC medevac legs (see manuscript Figure 1 style)."""
+    from medevac_map_fig1 import plot_fig1_medevac_map
+
+    j = df.drop_duplicates(subset=["journey_id"])
+    return plot_fig1_medevac_map(j, set(maniilaq_village_names()))
 
 
 def plot_fig6_medevacs_per_patient(df: pd.DataFrame) -> plt.Figure:
@@ -495,10 +567,11 @@ def plot_fig6_medevacs_per_patient(df: pd.DataFrame) -> plt.Figure:
 def save_all_figures(df: pd.DataFrame) -> None:
     OUT_FIGS.mkdir(parents=True, exist_ok=True)
     specs = [
-        ("fig1_journeys_by_month.png", plot_fig1_journeys_by_month(df)),
-        ("fig2_origin_type_pie.png", plot_fig2_origin_pie(df)),
-        ("fig2_origin_type_bar.png", plot_fig2_origin_bar(df)),
-        ("fig3_journey_duration_hist.png", plot_fig3_journey_duration(df)),
+        ("fig1_medevac_map.png", plot_fig1_medevac_activation_map(df)),
+        ("fig2_journeys_by_month.png", plot_fig1_journeys_by_month(df)),
+        ("fig3_origin_type_pie.png", plot_fig2_origin_pie(df)),
+        ("fig4_origin_type_bar.png", plot_fig2_origin_bar(df)),
+        ("fig4_journey_duration_hist.png", plot_fig3_journey_duration(df)),
         ("fig5_medevacs_per_journey.png", plot_fig5_medevacs_per_journey(df)),
         ("fig6_medevacs_per_patient.png", plot_fig6_medevacs_per_patient(df)),
     ]
