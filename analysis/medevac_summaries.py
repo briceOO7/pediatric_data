@@ -15,8 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 VILLAGE_CODEBOOK = ROOT / "docs" / "village_name_codebook.csv"
 FACILITY_CODEBOOK = ROOT / "docs" / "facility_name_codebook.csv"
-# infer = real PHI CSV community names; codebook = de-ID + village_name_codebook.
-# If MEDEVAC_VILLAGE_ORIGINS is not set, mode is auto-detected from journeys CSV.
+# infer = real PHI CSV community names (default)
+# codebook = de-ID + village_name_codebook (set MEDEVAC_VILLAGE_ORIGINS=codebook
+# or MEDEVAC_SYNTHETIC=1 on local dev machine).
 MEDEVAC_VILLAGE_ORIGINS = os.environ.get("MEDEVAC_VILLAGE_ORIGINS", "").strip().lower()
 OUT_TABLES = ROOT / "outputs" / "tables"
 OUT_FIGS = ROOT / "outputs" / "figures"
@@ -87,27 +88,18 @@ def village_origin_mode() -> str:
 
     Priority:
     1) MEDEVAC_VILLAGE_ORIGINS env var, if valid ("infer" or "codebook")
-    2) Auto-detect from journeys CSV: presence of "Village_*" placeholders => codebook
-    3) Fallback infer
+    2) MEDEVAC_SYNTHETIC truthy => codebook
+    3) Fallback infer (real-data default, e.g. PHI machine)
     """
     global _VILLAGE_ORIGIN_MODE_CACHE
     if MEDEVAC_VILLAGE_ORIGINS in {"infer", "codebook"}:
         return MEDEVAC_VILLAGE_ORIGINS
     if _VILLAGE_ORIGIN_MODE_CACHE is not None:
         return _VILLAGE_ORIGIN_MODE_CACHE
-    p = DATA / "pediatric_medevac_journeys.csv"
     mode = "infer"
-    if p.is_file():
-        try:
-            cols = [f"medevac{i}_from" for i in (1, 2, 3)] + ["facility_1_name"]
-            j = pd.read_csv(p, usecols=lambda c: c in cols, low_memory=False)
-            for c in j.columns:
-                s = j[c].dropna().astype(str).str.strip()
-                if s.str.startswith("Village_").any():
-                    mode = "codebook"
-                    break
-        except Exception:
-            mode = "infer"
+    syn = os.environ.get("MEDEVAC_SYNTHETIC", "").strip().lower()
+    if syn in {"1", "true", "yes", "y", "on"}:
+        mode = "codebook"
     _VILLAGE_ORIGIN_MODE_CACHE = mode
     return mode
 

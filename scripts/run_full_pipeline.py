@@ -5,8 +5,9 @@ Full pipeline: write CSV tables, all PNG figures (including Figure 1 map), then 
 Designed for headless servers (PHI/Linux): MPLBACKEND=Agg, Quarto HTML by default.
 
 Usage (from repo root or anywhere):
-  python scripts/run_full_pipeline.py              # auto mode (infer vs codebook by data / env)
+  python scripts/run_full_pipeline.py              # default: real data (infer)
   python scripts/run_full_pipeline.py -synthetic   # local: de-ID extract + village_name_codebook
+  MEDEVAC_SYNTHETIC=1 python scripts/run_full_pipeline.py   # same as -synthetic
   python scripts/run_full_pipeline.py --skip-quarto
   python scripts/run_full_pipeline.py --skip-analysis --quarto-to html
   python scripts/run_full_pipeline.py --fetch-census   # needs network; updates pediatric denominators
@@ -63,17 +64,23 @@ def main() -> int:
     # Headless map/figures on servers without a display
     os.environ.setdefault("MPLBACKEND", "Agg")
     # Mode selection:
-    # -synthetic -> force codebook mode.
-    # otherwise preserve explicit env var; if not set, analysis auto-detects mode from data.
+    # -synthetic or MEDEVAC_SYNTHETIC truthy -> codebook mode.
+    # otherwise default to infer mode (real-data behavior).
     if args.synthetic:
         os.environ["MEDEVAC_VILLAGE_ORIGINS"] = "codebook"
         mode = "synthetic (village codebook)"
     else:
-        cur = os.environ.get("MEDEVAC_VILLAGE_ORIGINS", "").strip().lower()
-        if cur in {"infer", "codebook"}:
-            mode = f"env override ({cur})"
+        syn = os.environ.get("MEDEVAC_SYNTHETIC", "").strip().lower()
+        if syn in {"1", "true", "yes", "y", "on"}:
+            os.environ["MEDEVAC_VILLAGE_ORIGINS"] = "codebook"
+            mode = "synthetic (via MEDEVAC_SYNTHETIC)"
         else:
-            mode = "auto detect (infer/codebook)"
+            cur = os.environ.get("MEDEVAC_VILLAGE_ORIGINS", "").strip().lower()
+            if cur in {"infer", "codebook"}:
+                mode = f"env override ({cur})"
+            else:
+                os.environ["MEDEVAC_VILLAGE_ORIGINS"] = "infer"
+                mode = "real data (infer default)"
     print(f"==> Pipeline mode: {mode}")
 
     py = sys.executable
