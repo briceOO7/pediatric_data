@@ -46,6 +46,7 @@ from medevac_summaries import (
     build_table2_2_vitals_repeated,
     build_table2_3_vitals_missingness_by_age,
     build_table2_4_vitals_repeated_by_age,
+    build_table3_pews_per_patient,
     build_table3_chief_complaints_overall,
     build_table3_chief_complaints_by_age,
     build_table3_followup_prior_visit_check,
@@ -160,7 +161,15 @@ Patients with >1 value (`n(%)`) by measure, stratified by Table 1 age groups.
 show_tbl(build_table2_4_vitals_repeated_by_age(df))
 ```
 
-## Table 3. Chief complaints (reason for visit)
+## Table 3. PEWS by patient (approximation)
+
+Patient-level PEWS proxy from village vitals using RR, HR, systolic BP, temperature, and consciousness from GCS (proxy for AVPU). Reported score is the maximum per patient across available village rows.
+
+```{python}
+show_tbl(build_table3_pews_per_patient(df))
+```
+
+## Table 4. Chief complaints (reason for visit)
 
 **Chief complaint** uses village **CEDIS code + complaint** from `pediatric_chiefcomplaints.csv` (`village_cedis_code_*`, `village_cedis_complaint_*`). For each journey, we use the first non-missing village CEDIS slot. Journeys without village CEDIS are not assigned a complaint; **%** is of **all village→MHC journeys** in the cohort (same denominator for each row). Tables 3.1–3.4 use the same age groups as Table 1; **%** is of journeys in that age group.
 
@@ -168,31 +177,31 @@ show_tbl(build_table2_4_vitals_repeated_by_age(df))
 show_tbl(build_table3_chief_complaints_overall(df))
 ```
 
-### Table 3.1. Age \<1 year
+### Table 4.1. Age \<1 year
 
 ```{python}
 show_tbl(build_table3_chief_complaints_by_age(df, "b0", "<1 year"))
 ```
 
-### Table 3.2. Age 1 to \<5 years
+### Table 4.2. Age 1 to \<5 years
 
 ```{python}
 show_tbl(build_table3_chief_complaints_by_age(df, "b1", "1 to <5 years"))
 ```
 
-### Table 3.3. Age 5–12 years
+### Table 4.3. Age 5–12 years
 
 ```{python}
 show_tbl(build_table3_chief_complaints_by_age(df, "b2", "5–12 years"))
 ```
 
-### Table 3.4. Age 13–18 years
+### Table 4.4. Age 13–18 years
 
 ```{python}
 show_tbl(build_table3_chief_complaints_by_age(df, "b3", "13–18 years"))
 ```
 
-### Table 3.5. Follow-up CC prior-visit check
+### Table 4.5. Follow-up CC prior-visit check
 
 This validation checks whether follow-up chief complaints have a documented prior encounter before medevac start (`pediatric_missed_opportunities.csv`, `days_until_medevac > 0`).
 
@@ -212,13 +221,13 @@ show_tbl(build_table1_cohort(df))
 show_tbl(build_table2_by_origin(df))
 ```
 
-## Journeys by calendar year
+## Table 5. Journeys by calendar year
 
 ```{python}
 show_tbl(build_table3_by_year(df))
 ```
 
-## Timing categories
+## Table 6. Timing categories
 
 ```{python}
 for col, tbl in build_timing_category_tables(df).items():
@@ -226,7 +235,7 @@ for col, tbl in build_timing_category_tables(df).items():
     display(show_tbl(tbl))
 ```
 
-## Continuous timing (minutes)
+## Table 7. Continuous timing (minutes)
 
 Village → Maniilaq Health Center only:
 
@@ -240,7 +249,7 @@ All origin types:
 show_tbl(build_table5_timing_minutes(df, village_cah_only=False))
 ```
 
-## Mortality (journey-level)
+## Table 8. Mortality (journey-level)
 
 ```{python}
 _m = build_table6_mortality(df)

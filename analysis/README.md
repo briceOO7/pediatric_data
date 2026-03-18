@@ -121,7 +121,12 @@ Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq
 - **Table 2.2** (`table2_2_vitals_repeated.csv`): patient-level repeat rate `n(%)` with >1 value for each vital measure.
 - **Table 2.3** (`table2_3_vitals_missingness_by_age.csv`): Table 2.1 missingness, stratified by age groups.
 - **Table 2.4** (`table2_4_vitals_repeated_by_age.csv`): Table 2.2 repeated-vitals rate, stratified by age groups.
-- **Table 3** (`table3_chief_complaints_overall.csv`): top 10 village **CEDIS code + complaint** pairs per journey (first non-missing village CEDIS slot); **%** of cohort journeys. **Tables 3.1–3.4** (`table3_1` … `table3_4_chief_complaints.csv`): same within age bucket; **%** of journeys in that age group.
-- **Table 3.5** (`table3_followup_prior_visit_check.csv`): validation for **Follow-up visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
+- **Table 3** (`table3_pews_per_patient.csv`): patient-level **PEWS proxy** (max across village rows) using RR, HR, systolic BP, Temp, and GCS-based consciousness proxy.
+- **Table 4** (`table4_chief_complaints_overall.csv`): top 10 village **CEDIS code + complaint** pairs per journey (first non-missing village CEDIS slot); **%** of cohort journeys. **Tables 4.1–4.4** (`table4_1` … `table4_4_chief_complaints.csv`): same within age bucket; **%** of journeys in that age group.
+- **Table 4.5** (`table4_followup_prior_visit_check.csv`): validation for **Follow-up visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
+- **Table 5** (`table5_journeys_by_year.csv`): cohort journeys by calendar year.
+- **Table 6** (`table6_decision_time_category.csv`, `table6_flight_time_category.csv`, `table6_flight_time_extended.csv`): timing category distributions.
+- **Table 7** (`table7_timing_minutes_village_cah_only.csv`, `table7_timing_minutes_all_origins.csv`): continuous timing in minutes.
+- **Table 8** (`table8_mortality_counts.csv`): journey-level mortality counts.
 
 Extend `medevac_summaries.py` to add models, chief-complaint stratification, or facility-level summaries.

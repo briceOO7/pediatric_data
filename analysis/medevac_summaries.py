@@ -656,6 +656,7 @@ _VITAL_ALIASES: dict[str, tuple[str, ...]] = {
     ),
 }
 _MRN_ALIASES = ("MRN", "mrn", "patient_mrn", "PatientMRN", "Patient_MRN")
+_GCS_ALIASES = ("gcs", "GCS", "GCS_median", "gcs_median")
 
 
 def _mrn_normalize(x: object) -> object:
@@ -718,6 +719,87 @@ def _value_present_series(s: pd.Series) -> pd.Series:
     if s.dtype == object:
         return s.notna() & (s.astype(str).str.strip() != "")
     return s.notna()
+
+
+def _num_or_none(x: object) -> float | None:
+    if pd.isna(x):
+        return None
+    try:
+        if isinstance(x, str) and not x.strip():
+            return None
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pews_proxy_score_row(row: pd.Series, cm: dict[str, str], gcs_col: str | None) -> int | None:
+    """
+    Approximate PEWS-like score from available vitals.
+    Uses RR, HR, SBP, Temp, and consciousness approximated from GCS.
+    Returns None when required components are missing.
+    """
+    rr = _num_or_none(row.get(cm["rr"]))
+    hr = _num_or_none(row.get(cm["hr"]))
+    sbp = _num_or_none(row.get(cm["bp_sys"]))
+    temp = _num_or_none(row.get(cm["temp"]))
+    if rr is None or hr is None or sbp is None or temp is None:
+        return None
+    gcs = _num_or_none(row.get(gcs_col)) if gcs_col else None
+    if gcs is None:
+        return None
+
+    # Respiratory rate
+    if rr < 9:
+        s_rr = 2
+    elif rr <= 14:
+        s_rr = 0
+    elif rr <= 20:
+        s_rr = 1
+    elif rr <= 29:
+        s_rr = 2
+    else:
+        s_rr = 3
+
+    # Heart rate
+    if hr <= 40:
+        s_hr = 2
+    elif hr <= 50:
+        s_hr = 1
+    elif hr <= 100:
+        s_hr = 0
+    elif hr <= 110:
+        s_hr = 1
+    elif hr <= 129:
+        s_hr = 2
+    else:
+        s_hr = 3
+
+    # Systolic blood pressure
+    if sbp <= 70:
+        s_sbp = 3
+    elif sbp <= 80:
+        s_sbp = 2
+    elif sbp <= 100:
+        s_sbp = 1
+    elif sbp < 200:
+        s_sbp = 0
+    else:
+        s_sbp = 2
+
+    # Temperature (C)
+    s_temp = 0 if 35.0 <= temp <= 38.4 else 2
+
+    # Consciousness proxy from GCS (approximation of AVPU component)
+    if gcs >= 15:
+        s_cns = 0
+    elif gcs >= 13:
+        s_cns = 1
+    elif gcs >= 9:
+        s_cns = 2
+    else:
+        s_cns = 3
+
+    return int(s_rr + s_hr + s_sbp + s_temp + s_cns)
 
 
 def _first_cohort_patients(df: pd.DataFrame) -> pd.DataFrame:
@@ -1107,6 +1189,77 @@ def build_table2_4_vitals_repeated_by_age(df: pd.DataFrame) -> pd.DataFrame:
                 {"Group": f"  {vital_label}", "Patients with >1 value n(%)": fmt_n_pct(n_rep, nd)}
             )
     return pd.DataFrame(rows)
+
+
+def build_table3_pews_per_patient(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 3: patient-level PEWS approximation from village vitals.
+    Score = max proxy score per patient across available village rows.
+    Components: RR, HR, SBP, Temp, and consciousness approximated from GCS.
+    """
+    first = _first_cohort_patients(df)
+    if len(first) == 0:
+        return pd.DataFrame([{"MRN": "—", "PEWS (proxy max)": "—", "Band": "—", "Rows scored": "0"}])
+
+    vit, cm, err = _load_vitals_for_cohort()
+    if vit is None or cm is None:
+        note = "— (no vitals file)" if err == "no vitals file" else "— (missing vital columns)"
+        return pd.DataFrame(
+            [{"MRN": "All cohort patients", "PEWS (proxy max)": note, "Band": "—", "Rows scored": "0"}]
+        )
+
+    gcs_col = _pick_vitals_col(vit, _GCS_ALIASES)
+    if not gcs_col:
+        return pd.DataFrame(
+            [
+                {
+                    "MRN": "All cohort patients",
+                    "PEWS (proxy max)": "— (missing GCS column)",
+                    "Band": "—",
+                    "Rows scored": "0",
+                }
+            ]
+        )
+
+    in_cohort = set(first["_mrn_k"].tolist())
+    sub = vit[vit["_mrn_k"].isin(in_cohort)].copy()
+    sub["_pews"] = sub.apply(lambda r: _pews_proxy_score_row(r, cm, gcs_col), axis=1)
+    scored = sub[sub["_pews"].notna()].copy()
+    if len(scored) == 0:
+        return pd.DataFrame(
+            [
+                {
+                    "MRN": "All cohort patients",
+                    "PEWS (proxy max)": "— (no rows with full RR/HR/SBP/Temp/GCS)",
+                    "Band": "—",
+                    "Rows scored": "0",
+                }
+            ]
+        )
+
+    by_mrn_max = scored.groupby("_mrn_k")["_pews"].max().astype(int)
+    by_mrn_n = scored.groupby("_mrn_k")["_pews"].size().astype(int)
+    out = first[["MRN", "_mrn_k"]].drop_duplicates("_mrn_k").copy()
+    out["PEWS (proxy max)"] = out["_mrn_k"].map(by_mrn_max)
+    out["Rows scored"] = out["_mrn_k"].map(by_mrn_n).fillna(0).astype(int)
+
+    def _band(x: object) -> str:
+        if pd.isna(x):
+            return "Not scored"
+        v = int(x)
+        if v <= 2:
+            return "Low (0-2)"
+        if v <= 4:
+            return "Medium (3-4)"
+        return "High (>=5)"
+
+    out["Band"] = out["PEWS (proxy max)"].map(_band)
+    out["PEWS (proxy max)"] = out["PEWS (proxy max)"].map(lambda x: "—" if pd.isna(x) else str(int(x)))
+    out["_band_rank"] = out["Band"].map(
+        {"High (>=5)": 0, "Medium (3-4)": 1, "Low (0-2)": 2, "Not scored": 3}
+    ).fillna(9)
+    out = out.sort_values(by=["_band_rank", "Rows scored", "MRN"], ascending=[True, False, True])
+    return out[["MRN", "PEWS (proxy max)", "Band", "Rows scored"]].reset_index(drop=True)
 
 
 def _format_cedis_code(x: object) -> object:
@@ -1661,38 +1814,39 @@ def main():
     write_table(build_table2_2_vitals_repeated(df_vtm), "table2_2_vitals_repeated")
     write_table(build_table2_3_vitals_missingness_by_age(df_vtm), "table2_3_vitals_missingness_by_age")
     write_table(build_table2_4_vitals_repeated_by_age(df_vtm), "table2_4_vitals_repeated_by_age")
+    write_table(build_table3_pews_per_patient(df_vtm), "table3_pews_per_patient")
     write_table(build_table1_cohort(df_vtm), "table_cohort_overview")
     write_table(build_table2_by_origin(df_vtm), "table2_by_origin_type")
-    write_table(build_table3_chief_complaints_overall(df_vtm), "table3_chief_complaints_overall")
-    for bk, lab, num in (
-        ("b0", "<1 year", "3_1"),
-        ("b1", "1 to <5 years", "3_2"),
-        ("b2", "5–12 years", "3_3"),
-        ("b3", "13–18 years", "3_4"),
+    write_table(build_table3_chief_complaints_overall(df_vtm), "table4_chief_complaints_overall")
+    for bk, lab, subnum in (
+        ("b0", "<1 year", "1"),
+        ("b1", "1 to <5 years", "2"),
+        ("b2", "5–12 years", "3"),
+        ("b3", "13–18 years", "4"),
     ):
         write_table(
             build_table3_chief_complaints_by_age(df_vtm, bk, lab),
-            f"table{num}_chief_complaints",
+            f"table4_{subnum}_chief_complaints",
         )
     write_table(
         build_table3_followup_prior_visit_check(df_vtm),
-        "table3_followup_prior_visit_check",
+        "table4_followup_prior_visit_check",
     )
-    write_table(build_table3_by_year(df_vtm), "table3_journeys_by_year")
+    write_table(build_table3_by_year(df_vtm), "table5_journeys_by_year")
     for col, t in build_timing_category_tables(df_vtm).items():
         safe = col.replace(" ", "_")
-        write_table(t, f"table4_{safe}")
+        write_table(t, f"table6_{safe}")
     write_table(
         build_table5_timing_minutes(df_vtm, village_cah_only=True),
-        "table5_timing_minutes_village_cah_only",
+        "table7_timing_minutes_village_cah_only",
     )
     write_table(
         build_table5_timing_minutes(df_vtm, village_cah_only=False),
-        "table5_timing_minutes_all_origins",
+        "table7_timing_minutes_all_origins",
     )
     t6 = build_table6_mortality(df_vtm)
     if t6 is not None:
-        write_table(t6, "table6_mortality_counts")
+        write_table(t6, "table8_mortality_counts")
     save_all_figures(df_vtm)
     print("Done.")
 
