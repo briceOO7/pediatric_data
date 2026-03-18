@@ -125,6 +125,7 @@ plot_fig6_medevacs_per_patient(
     start_year=2020,
     end_year=2024,
     title="Number of Medevacs per Patient, 2020-2024",
+    village_to_mhc_only=True,
 )
 ```
 

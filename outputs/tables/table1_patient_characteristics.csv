@@ -24,6 +24,13 @@ Insurance (PrimaryPayorNM),NR — add PrimaryPayorNM to pediatric_patients.csv (
   Nov,0 (0.0%)
   Dec,0 (0.0%)
   Month missing,259 (100.0%)
+"Medevac Per Year, n(%)",
+  2020,0 (0.0%)
+  2021,0 (0.0%)
+  2022,0 (0.0%)
+  2023,0 (0.0%)
+  2024,0 (0.0%)
+  Year missing,259 (100.0%)
 "Origin Village, n(%)",
   Village_I,58 (22.4%)
   Village_D,46 (17.8%)

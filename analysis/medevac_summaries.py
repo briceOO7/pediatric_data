@@ -505,6 +505,19 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     if n_miss_month:
         rows.append({"characteristic": "  Month missing", "value": fmt_n_pct(n_miss_month, N)})
 
+    # Annual pattern across study years: year of each patient's first qualifying medevac.
+    rows.append({"characteristic": "Medevac Per Year, n(%)", "value": ""})
+    yr = msrc.dt.year
+    for y in range(2020, 2025):
+        n = int((yr == y).sum())
+        rows.append({"characteristic": f"  {y}", "value": fmt_n_pct(n, N)})
+    n_other_year = int(yr.notna().sum() - sum(int((yr == y).sum()) for y in range(2020, 2025)))
+    if n_other_year > 0:
+        rows.append({"characteristic": "  Outside 2020–2024", "value": fmt_n_pct(n_other_year, N)})
+    n_miss_year = int(yr.isna().sum())
+    if n_miss_year:
+        rows.append({"characteristic": "  Year missing", "value": fmt_n_pct(n_miss_year, N)})
+
     fac = p["facility_1_name"].fillna("").astype(str)
     villages = {v for v in fac.unique() if str(v).strip() and is_village_medevac_origin(v)}
     village_counts = [(v, int((fac == v).sum())) for v in villages if int((fac == v).sum()) > 0]
@@ -1206,8 +1219,9 @@ def plot_fig6_medevacs_per_patient(
     start_year: int | None = None,
     end_year: int | None = None,
     title: str | None = None,
+    village_to_mhc_only: bool = False,
 ) -> plt.Figure:
-    """Histogram: total medevac legs per patient (sum over journeys)."""
+    """Histogram: medevac legs per patient (all legs or village→MHC only)."""
     j = df.drop_duplicates(subset=["journey_id"]).copy()
     if (start_year is not None or end_year is not None) and "journey_start_year" not in j.columns:
         if "medevac1_date" in j.columns:
@@ -1226,8 +1240,26 @@ def plot_fig6_medevacs_per_patient(
         ax.text(0.5, 0.5, "No journeys in selected year range.", ha="center", va="center")
         fig.tight_layout()
         return fig
-    per = j.groupby("MRN", as_index=False)["num_medevacs"].sum()
-    x = pd.to_numeric(per["num_medevacs"], errors="coerce").dropna().astype(int)
+    if village_to_mhc_only:
+        rows: list[dict[str, object]] = []
+        for mrn, sub in j.groupby("MRN", dropna=False):
+            n_legs = 0
+            for _, r in sub.iterrows():
+                for i in (1, 2, 3):
+                    fc, tc = f"medevac{i}_from", f"medevac{i}_to"
+                    if fc not in r.index or tc not in r.index:
+                        continue
+                    if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
+                        continue
+                    a, b = str(r[fc]).strip(), str(r[tc]).strip()
+                    if is_village_medevac_origin(a) and _is_mhc_cah_destination(b):
+                        n_legs += 1
+            rows.append({"MRN": mrn, "medevac_legs": n_legs})
+        per = pd.DataFrame(rows)
+        x = per["medevac_legs"].astype(int)
+    else:
+        per = j.groupby("MRN", as_index=False)["num_medevacs"].sum()
+        x = pd.to_numeric(per["num_medevacs"], errors="coerce").dropna().astype(int)
     if x.empty:
         fig, ax = plt.subplots()
         ax.axis("off")
@@ -1235,12 +1267,21 @@ def plot_fig6_medevacs_per_patient(
         ax.text(0.5, 0.5, "No medevac counts available.", ha="center", va="center")
         fig.tight_layout()
         return fig
+    if village_to_mhc_only:
+        x = x[x > 0]
+        if x.empty:
+            fig, ax = plt.subplots()
+            ax.axis("off")
+            ax.set_title(title or "Number of medevacs per patient")
+            ax.text(0.5, 0.5, "No village→MHC medevac legs in selected year range.", ha="center", va="center")
+            fig.tight_layout()
+            return fig
     xmax = int(x.max())
     fig, ax = plt.subplots()
     bins = range(1, xmax + 2)
     ax.hist(x, bins=bins, align="left", rwidth=0.85, color="steelblue", edgecolor="white")
     ax.set_xticks(range(1, xmax + 1))
-    ax.set_xlabel("Total medevac legs per patient")
+    ax.set_xlabel("Total medevac legs per patient" if not village_to_mhc_only else "Village→MHC medevac legs per patient")
     ax.set_ylabel("Patients")
     if title is None:
         if start_year is not None and end_year is not None:
