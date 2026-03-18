@@ -139,7 +139,13 @@ def _is_village_place(name: object) -> bool:
 def _is_mhc_cah_destination(to_raw: object) -> bool:
     """Medevac destination is Maniilaq Health Center (critical access hospital)."""
     b = str(to_raw).strip()
-    return b == "CAH_01" or b.startswith("CAH")
+    bl = b.lower()
+    return (
+        b == "CAH_01"
+        or b.startswith("CAH")
+        or "maniilaq health center" in bl
+        or (("maniilaq" in bl) and ("health" in bl) and ("center" in bl))
+    )
 
 
 def count_village_to_mhc_legs(df: pd.DataFrame) -> int:
@@ -182,8 +188,22 @@ def load_data():
     outcomes = pd.read_csv(DATA / "pediatric_outcomes.csv")
     patients = pd.read_csv(DATA / "pediatric_patients.csv")
 
-    timing_extra = [c for c in timing.columns if c not in ("journey_id", "MRN", "origin_type")]
+    # Avoid merge collisions with journey columns (can hide medevac*_from/to in PHI extracts).
+    timing_extra = [
+        c
+        for c in timing.columns
+        if c not in ("journey_id", "MRN", "origin_type") and c not in journeys.columns
+    ]
     df = journeys.merge(timing[["journey_id"] + timing_extra], on="journey_id", how="left")
+
+    # Recovery path: if prior merges created suffixes, coalesce back to canonical names.
+    for base in [f"medevac{i}_{s}" for i in (1, 2, 3) for s in ("from", "to", "id")] + ["facility_1_name"]:
+        if base in df.columns:
+            continue
+        for cand in (f"{base}_x", f"{base}_y"):
+            if cand in df.columns:
+                df[base] = df[cand]
+                break
 
     outcome_extra = [
         "death_at_facility",
