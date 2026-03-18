@@ -380,29 +380,50 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict[str, str]] = []
     n_patients_cohort = int(j["MRN"].nunique())
     rows.append({"characteristic": "Unique patients", "value": str(n_patients_cohort)})
-    uid: set[int] = set()
-    for _, r in j.iterrows():
-        for i in (1, 2, 3):
-            fc, tc = f"medevac{i}_from", f"medevac{i}_to"
-            idc = f"medevac{i}_id"
-            if fc not in r.index or tc not in r.index:
-                continue
-            if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
-                continue
-            a, b = str(r[fc]).strip(), str(r[tc]).strip()
-            if not (is_village_medevac_origin(a) and _is_mhc_cah_destination(b)):
-                continue
-            if idc in r.index and pd.notna(r[idc]):
-                try:
-                    uid.add(int(float(r[idc])))
-                except (TypeError, ValueError):
-                    pass
-    rows.append(
-        {
-            "characteristic": "Village→CAH medevac records (distinct IDs)",
-            "value": str(len(uid)),
-        }
-    )
+    # Replace leg-ID summary with patient-level distribution in 2020-2024.
+    if "journey_start_date" in j.columns:
+        dsrc = pd.to_datetime(j["journey_start_date"], errors="coerce")
+    else:
+        dsrc = pd.Series(pd.NaT, index=j.index)
+    if dsrc.isna().all():
+        if "medevac1_date" in j.columns:
+            dsrc = pd.to_datetime(j["medevac1_date"], errors="coerce")
+        else:
+            dsrc = pd.Series(pd.NaT, index=j.index)
+    j["_year"] = dsrc.dt.year
+    j_yr = j[j["_year"].between(2020, 2024, inclusive="both")].copy()
+    rows.append({"characteristic": "Medevacs per Patient, 2020-2024, n(%)", "value": ""})
+    source_for_counts = j_yr
+    if len(j_yr) == 0:
+        # Fallback for datasets where journey dates are unavailable.
+        source_for_counts = j
+        rows.append({"characteristic": "  (Fallback: all years; 2020-2024 dates unavailable)", "value": ""})
+    if len(source_for_counts) == 0:
+        rows.append({"characteristic": "  No cohort journeys available", "value": "—"})
+    else:
+        per_mrn: dict[object, int] = {}
+        for mrn, sub in source_for_counts.groupby("MRN", dropna=False):
+            legs = 0
+            for _, r in sub.iterrows():
+                for i in (1, 2, 3):
+                    fc, tc = f"medevac{i}_from", f"medevac{i}_to"
+                    if fc not in r.index or tc not in r.index:
+                        continue
+                    if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
+                        continue
+                    a, b = str(r[fc]).strip(), str(r[tc]).strip()
+                    if is_village_medevac_origin(a) and _is_mhc_cah_destination(b):
+                        legs += 1
+            per_mrn[mrn] = legs
+        vals = pd.Series(list(per_mrn.values()), dtype="int64")
+        vals = vals[vals > 0]
+        n_den = int(len(vals))
+        if n_den == 0:
+            rows.append({"characteristic": "  No village→MHC medevacs in 2020-2024", "value": "—"})
+        else:
+            vc = vals.value_counts().sort_index()
+            for n_med, n_pat in vc.items():
+                rows.append({"characteristic": f"  {int(n_med)}", "value": fmt_n_pct(int(n_pat), n_den)})
 
     n_female = int((p["GenderDSC"] == "Female").sum())
     rows.append({"characteristic": "Female sex", "value": fmt_n_pct(n_female, N)})

@@ -1,6 +1,12 @@
 characteristic,value
 Unique patients,259
-Village→CAH medevac records (distinct IDs),296
+"Medevacs per Patient, 2020-2024, n(%)",
+  (Fallback: all years; 2020-2024 dates unavailable),
+  1,231 (89.2%)
+  2,23 (8.9%)
+  3,3 (1.2%)
+  4,1 (0.4%)
+  6,1 (0.4%)
 Female sex,123 (47.5%)
 American Indian / Alaska Native,NR — add AI_AN (1=yes) or RaceDSC to pediatric_patients.csv
 Insurance (PrimaryPayorNM),NR — add PrimaryPayorNM to pediatric_patients.csv (PHI sync)

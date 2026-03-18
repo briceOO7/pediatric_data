@@ -62,8 +62,6 @@ from medevac_summaries import (
     plot_fig3_journey_duration,
     plot_fig4_activation_vs_arrival_village_cah,
     plot_fig5_medevacs_per_journey,
-    plot_fig6_medevacs_per_patient,
-    plot_fig7_journeys_per_patient,
 )
 
 _df_all = load_data()
@@ -121,17 +119,6 @@ show_tbl(build_table1_patient_characteristics(df))
 
 ^* On PHI, populate **`AI_AN`** (1 = yes) or **`RaceDSC`** on `pediatric_patients.csv`. De-ID / synthetic runs may show NR until added.
 ^** **`PrimaryPayorNM`** on `pediatric_patients.csv` (one row per patient); each payor as % (n). Expected on full PHI extract.
-
-## Figure 2. Number of Journeys per Patient
-
-```{python}
-#| label: fig2-journeys-per-patient-village-mhc
-#| fig-cap: "Histogram of number of journeys per patient (distinct journey_id per MRN) in the village→MHC cohort."
-plot_fig7_journeys_per_patient(
-    df,
-    title="Number of Journeys per Patient",
-)
-```
 
 ## Table 2. Village visit vitals completeness
 
