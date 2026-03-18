@@ -2,7 +2,7 @@
 
 ## Figure 1 map (`plot_fig1_medevac_activation_map`)
 
-Requires **`mapping data/`** shapefiles (boroughs + Maniilaq healthcare facilities). Counts **village → MHC (CAH_01)** medevac legs. Rates use **residents under 18** from **`docs/maniilaq_village_census2020_pediatric.csv`** (2020 Census DHC). Refresh: `python scripts/fetch_maniilaq_census_pediatric.py`. Needs **`geopandas`**.
+Requires **`mapping_data/`** shapefiles (boroughs + Maniilaq healthcare facilities; PC-safe names, see `docs/mapping_data_layout.md`). Counts **village → MHC (CAH_01)** medevac legs. Rates use **residents under 18** from **`docs/maniilaq_village_census2020_pediatric.csv`** (2020 Census DHC). Refresh: `python scripts/fetch_maniilaq_census_pediatric.py`. Needs **`geopandas`**.
 
 ## Facility display names
 

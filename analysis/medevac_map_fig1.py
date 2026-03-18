@@ -19,12 +19,8 @@ import pandas as pd
 from shapely.geometry import Point
 
 ROOT = Path(__file__).resolve().parents[1]
-MAP_DIR = ROOT / "mapping data"
-FAC_SHP = (
-    MAP_DIR
-    / "Healthcare_Facilities _Healthcare_SafetyNet_Directory"
-    / "Healthcare_Facilities%3A_Healthcare_SafetyNet_Directory.shp"
-)
+MAP_DIR = ROOT / "mapping_data"
+FAC_SHP = MAP_DIR / "healthcare_facilities_safetynet" / "healthcare_facilities_safetynet.shp"
 BOROUGH_SHP = MAP_DIR / "Boroughs2020" / "Boroughs2020.shp"
 # 2020 Census DHC: under-18 count per place (refresh: scripts/fetch_maniilaq_census_pediatric.py)
 POP_CSV = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
@@ -179,7 +175,7 @@ def plot_fig1_medevac_map(
         ax.text(
             0.5,
             0.5,
-            "Missing shapefiles under mapping data/. Add borough + healthcare facility layers.",
+            "Missing shapefiles under mapping_data/. Add borough + healthcare facility layers.",
             ha="center",
             va="center",
             transform=ax.transAxes,
