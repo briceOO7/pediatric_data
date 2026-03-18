@@ -1814,7 +1814,6 @@ def main():
     write_table(build_table2_2_vitals_repeated(df_vtm), "table2_2_vitals_repeated")
     write_table(build_table2_3_vitals_missingness_by_age(df_vtm), "table2_3_vitals_missingness_by_age")
     write_table(build_table2_4_vitals_repeated_by_age(df_vtm), "table2_4_vitals_repeated_by_age")
-    write_table(build_table3_pews_per_patient(df_vtm), "table3_pews_per_patient")
     write_table(build_table1_cohort(df_vtm), "table_cohort_overview")
     write_table(build_table2_by_origin(df_vtm), "table2_by_origin_type")
     write_table(build_table3_chief_complaints_overall(df_vtm), "table4_chief_complaints_overall")

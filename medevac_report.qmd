@@ -46,7 +46,6 @@ from medevac_summaries import (
     build_table2_2_vitals_repeated,
     build_table2_3_vitals_missingness_by_age,
     build_table2_4_vitals_repeated_by_age,
-    build_table3_pews_per_patient,
     build_table3_chief_complaints_overall,
     build_table3_chief_complaints_by_age,
     build_table3_followup_prior_visit_check,
@@ -159,14 +158,6 @@ Patients with >1 value (`n(%)`) by measure, stratified by Table 1 age groups.
 
 ```{python}
 show_tbl(build_table2_4_vitals_repeated_by_age(df))
-```
-
-## Table 3. PEWS by patient (approximation)
-
-Patient-level PEWS proxy from village vitals using RR, HR, systolic BP, temperature, and consciousness from GCS (proxy for AVPU). Reported score is the maximum per patient across available village rows.
-
-```{python}
-show_tbl(build_table3_pews_per_patient(df))
 ```
 
 ## Table 4. Chief complaints (reason for visit)
