@@ -8,6 +8,11 @@ Outputs review CSVs in separate folders for:
 
 Run from repo root:
   python scripts/audit_chief_complaints.py
+
+PHI: expects per-slot columns like ``village_EncounterStartDTS_1``,
+``mhc_ed_EncounterStartDTS_1`` (case-insensitive; see
+``_resolve_encounter_start_dts_col`` for alternates). Populates
+``hours_since_previous_cc`` when consecutive rows parse as datetimes.
 """
 
 from __future__ import annotations
@@ -34,6 +39,30 @@ def _has_value(x: object) -> bool:
     if pd.isna(x):
         return False
     return str(x).strip() != ""
+
+
+def _ci_column_lookup(columns: pd.Index) -> dict[str, str]:
+    """Map lowercase column name -> actual column name (first wins)."""
+    return {str(c).lower(): str(c) for c in columns}
+
+
+def _resolve_encounter_start_dts_col(prefix: str, slot: int, lookup: dict[str, str]) -> str | None:
+    """
+    PHI export: per-slot encounter start DTS, e.g. village_EncounterStartDTS_1,
+    mhc_ed_EncounterStartDTS_1. Tries several suffix patterns (case-insensitive).
+    """
+    candidates = [
+        f"{prefix}_EncounterStartDTS_{slot}",
+        f"{prefix}_cc_EncounterStartDTS_{slot}",
+        f"{prefix}_cedis_EncounterStartDTS_{slot}",
+    ]
+    if prefix == "village":
+        candidates.insert(0, f"village_cc_EncounterStartDTS_{slot}")
+    for cand in candidates:
+        actual = lookup.get(cand.lower())
+        if actual:
+            return actual
+    return None
 
 
 def _age_label(a: object) -> str:
@@ -63,7 +92,7 @@ def _first_village_triplet(row: pd.Series) -> tuple[object, object, object] | No
     return None
 
 
-def _all_events_for_row(row: pd.Series) -> list[dict[str, object]]:
+def _all_events_for_row(row: pd.Series, col_lookup: dict[str, str]) -> list[dict[str, object]]:
     events: list[dict[str, object]] = []
     for loc, prefix, nmax, loc_rank in (
         ("village", "village", 19, 1),
@@ -76,6 +105,8 @@ def _all_events_for_row(row: pd.Series) -> list[dict[str, object]]:
             code = _format_cedis_code(row.get(f"{prefix}_cedis_code_{i}", pd.NA))
             complaint = row.get(f"{prefix}_cedis_complaint_{i}", pd.NA)
             if _has_value(txt) or _has_value(code) or _has_value(complaint):
+                dts_col = _resolve_encounter_start_dts_col(prefix, i, col_lookup)
+                dts_val = row.get(dts_col, pd.NA) if dts_col else pd.NA
                 events.append(
                     {
                         "loc_rank": loc_rank,
@@ -84,10 +115,25 @@ def _all_events_for_row(row: pd.Series) -> list[dict[str, object]]:
                         "cc_text": txt,
                         "cc_cedis_code": code,
                         "cc_cedis_complaint": complaint,
+                        "EncounterStartDTS": dts_val,
+                        "EncounterStartDTS_source_col": dts_col if dts_col else pd.NA,
                     }
                 )
     events.sort(key=lambda x: (int(x["loc_rank"]), int(x["slot"])))
     return events
+
+
+def _add_hours_since_previous_cc(df: pd.DataFrame) -> pd.DataFrame:
+    """Within each journey, hours from previous row's EncounterStartDTS when both parse."""
+    if df.empty or "EncounterStartDTS" not in df.columns:
+        return df
+    out = df.copy()
+    out["_dts_parsed"] = pd.to_datetime(out["EncounterStartDTS"], errors="coerce")
+    out = out.sort_values(["journey_id", "cc_sequence"])
+    delta = out.groupby("journey_id", sort=False)["_dts_parsed"].diff()
+    out["hours_since_previous_cc"] = (delta.dt.total_seconds() / 3600.0).round(2)
+    out = out.drop(columns=["_dts_parsed"])
+    return out
 
 
 def main() -> int:
@@ -117,6 +163,7 @@ def main() -> int:
     cc["journey_id"] = cc["journey_id"].astype(str)
     cc = cc[cc["journey_id"].isin(set(cohort["journey_id"]))].copy()
     cc = cc.merge(cohort_min, on=["journey_id", "MRN"], how="left")
+    col_lookup = _ci_column_lookup(cc.columns)
 
     all_events_rows: list[dict[str, object]] = []
     village_primary_rows: list[dict[str, object]] = []
@@ -135,7 +182,7 @@ def main() -> int:
             }
         )
         seq = 0
-        for e in _all_events_for_row(r):
+        for e in _all_events_for_row(r, col_lookup):
             seq += 1
             all_events_rows.append(
                 {
@@ -149,10 +196,13 @@ def main() -> int:
                     "cc_text": e["cc_text"],
                     "cc_cedis_code": e["cc_cedis_code"],
                     "cc_cedis_complaint": e["cc_cedis_complaint"],
+                    "EncounterStartDTS": e["EncounterStartDTS"],
+                    "EncounterStartDTS_source_col": e["EncounterStartDTS_source_col"],
                 }
             )
 
     all_events = pd.DataFrame(all_events_rows)
+    all_events = _add_hours_since_previous_cc(all_events)
     village_primary = pd.DataFrame(village_primary_rows)
 
     # ---- Pregnancy review ----
