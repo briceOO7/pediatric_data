@@ -261,38 +261,174 @@ def _dts_missing(s: pd.Series) -> pd.Series:
     return s.isna() | (s.astype(str).str.strip() == "") | (s.astype(str).str.lower() == "nan")
 
 
+def _count_missing(s: pd.Series) -> int:
+    return int(_dts_missing(s).sum())
+
+
+def _count_present(s: pd.Series) -> int:
+    return int((~_dts_missing(s)).sum())
+
+
+def _pct(n: int, total: int) -> str:
+    if total == 0:
+        return "0.0%"
+    return f"{100.0 * n / total:.1f}%"
+
+
 def merge_encounter_dts_from_long(
     events: pd.DataFrame,
     long_path: Path,
     cohort_journey_ids: set[str],
 ) -> pd.DataFrame:
     """Fill EncounterStartDTS / source from pediatric_chiefcomplaints_long.csv when missing."""
+    N = len(events)
+    hdr = "=" * 72
+    print(f"\n{hdr}")
+    print("  DTS LINKAGE DIAGNOSTIC REPORT")
+    print(f"{hdr}")
+
     if events.empty:
-        return events
-    if not long_path.is_file():
-        return _add_hours_since_previous_cc(events)
-    lg = pd.read_csv(long_path, low_memory=False)
-    lg = lg[lg["journey_id"].astype(str).isin(cohort_journey_ids)].copy()
-    long_idx = _prepare_chief_complaints_long(lg)
-    if long_idx is None or long_idx.empty:
+        print("[WARN] Event table is empty — nothing to link.")
+        print(f"{hdr}\n")
         return events
 
+    # -- STEP 0: describe what came from the wide file --
+    print(f"\n--- STEP 0: Wide-file events ---")
+    print(f"  Total event rows from wide file: {N}")
+    print(f"  Unique journeys:                 {events['journey_id'].nunique()}")
+    for loc in ("village", "mhc_ed", "mhc_inpatient", "anmc_ed"):
+        n_loc = int((events["cc_location"] == loc).sum())
+        print(f"    {loc}: {n_loc} rows")
+    n_txt = int(events["cc_text"].apply(_has_value).sum())
+    n_code = int(events["cc_cedis_code"].apply(_has_value).sum())
+    n_cmp = int(events["cc_cedis_complaint"].apply(_has_value).sum())
+    n_dts_wide = _count_present(events["EncounterStartDTS"])
+    print(f"  cc_text present:            {n_txt}/{N} ({_pct(n_txt, N)})")
+    print(f"  cc_cedis_code present:      {n_code}/{N} ({_pct(n_code, N)})")
+    print(f"  cc_cedis_complaint present: {n_cmp}/{N} ({_pct(n_cmp, N)})")
+    print(f"  EncounterStartDTS from wide (per-slot cols): {n_dts_wide}/{N} ({_pct(n_dts_wide, N)})")
+    src_counts = events["EncounterStartDTS_source_col"].dropna().astype(str)
+    src_counts = src_counts[src_counts.str.strip() != ""]
+    if len(src_counts):
+        print(f"    Wide DTS source columns used: {src_counts.value_counts().to_dict()}")
+    else:
+        print("    (no per-slot DTS columns found in wide file)")
+
+    if not long_path.is_file():
+        print(f"\n--- STEP 1: Long file ---")
+        print(f"  [SKIP] Long file not found: {long_path}")
+        print(f"  Final DTS fill: {n_dts_wide}/{N} ({_pct(n_dts_wide, N)})")
+        print(f"{hdr}\n")
+        return _add_hours_since_previous_cc(events)
+
+    # -- STEP 1: load & describe the long file --
+    print(f"\n--- STEP 1: Load long file ---")
+    print(f"  Path: {long_path}")
+    lg = pd.read_csv(long_path, low_memory=False)
+    print(f"  Raw rows: {len(lg)}")
+    print(f"  Columns ({len(lg.columns)}): {list(lg.columns)}")
+    lg = lg[lg["journey_id"].astype(str).isin(cohort_journey_ids)].copy()
+    print(f"  After filtering to cohort journey_ids: {len(lg)} rows")
+
+    lk = _ci_column_lookup(lg.columns)
+    jid_c = _pick_ci_col(lk, "journey_id")
+    dts_c = _find_encounter_start_dts_column(lg.columns)
+    phase_c = _pick_ci_col(
+        lk, "facility_phase", "cc_location", "location",
+        "encounter_location", "phase", "cc_facility_phase",
+    )
+    print(f"  Resolved journey_id col: {jid_c}")
+    print(f"  Resolved DTS col:        {dts_c}")
+    print(f"  Resolved phase col:      {phase_c}")
+
+    if dts_c and dts_c in lg.columns:
+        dts_vals = lg[dts_c]
+        n_dts_notnull = int(dts_vals.notna().sum())
+        n_dts_nonblank = int((dts_vals.astype(str).str.strip() != "").sum())
+        n_parseable = int(pd.to_datetime(dts_vals, errors="coerce").notna().sum())
+        print(f"  DTS non-null in long:      {n_dts_notnull}/{len(lg)}")
+        print(f"  DTS non-blank in long:     {n_dts_nonblank}/{len(lg)}")
+        print(f"  DTS parseable as datetime: {n_parseable}/{len(lg)}")
+        print(f"  Sample DTS values (first 5): {list(dts_vals.dropna().head(5))}")
+    else:
+        print("  [WARN] No DTS column found in long file.")
+
+    if phase_c and phase_c in lg.columns:
+        phase_vals = lg[phase_c].astype(str).str.strip()
+        print(f"  Phase/location value_counts (raw, top 20):")
+        for val, cnt in phase_vals.value_counts().head(20).items():
+            mapped = _normalize_long_cc_location(val)
+            print(f"    '{val}' -> '{mapped}' : {cnt}")
+        n_unmapped = int(phase_vals.map(_normalize_long_cc_location).isna().sum())
+        print(f"  Phase values that did NOT map: {n_unmapped}/{len(lg)}")
+    else:
+        print("  [WARN] No phase/location column found in long file.")
+
+    code_c_check = _pick_ci_col(lk, "cedis_code", "village_cedis_code", "mhc_ed_cedis_code", "cediscode")
+    cmp_c_check = _pick_ci_col(lk, "cedis_complaint", "chief_complaint", "cediscomplaint", "cc_complaint")
+    txt_c_check = _pick_ci_col(lk, "cc_text", "chief_complaint_text", "complaint_text", "free_text_cc")
+    print(f"  Resolved CEDIS code col in long:      {code_c_check}")
+    print(f"  Resolved CEDIS complaint col in long:  {cmp_c_check}")
+    print(f"  Resolved CC text col in long:          {txt_c_check}")
+
+    long_idx = _prepare_chief_complaints_long(lg)
+    if long_idx is None or long_idx.empty:
+        print("  [SKIP] _prepare_chief_complaints_long returned None/empty.")
+        print(f"  Final DTS fill: {n_dts_wide}/{N} ({_pct(n_dts_wide, N)})")
+        print(f"{hdr}\n")
+        return _add_hours_since_previous_cc(events)
+
+    print(f"  Prepared long index: {len(long_idx)} rows")
+    print(f"  Long index cc_location value_counts:")
+    for val, cnt in long_idx["cc_location"].value_counts().items():
+        print(f"    {val}: {cnt}")
+    n_long_dts = _count_present(long_idx["EncounterStartDTS"])
+    print(f"  Long index DTS present:  {n_long_dts}/{len(long_idx)} ({_pct(n_long_dts, len(long_idx))})")
+    n_long_code = int((long_idx["_code_n"].astype(str).str.strip() != "").sum())
+    n_long_cmp = int((long_idx["_cmp_n"].astype(str).str.strip() != "").sum())
+    n_long_txt = int((long_idx["_txt"].astype(str).str.strip() != "").sum())
+    print(f"  Long index _code_n present:  {n_long_code}/{len(long_idx)}")
+    print(f"  Long index _cmp_n present:   {n_long_cmp}/{len(long_idx)}")
+    print(f"  Long index _txt present:     {n_long_txt}/{len(long_idx)}")
+
+    # -- STEP 2: slot-based merge --
     m = events.copy()
     m["journey_id"] = m["journey_id"].astype(str)
     tag = long_path.name
 
+    print(f"\n--- STEP 2: Merge by journey_id + cc_location + cc_slot ---")
     slot_tbl = long_idx[["journey_id", "cc_location", "cc_slot", "EncounterStartDTS"]].rename(
         columns={"EncounterStartDTS": "_dts_slot"}
     )
+    print(f"  Slot lookup table rows: {len(slot_tbl)}")
     m = m.merge(slot_tbl, on=["journey_id", "cc_location", "cc_slot"], how="left")
     slot_ok = m["_dts_slot"].notna() & (m["_dts_slot"].astype(str).str.strip() != "")
     wide_miss = _dts_missing(m["EncounterStartDTS"])
     fill = wide_miss & slot_ok
+    n_fill_slot = int(fill.sum())
     m.loc[fill, "EncounterStartDTS"] = m.loc[fill, "_dts_slot"]
     m.loc[fill, "EncounterStartDTS_source_col"] = f"{tag}(journey+location+slot)"
     m = m.drop(columns=["_dts_slot"])
+    n_after_slot = _count_present(m["EncounterStartDTS"])
+    print(f"  Rows needing DTS (wide was missing): {int(wide_miss.sum())}")
+    print(f"  Long slot matches found:             {int(slot_ok.sum())}")
+    print(f"  Filled by slot merge:                {n_fill_slot}")
+    print(f"  DTS present after slot merge:        {n_after_slot}/{N} ({_pct(n_after_slot, N)})")
+    if n_fill_slot == 0 and int(wide_miss.sum()) > 0:
+        print("  [DEBUG] Sample missing rows (first 5):")
+        sample_miss = m.loc[wide_miss].head(5)
+        for _, sr in sample_miss.iterrows():
+            print(f"    j={sr['journey_id']} loc={sr['cc_location']} slot={sr['cc_slot']}")
+        print("  [DEBUG] Sample long_idx rows (first 5):")
+        for _, sr in long_idx.head(5).iterrows():
+            print(f"    j={sr['journey_id']} loc={sr['cc_location']} slot={sr['cc_slot']} dts={sr['EncounterStartDTS']}")
 
+    # -- STEP 3: CEDIS code+complaint fallback --
+    print(f"\n--- STEP 3: Fallback merge by journey_id + cc_location + CEDIS code + complaint ---")
     still = _dts_missing(m["EncounterStartDTS"])
+    n_still = int(still.sum())
+    print(f"  Rows still missing DTS: {n_still}")
+    n_fill_cedis = 0
     if still.any() and "_code_n" in long_idx.columns:
         key_long = long_idx[
             (long_idx["_code_n"].astype(str).str.strip() != "")
@@ -301,18 +437,43 @@ def merge_encounter_dts_from_long(
         key_long = key_long.drop_duplicates(
             ["journey_id", "cc_location", "_code_n", "_cmp_n"], keep="first"
         ).rename(columns={"EncounterStartDTS": "_dts_k"})
+        print(f"  Long CEDIS key table rows: {len(key_long)}")
         if not key_long.empty:
             sub = m.loc[still].copy()
             sub["_audit_row_id"] = sub.index
             sub["_code_n"] = sub["cc_cedis_code"].map(_format_cedis_code).astype(str)
             sub["_cmp_n"] = sub["cc_cedis_complaint"].fillna("").astype(str).str.strip().str.lower()
+            n_sub_code = int((sub["_code_n"].str.strip() != "").sum())
+            n_sub_cmp = int((sub["_cmp_n"].str.strip() != "").sum())
+            print(f"  Audit rows with code for CEDIS match:      {n_sub_code}/{n_still}")
+            print(f"  Audit rows with complaint for CEDIS match: {n_sub_cmp}/{n_still}")
             merged = sub.merge(key_long, on=["journey_id", "cc_location", "_code_n", "_cmp_n"], how="left")
             ok = merged["_dts_k"].notna() & (merged["_dts_k"].astype(str).str.strip() != "")
+            n_fill_cedis = int(ok.sum())
             rid = merged.loc[ok, "_audit_row_id"].values
             m.loc[rid, "EncounterStartDTS"] = merged.loc[ok, "_dts_k"].values
             m.loc[rid, "EncounterStartDTS_source_col"] = f"{tag}(cedis_code+complaint)"
+            if n_fill_cedis == 0 and n_still > 0 and n_sub_code > 0:
+                print("  [DEBUG] Sample audit CEDIS keys that didn't match (first 5):")
+                for _, sr in sub.head(5).iterrows():
+                    print(f"    j={sr['journey_id']} loc={sr['cc_location']} "
+                          f"code='{sr['_code_n']}' cmp='{sr['_cmp_n']}'")
+                print("  [DEBUG] Sample long CEDIS keys (first 5):")
+                for _, sr in key_long.head(5).iterrows():
+                    print(f"    j={sr['journey_id']} loc={sr['cc_location']} "
+                          f"code='{sr['_code_n']}' cmp='{sr['_cmp_n']}'")
+    else:
+        print("  [SKIP] No _code_n in long index or no rows still missing.")
+    n_after_cedis = _count_present(m["EncounterStartDTS"])
+    print(f"  Filled by CEDIS merge:         {n_fill_cedis}")
+    print(f"  DTS present after CEDIS merge: {n_after_cedis}/{N} ({_pct(n_after_cedis, N)})")
 
+    # -- STEP 4: cc_text fallback --
+    print(f"\n--- STEP 4: Fallback merge by journey_id + cc_location + cc_text ---")
     still = _dts_missing(m["EncounterStartDTS"])
+    n_still = int(still.sum())
+    print(f"  Rows still missing DTS: {n_still}")
+    n_fill_txt = 0
     if still.any() and long_idx["_txt"].astype(str).str.strip().ne("").any():
         key_t = long_idx[long_idx["_txt"].astype(str).str.strip() != ""][
             ["journey_id", "cc_location", "_txt", "EncounterStartDTS"]
@@ -320,16 +481,61 @@ def merge_encounter_dts_from_long(
         key_t = key_t.drop_duplicates(["journey_id", "cc_location", "_txt"], keep="first").rename(
             columns={"EncounterStartDTS": "_dts_t"}
         )
+        print(f"  Long text key table rows: {len(key_t)}")
         sub = m.loc[still].copy()
         sub["_audit_row_id"] = sub.index
         sub["_txt"] = sub["cc_text"].map(_norm_cc_text)
+        n_sub_txt = int((sub["_txt"].astype(str).str.strip() != "").sum())
+        print(f"  Audit rows with cc_text for text match: {n_sub_txt}/{n_still}")
         sub = sub[sub["_txt"].astype(str).str.strip() != ""]
         if not sub.empty:
             merged = sub.merge(key_t, on=["journey_id", "cc_location", "_txt"], how="left")
             ok = merged["_dts_t"].notna() & (merged["_dts_t"].astype(str).str.strip() != "")
+            n_fill_txt = int(ok.sum())
             rid = merged.loc[ok, "_audit_row_id"].values
             m.loc[rid, "EncounterStartDTS"] = merged.loc[ok, "_dts_t"].values
             m.loc[rid, "EncounterStartDTS_source_col"] = f"{tag}(cc_text)"
+            if n_fill_txt == 0 and n_sub_txt > 0:
+                print("  [DEBUG] Sample audit text keys that didn't match (first 5):")
+                for _, sr in sub.head(5).iterrows():
+                    print(f"    j={sr['journey_id']} loc={sr['cc_location']} "
+                          f"txt='{sr['_txt'][:60]}'")
+                print("  [DEBUG] Sample long text keys (first 5):")
+                for _, sr in key_t.head(5).iterrows():
+                    print(f"    j={sr['journey_id']} loc={sr['cc_location']} "
+                          f"txt='{sr['_txt'][:60]}'")
+    else:
+        print("  [SKIP] No text in long index or no rows still missing.")
+    n_after_txt = _count_present(m["EncounterStartDTS"])
+    print(f"  Filled by text merge:          {n_fill_txt}")
+    print(f"  DTS present after text merge:  {n_after_txt}/{N} ({_pct(n_after_txt, N)})")
+
+    # -- FINAL SUMMARY --
+    print(f"\n--- FINAL SUMMARY ---")
+    n_final = _count_present(m["EncounterStartDTS"])
+    n_miss = N - n_final
+    print(f"  Total event rows:    {N}")
+    print(f"  DTS present (final): {n_final} ({_pct(n_final, N)})")
+    print(f"  DTS missing (final): {n_miss} ({_pct(n_miss, N)})")
+    print(f"  Breakdown by DTS source:")
+    src = m["EncounterStartDTS_source_col"].fillna("(none)").astype(str).str.strip()
+    src = src.replace("", "(none)")
+    for val, cnt in src.value_counts().items():
+        print(f"    {val}: {cnt}")
+    print(f"  DTS coverage by cc_location:")
+    for loc in ("village", "mhc_ed", "mhc_inpatient", "anmc_ed"):
+        sub_loc = m[m["cc_location"] == loc]
+        n_loc = len(sub_loc)
+        n_dts_loc = _count_present(sub_loc["EncounterStartDTS"])
+        print(f"    {loc}: {n_dts_loc}/{n_loc} ({_pct(n_dts_loc, n_loc)})")
+    if n_miss > 0:
+        print(f"  Remaining missing — sample rows (first 10):")
+        miss_rows = m.loc[_dts_missing(m["EncounterStartDTS"])].head(10)
+        for _, sr in miss_rows.iterrows():
+            print(f"    j={sr['journey_id']} loc={sr['cc_location']} "
+                  f"slot={sr['cc_slot']} code='{sr.get('cc_cedis_code','')}' "
+                  f"txt='{str(sr.get('cc_text',''))[:40]}'")
+    print(f"{hdr}\n")
 
     return _add_hours_since_previous_cc(m)
 
