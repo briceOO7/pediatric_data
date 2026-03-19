@@ -9,21 +9,26 @@ Outputs review CSVs in separate folders for:
 Run from repo root:
   python scripts/audit_chief_complaints.py
 
-PHI: expects per-slot columns like ``village_EncounterStartDTS_1``,
-``mhc_ed_EncounterStartDTS_1`` (case-insensitive; see
-``_resolve_encounter_start_dts_col`` for alternates). Populates
-``hours_since_previous_cc`` when consecutive rows parse as datetimes.
+PHI timing: prefer ``data/pediatric_chiefcomplaints_long.csv`` (override with
+``MEDEVAC_CHIEF_COMPLAINTS_LONG`` or ``--chief-complaints-long``), which should
+include ``EncounterStartDTS`` per row plus a location/phase column (e.g.
+``facility_phase``). Wide file per-slot ``*_EncounterStartDTS_*`` columns are
+still used when present.
+
+Populates ``hours_since_previous_cc`` when consecutive rows parse as datetimes.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
+DEFAULT_CHIEF_COMPLAINTS_LONG = REPO / "data" / "pediatric_chiefcomplaints_long.csv"
 sys.path.insert(0, str(REPO / "analysis"))
 
 from medevac_summaries import (  # noqa: E402
@@ -136,12 +141,210 @@ def _add_hours_since_previous_cc(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _pick_ci_col(lookup: dict[str, str], *names: str) -> str | None:
+    for n in names:
+        c = lookup.get(n.lower())
+        if c:
+            return c
+    return None
+
+
+def _find_encounter_start_dts_column(columns: pd.Index) -> str | None:
+    lk = _ci_column_lookup(columns)
+    for key in ("encounterstartdts", "encounter_start_dts", "encounterstart_dt"):
+        if key in lk:
+            return lk[key]
+    for c in columns:
+        cl = str(c).lower()
+        if "encounterstart" in cl.replace("_", "") and "dts" in cl:
+            return str(c)
+    return None
+
+
+def _normalize_long_cc_location(phase_raw: object) -> str | None:
+    """Map long-file phase/location text to audit cc_location codes."""
+    if pd.isna(phase_raw):
+        return None
+    s = str(phase_raw).strip().lower().replace(" ", "_").replace("-", "_")
+    if not s:
+        return None
+    if s in {"village", "village_clinic", "clinic", "chs"}:
+        return "village"
+    if "anmc" in s and "inpatient" in s:
+        return "anmc_inpatient"
+    if "anmc" in s and ("ed" in s or "er" in s or "emergency" in s):
+        return "anmc_ed"
+    if "anmc" in s:
+        return "anmc_ed"
+    if "mhc" in s and ("inpatient" in s or "_ip" == s[-3:] or s.endswith("ip")):
+        return "mhc_inpatient"
+    if "mhc" in s and ("ed" in s or "er" in s or "emergency" in s):
+        return "mhc_ed"
+    if "mhc" in s:
+        return "mhc_ed"
+    if "village" in s:
+        return "village"
+    return None
+
+
+def _norm_cc_text(x: object) -> str:
+    if not _has_value(x):
+        return ""
+    return " ".join(str(x).lower().split())
+
+
+def _prepare_chief_complaints_long(
+    lg: pd.DataFrame,
+) -> pd.DataFrame | None:
+    """
+    Return long extract with journey_id, cc_location, cc_slot, EncounterStartDTS,
+    plus optional _code_n, _cmp_n, _txt for fallback matching.
+    """
+    if lg.empty:
+        return None
+    lk = _ci_column_lookup(lg.columns)
+    jid_c = _pick_ci_col(lk, "journey_id")
+    dts_c = _find_encounter_start_dts_column(lg.columns)
+    phase_c = _pick_ci_col(
+        lk,
+        "facility_phase",
+        "cc_location",
+        "location",
+        "encounter_location",
+        "phase",
+        "cc_facility_phase",
+    )
+    if not jid_c or not dts_c or not phase_c:
+        return None
+
+    code_c = _pick_ci_col(lk, "cedis_code", "village_cedis_code", "mhc_ed_cedis_code", "cediscode")
+    cmp_c = _pick_ci_col(
+        lk,
+        "cedis_complaint",
+        "chief_complaint",
+        "cediscomplaint",
+        "cc_complaint",
+    )
+    txt_c = _pick_ci_col(lk, "cc_text", "chief_complaint_text", "complaint_text", "free_text_cc")
+
+    out = lg[[jid_c, phase_c, dts_c]].copy()
+    out.columns = ["journey_id", "_phase_raw", "EncounterStartDTS"]
+    out["journey_id"] = out["journey_id"].astype(str)
+    out["cc_location"] = out["_phase_raw"].map(_normalize_long_cc_location)
+    out = out[out["cc_location"].notna()].copy()
+    if out.empty:
+        return None
+
+    out["_dts_sort"] = pd.to_datetime(out["EncounterStartDTS"], errors="coerce")
+    out = out.sort_values(["journey_id", "cc_location", "_dts_sort"], na_position="last")
+    out["cc_slot"] = out.groupby(["journey_id", "cc_location"], sort=False).cumcount() + 1
+
+    if code_c and code_c in lg.columns:
+        out["_code_n"] = lg.loc[out.index, code_c].map(_format_cedis_code).astype(str)
+    else:
+        out["_code_n"] = ""
+    if cmp_c and cmp_c in lg.columns:
+        out["_cmp_n"] = lg.loc[out.index, cmp_c].fillna("").astype(str).str.strip().str.lower()
+    else:
+        out["_cmp_n"] = ""
+    if txt_c and txt_c in lg.columns:
+        out["_txt"] = lg.loc[out.index, txt_c].map(_norm_cc_text)
+    else:
+        out["_txt"] = ""
+
+    out = out.drop(columns=["_phase_raw", "_dts_sort"])
+    out = out.drop_duplicates(subset=["journey_id", "cc_location", "cc_slot"], keep="first")
+    return out
+
+
+def _dts_missing(s: pd.Series) -> pd.Series:
+    return s.isna() | (s.astype(str).str.strip() == "") | (s.astype(str).str.lower() == "nan")
+
+
+def merge_encounter_dts_from_long(
+    events: pd.DataFrame,
+    long_path: Path,
+    cohort_journey_ids: set[str],
+) -> pd.DataFrame:
+    """Fill EncounterStartDTS / source from pediatric_chiefcomplaints_long.csv when missing."""
+    if events.empty:
+        return events
+    if not long_path.is_file():
+        return _add_hours_since_previous_cc(events)
+    lg = pd.read_csv(long_path, low_memory=False)
+    lg = lg[lg["journey_id"].astype(str).isin(cohort_journey_ids)].copy()
+    long_idx = _prepare_chief_complaints_long(lg)
+    if long_idx is None or long_idx.empty:
+        return events
+
+    m = events.copy()
+    m["journey_id"] = m["journey_id"].astype(str)
+    tag = long_path.name
+
+    slot_tbl = long_idx[["journey_id", "cc_location", "cc_slot", "EncounterStartDTS"]].rename(
+        columns={"EncounterStartDTS": "_dts_slot"}
+    )
+    m = m.merge(slot_tbl, on=["journey_id", "cc_location", "cc_slot"], how="left")
+    slot_ok = m["_dts_slot"].notna() & (m["_dts_slot"].astype(str).str.strip() != "")
+    wide_miss = _dts_missing(m["EncounterStartDTS"])
+    fill = wide_miss & slot_ok
+    m.loc[fill, "EncounterStartDTS"] = m.loc[fill, "_dts_slot"]
+    m.loc[fill, "EncounterStartDTS_source_col"] = f"{tag}(journey+location+slot)"
+    m = m.drop(columns=["_dts_slot"])
+
+    still = _dts_missing(m["EncounterStartDTS"])
+    if still.any() and "_code_n" in long_idx.columns:
+        key_long = long_idx[
+            (long_idx["_code_n"].astype(str).str.strip() != "")
+            | (long_idx["_cmp_n"].astype(str).str.strip() != "")
+        ][["journey_id", "cc_location", "_code_n", "_cmp_n", "EncounterStartDTS"]].copy()
+        key_long = key_long.drop_duplicates(
+            ["journey_id", "cc_location", "_code_n", "_cmp_n"], keep="first"
+        ).rename(columns={"EncounterStartDTS": "_dts_k"})
+        if not key_long.empty:
+            sub = m.loc[still].copy()
+            sub["_audit_row_id"] = sub.index
+            sub["_code_n"] = sub["cc_cedis_code"].map(_format_cedis_code).astype(str)
+            sub["_cmp_n"] = sub["cc_cedis_complaint"].fillna("").astype(str).str.strip().str.lower()
+            merged = sub.merge(key_long, on=["journey_id", "cc_location", "_code_n", "_cmp_n"], how="left")
+            ok = merged["_dts_k"].notna() & (merged["_dts_k"].astype(str).str.strip() != "")
+            rid = merged.loc[ok, "_audit_row_id"].values
+            m.loc[rid, "EncounterStartDTS"] = merged.loc[ok, "_dts_k"].values
+            m.loc[rid, "EncounterStartDTS_source_col"] = f"{tag}(cedis_code+complaint)"
+
+    still = _dts_missing(m["EncounterStartDTS"])
+    if still.any() and long_idx["_txt"].astype(str).str.strip().ne("").any():
+        key_t = long_idx[long_idx["_txt"].astype(str).str.strip() != ""][
+            ["journey_id", "cc_location", "_txt", "EncounterStartDTS"]
+        ].copy()
+        key_t = key_t.drop_duplicates(["journey_id", "cc_location", "_txt"], keep="first").rename(
+            columns={"EncounterStartDTS": "_dts_t"}
+        )
+        sub = m.loc[still].copy()
+        sub["_audit_row_id"] = sub.index
+        sub["_txt"] = sub["cc_text"].map(_norm_cc_text)
+        sub = sub[sub["_txt"].astype(str).str.strip() != ""]
+        if not sub.empty:
+            merged = sub.merge(key_t, on=["journey_id", "cc_location", "_txt"], how="left")
+            ok = merged["_dts_t"].notna() & (merged["_dts_t"].astype(str).str.strip() != "")
+            rid = merged.loc[ok, "_audit_row_id"].values
+            m.loc[rid, "EncounterStartDTS"] = merged.loc[ok, "_dts_t"].values
+            m.loc[rid, "EncounterStartDTS_source_col"] = f"{tag}(cc_text)"
+
+    return _add_hours_since_previous_cc(m)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",
         default=str(REPO / "outputs" / "review_cc_audit"),
         help="Output directory for review CSVs.",
+    )
+    parser.add_argument(
+        "--chief-complaints-long",
+        default=None,
+        help="Path to pediatric_chiefcomplaints_long.csv (default: env MEDEVAC_CHIEF_COMPLAINTS_LONG or data/pediatric_chiefcomplaints_long.csv).",
     )
     args = parser.parse_args()
     out_root = Path(args.output_dir).resolve()
@@ -202,7 +405,11 @@ def main() -> int:
             )
 
     all_events = pd.DataFrame(all_events_rows)
-    all_events = _add_hours_since_previous_cc(all_events)
+    long_path = Path(
+        args.chief_complaints_long
+        or os.environ.get("MEDEVAC_CHIEF_COMPLAINTS_LONG", str(DEFAULT_CHIEF_COMPLAINTS_LONG))
+    ).resolve()
+    all_events = merge_encounter_dts_from_long(all_events, long_path, set(cc["journey_id"]))
     village_primary = pd.DataFrame(village_primary_rows)
 
     # ---- Pregnancy review ----

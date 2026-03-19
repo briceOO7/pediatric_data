@@ -47,6 +47,14 @@ On the PHI machine, run **`run_full_pipeline.py` without `-synthetic`**. The pip
 
 Use **`-synthetic`** only for the stripped, de-identified copy (missing many columns, `Village_*` or codebook-mapped names).
 
+### Chief complaint audit (PHI review)
+
+```bash
+python scripts/audit_chief_complaints.py
+```
+
+Uses `data/pediatric_chiefcomplaints.csv` (wide) for events. If `data/pediatric_chiefcomplaints_long.csv` exists (or set **`MEDEVAC_CHIEF_COMPLAINTS_LONG`**, or pass **`--chief-complaints-long`**) with **`EncounterStartDTS`** and a phase column such as **`facility_phase`**, those timestamps are merged onto each audit row (by journey + location + slot, then CEDIS/text fallbacks) for time-between review.
+
 ## Figure 1 map (`plot_fig1_medevac_activation_map`)
 
 Requires **`mapping_data/`** shapefiles (boroughs + Maniilaq healthcare facilities; PC-safe names, see `docs/mapping_data_layout.md`). Counts **village → MHC (CAH_01)** medevac legs. Rates use **residents under 18** from **`docs/maniilaq_village_census2020_pediatric.csv`** (2020 Census DHC). Refresh: `python scripts/fetch_maniilaq_census_pediatric.py`. Needs **`geopandas`**.
@@ -121,8 +129,10 @@ Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq
 - **Table 2.2** (`table2_2_vitals_repeated.csv`): patient-level repeat rate `n(%)` with >1 value for each vital measure.
 - **Table 2.3** (`table2_3_vitals_missingness_by_age.csv`): Table 2.1 missingness, stratified by age groups.
 - **Table 2.4** (`table2_4_vitals_repeated_by_age.csv`): Table 2.2 repeated-vitals rate, stratified by age groups.
+- **Table 3** (`table3_pews_data_availability_by_age.csv`): proportion with PEWS-required data (RR, HR, systolic BP, Temp, GCS) by age group; patient counted if any village-vitals row has all required fields.
 - **Table 4** (`table4_chief_complaints_overall.csv`): top 10 village **CEDIS code + complaint** pairs per journey (first non-missing village CEDIS slot); **%** of cohort journeys. **Tables 4.1–4.4** (`table4_1` … `table4_4_chief_complaints.csv`): same within age bucket; **%** of journeys in that age group.
 - **Table 4.5** (`table4_followup_prior_visit_check.csv`): validation for **Follow-up visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
+- **Table 4.6** (`table4_6_expanded_followup_cc_review.csv`): event-level review for village CEDIS `888` journeys with all CC entries (location/text/CEDIS), `hours_since_previous_cc`, and expanded follow-up fields where expanded code is the first non-`888`/`999` CEDIS in journey order.
 - **Table 5** (`table5_journeys_by_year.csv`): cohort journeys by calendar year.
 - **Table 6** (`table6_decision_time_category.csv`, `table6_flight_time_category.csv`, `table6_flight_time_extended.csv`): timing category distributions.
 - **Table 7** (`table7_timing_minutes_village_cah_only.csv`, `table7_timing_minutes_all_origins.csv`): continuous timing in minutes.
