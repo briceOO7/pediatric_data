@@ -1,0 +1,5356 @@
+{
+  "root": "/Users/brianrice/CursorProjects/pediatric_data",
+  "data_dir": "/Users/brianrice/CursorProjects/pediatric_data/data",
+  "inventory": [
+    {
+      "file": "pediatric_chiefcomplaints.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_chiefcomplaints.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 109,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "origin_type",
+        "village_cc_1",
+        "village_cedis_code_1",
+        "village_cedis_complaint_1",
+        "village_cc_2",
+        "village_cedis_code_2",
+        "village_cedis_complaint_2",
+        "village_cc_3",
+        "village_cedis_code_3",
+        "village_cedis_complaint_3",
+        "village_cc_4",
+        "village_cedis_code_4",
+        "village_cedis_complaint_4",
+        "village_cc_5",
+        "village_cedis_code_5",
+        "village_cedis_complaint_5",
+        "village_cc_6",
+        "village_cedis_code_6",
+        "village_cedis_complaint_6",
+        "village_cc_7",
+        "village_cedis_code_7",
+        "village_cedis_complaint_7",
+        "village_cc_8",
+        "village_cedis_code_8",
+        "village_cedis_complaint_8",
+        "village_cc_9",
+        "village_cedis_code_9",
+        "village_cedis_complaint_9",
+        "village_cc_10",
+        "village_cedis_code_10",
+        "village_cedis_complaint_10",
+        "village_cc_11",
+        "village_cedis_code_11",
+        "village_cedis_complaint_11",
+        "village_cc_12",
+        "village_cedis_code_12",
+        "village_cedis_complaint_12",
+        "village_cc_13",
+        "village_cedis_code_13",
+        "village_cedis_complaint_13",
+        "village_cc_14",
+        "village_cedis_code_14",
+        "village_cedis_complaint_14",
+        "village_cc_15",
+        "village_cedis_code_15",
+        "village_cedis_complaint_15",
+        "village_cc_16",
+        "village_cedis_code_16",
+        "village_cedis_complaint_16",
+        "village_cc_17",
+        "village_cedis_code_17",
+        "village_cedis_complaint_17",
+        "village_cc_18",
+        "village_cedis_code_18",
+        "village_cedis_complaint_18",
+        "village_cc_19",
+        "village_cedis_code_19",
+        "village_cedis_complaint_19",
+        "mhc_ed_cc_1",
+        "mhc_ed_cedis_code_1",
+        "mhc_ed_cedis_complaint_1",
+        "mhc_ed_cc_2",
+        "mhc_ed_cedis_code_2",
+        "mhc_ed_cedis_complaint_2",
+        "mhc_ed_cc_3",
+        "mhc_ed_cedis_code_3",
+        "mhc_ed_cedis_complaint_3",
+        "mhc_ed_cc_4",
+        "mhc_ed_cedis_code_4",
+        "mhc_ed_cedis_complaint_4",
+        "mhc_ed_cc_5",
+        "mhc_ed_cedis_code_5",
+        "mhc_ed_cedis_complaint_5",
+        "mhc_ed_cc_6",
+        "mhc_ed_cedis_code_6",
+        "mhc_ed_cedis_complaint_6",
+        "mhc_ed_cc_7",
+        "mhc_ed_cedis_code_7",
+        "mhc_ed_cedis_complaint_7",
+        "mhc_ed_cc_8",
+        "mhc_ed_cedis_code_8",
+        "mhc_ed_cedis_complaint_8",
+        "mhc_inpatient_cc_1",
+        "mhc_inpatient_cedis_code_1",
+        "mhc_inpatient_cedis_complaint_1",
+        "mhc_inpatient_cc_2",
+        "mhc_inpatient_cedis_code_2",
+        "mhc_inpatient_cedis_complaint_2",
+        "mhc_inpatient_cc_3",
+        "mhc_inpatient_cedis_code_3",
+        "mhc_inpatient_cedis_complaint_3",
+        "mhc_inpatient_cc_4",
+        "mhc_inpatient_cedis_code_4",
+        "mhc_inpatient_cedis_complaint_4",
+        "mhc_inpatient_cc_5",
+        "mhc_inpatient_cedis_code_5",
+        "mhc_inpatient_cedis_complaint_5",
+        "anmc_ed_cc_1",
+        "anmc_ed_cedis_code_1",
+        "anmc_ed_cedis_complaint_1",
+        "anmc_ed_cc_2",
+        "anmc_ed_cedis_code_2",
+        "anmc_ed_cedis_complaint_2",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_type",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cc_1",
+          "dtype": "str",
+          "non_null_n": 327,
+          "non_null_pct": 85.2,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cedis_code_1",
+          "dtype": "float64",
+          "non_null_n": 327,
+          "non_null_pct": 85.2,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cedis_complaint_1",
+          "dtype": "str",
+          "non_null_n": 327,
+          "non_null_pct": 85.2,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cc_2",
+          "dtype": "str",
+          "non_null_n": 246,
+          "non_null_pct": 64.1,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cedis_code_2",
+          "dtype": "float64",
+          "non_null_n": 246,
+          "non_null_pct": 64.1,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cedis_complaint_2",
+          "dtype": "str",
+          "non_null_n": 246,
+          "non_null_pct": 64.1,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "village_cc_3",
+          "dtype": "str",
+          "non_null_n": 162,
+          "non_null_pct": 42.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "village_cedis_code_3",
+          "dtype": "float64",
+          "non_null_n": 162,
+          "non_null_pct": 42.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "village_cedis_complaint_3",
+          "dtype": "str",
+          "non_null_n": 162,
+          "non_null_pct": 42.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "village_cc_4",
+          "dtype": "str",
+          "non_null_n": 102,
+          "non_null_pct": 26.6,
+          "first_non_null_row_index0": 2,
+          "first_non_null_row_number1": 4
+        },
+        {
+          "column": "village_cedis_code_4",
+          "dtype": "float64",
+          "non_null_n": 102,
+          "non_null_pct": 26.6,
+          "first_non_null_row_index0": 2,
+          "first_non_null_row_number1": 4
+        },
+        {
+          "column": "village_cedis_complaint_4",
+          "dtype": "str",
+          "non_null_n": 102,
+          "non_null_pct": 26.6,
+          "first_non_null_row_index0": 2,
+          "first_non_null_row_number1": 4
+        },
+        {
+          "column": "village_cc_5",
+          "dtype": "str",
+          "non_null_n": 49,
+          "non_null_pct": 12.8,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "village_cedis_code_5",
+          "dtype": "float64",
+          "non_null_n": 49,
+          "non_null_pct": 12.8,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "village_cedis_complaint_5",
+          "dtype": "str",
+          "non_null_n": 49,
+          "non_null_pct": 12.8,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "village_cc_6",
+          "dtype": "str",
+          "non_null_n": 30,
+          "non_null_pct": 7.8,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_code_6",
+          "dtype": "float64",
+          "non_null_n": 30,
+          "non_null_pct": 7.8,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_complaint_6",
+          "dtype": "str",
+          "non_null_n": 30,
+          "non_null_pct": 7.8,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cc_7",
+          "dtype": "str",
+          "non_null_n": 16,
+          "non_null_pct": 4.2,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_code_7",
+          "dtype": "float64",
+          "non_null_n": 16,
+          "non_null_pct": 4.2,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_complaint_7",
+          "dtype": "str",
+          "non_null_n": 16,
+          "non_null_pct": 4.2,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cc_8",
+          "dtype": "str",
+          "non_null_n": 10,
+          "non_null_pct": 2.6,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_code_8",
+          "dtype": "float64",
+          "non_null_n": 10,
+          "non_null_pct": 2.6,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cedis_complaint_8",
+          "dtype": "str",
+          "non_null_n": 10,
+          "non_null_pct": 2.6,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "village_cc_9",
+          "dtype": "str",
+          "non_null_n": 6,
+          "non_null_pct": 1.6,
+          "first_non_null_row_index0": 35,
+          "first_non_null_row_number1": 37
+        },
+        {
+          "column": "village_cedis_code_9",
+          "dtype": "float64",
+          "non_null_n": 6,
+          "non_null_pct": 1.6,
+          "first_non_null_row_index0": 35,
+          "first_non_null_row_number1": 37
+        },
+        {
+          "column": "village_cedis_complaint_9",
+          "dtype": "str",
+          "non_null_n": 6,
+          "non_null_pct": 1.6,
+          "first_non_null_row_index0": 35,
+          "first_non_null_row_number1": 37
+        },
+        {
+          "column": "village_cc_10",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cedis_code_10",
+          "dtype": "float64",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cedis_complaint_10",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cc_11",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cedis_code_11",
+          "dtype": "float64",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cedis_complaint_11",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 192,
+          "first_non_null_row_number1": 194
+        },
+        {
+          "column": "village_cc_12",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_12",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_12",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_13",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_13",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_13",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_14",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_14",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_14",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_15",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_15",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_15",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_16",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_16",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_16",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_17",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_17",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_17",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_18",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_18",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_18",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_19",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_code_19",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cedis_complaint_19",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc_1",
+          "dtype": "str",
+          "non_null_n": 230,
+          "non_null_pct": 59.9,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_ed_cedis_code_1",
+          "dtype": "float64",
+          "non_null_n": 230,
+          "non_null_pct": 59.9,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_1",
+          "dtype": "str",
+          "non_null_n": 230,
+          "non_null_pct": 59.9,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_ed_cc_2",
+          "dtype": "str",
+          "non_null_n": 81,
+          "non_null_pct": 21.1,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "mhc_ed_cedis_code_2",
+          "dtype": "float64",
+          "non_null_n": 81,
+          "non_null_pct": 21.1,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_2",
+          "dtype": "str",
+          "non_null_n": 81,
+          "non_null_pct": 21.1,
+          "first_non_null_row_index0": 3,
+          "first_non_null_row_number1": 5
+        },
+        {
+          "column": "mhc_ed_cc_3",
+          "dtype": "str",
+          "non_null_n": 20,
+          "non_null_pct": 5.2,
+          "first_non_null_row_index0": 6,
+          "first_non_null_row_number1": 8
+        },
+        {
+          "column": "mhc_ed_cedis_code_3",
+          "dtype": "float64",
+          "non_null_n": 20,
+          "non_null_pct": 5.2,
+          "first_non_null_row_index0": 6,
+          "first_non_null_row_number1": 8
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_3",
+          "dtype": "str",
+          "non_null_n": 20,
+          "non_null_pct": 5.2,
+          "first_non_null_row_index0": 6,
+          "first_non_null_row_number1": 8
+        },
+        {
+          "column": "mhc_ed_cc_4",
+          "dtype": "str",
+          "non_null_n": 4,
+          "non_null_pct": 1.0,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cedis_code_4",
+          "dtype": "float64",
+          "non_null_n": 4,
+          "non_null_pct": 1.0,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_4",
+          "dtype": "str",
+          "non_null_n": 4,
+          "non_null_pct": 1.0,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cc_5",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cedis_code_5",
+          "dtype": "float64",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_5",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 72,
+          "first_non_null_row_number1": 74
+        },
+        {
+          "column": "mhc_ed_cc_6",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_code_6",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_6",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc_7",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_code_7",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_7",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc_8",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_code_8",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cedis_complaint_8",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cc_1",
+          "dtype": "str",
+          "non_null_n": 140,
+          "non_null_pct": 36.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_inpatient_cedis_code_1",
+          "dtype": "float64",
+          "non_null_n": 140,
+          "non_null_pct": 36.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_inpatient_cedis_complaint_1",
+          "dtype": "str",
+          "non_null_n": 140,
+          "non_null_pct": 36.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "mhc_inpatient_cc_2",
+          "dtype": "str",
+          "non_null_n": 25,
+          "non_null_pct": 6.5,
+          "first_non_null_row_index0": 25,
+          "first_non_null_row_number1": 27
+        },
+        {
+          "column": "mhc_inpatient_cedis_code_2",
+          "dtype": "float64",
+          "non_null_n": 25,
+          "non_null_pct": 6.5,
+          "first_non_null_row_index0": 25,
+          "first_non_null_row_number1": 27
+        },
+        {
+          "column": "mhc_inpatient_cedis_complaint_2",
+          "dtype": "str",
+          "non_null_n": 25,
+          "non_null_pct": 6.5,
+          "first_non_null_row_index0": 25,
+          "first_non_null_row_number1": 27
+        },
+        {
+          "column": "mhc_inpatient_cc_3",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cedis_code_3",
+          "dtype": "float64",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cedis_complaint_3",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cc_4",
+          "dtype": "str",
+          "non_null_n": 2,
+          "non_null_pct": 0.5,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cedis_code_4",
+          "dtype": "float64",
+          "non_null_n": 2,
+          "non_null_pct": 0.5,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cedis_complaint_4",
+          "dtype": "str",
+          "non_null_n": 2,
+          "non_null_pct": 0.5,
+          "first_non_null_row_index0": 138,
+          "first_non_null_row_number1": 140
+        },
+        {
+          "column": "mhc_inpatient_cc_5",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cedis_code_5",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cedis_complaint_5",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cc_1",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 147,
+          "first_non_null_row_number1": 149
+        },
+        {
+          "column": "anmc_ed_cedis_code_1",
+          "dtype": "float64",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 147,
+          "first_non_null_row_number1": 149
+        },
+        {
+          "column": "anmc_ed_cedis_complaint_1",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 147,
+          "first_non_null_row_number1": 149
+        },
+        {
+          "column": "anmc_ed_cc_2",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cedis_code_2",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cedis_complaint_2",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_chiefcomplaints_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_chiefcomplaints_long.csv",
+      "line_count_including_header": 1,
+      "read_ok": true,
+      "row_count": 0,
+      "column_count": 16,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "medevac_cc",
+        "medevac_cc_category",
+        "village_cc_category",
+        "mhc_ed_cc_category",
+        "mhc_inpatient_cc_category",
+        "anmc_ed_cc_category",
+        "anmc_inpatient_cc_category",
+        "origin_type",
+        "facility_phase",
+        "cc_text",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "MRN",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac_cc",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_inpatient_cc_category",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "origin_type",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_phase",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "cc_text",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "object",
+          "non_null_n": 0,
+          "non_null_pct": null,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_chiefcomplaints_wide.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_chiefcomplaints_wide.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 19,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "medevac_cc",
+        "village_cc",
+        "mhc_ed_cc",
+        "mhc_inpatient_cc",
+        "anmc_ed_cc",
+        "anmc_inpatient_cc",
+        "medevac_cc_category",
+        "village_cc_category",
+        "mhc_ed_cc_category",
+        "mhc_inpatient_cc_category",
+        "anmc_ed_cc_category",
+        "anmc_inpatient_cc_category",
+        "origin_type",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_inpatient_cc",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "village_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_ed_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "mhc_inpatient_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_ed_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "anmc_inpatient_cc_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "origin_type",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_diagnoses.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_diagnoses.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 2,
+      "columns": [
+        "journey_id",
+        "MRN"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_diagnoses_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_diagnoses_long.csv",
+      "line_count_including_header": 2608,
+      "read_ok": true,
+      "row_count": 2607,
+      "column_count": 13,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "DiagnosisCD",
+        "DiagnosisDSC",
+        "DiagnosisType",
+        "diagnosis_category",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "journey_end_date_hours_from_start",
+        "DiagnosisStartDTS_hours_from_start",
+        "DiagnosisEndDTS_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisCD",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisDSC",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisType",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "diagnosis_category",
+          "dtype": "str",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 39,
+          "non_null_pct": 1.5,
+          "first_non_null_row_index0": 1043,
+          "first_non_null_row_number1": 1045
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_end_date_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisStartDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisEndDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 2607,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_diagnoses_wide.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_diagnoses_wide.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 14,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "primary_admit",
+        "primary_discharge",
+        "secondary_admit",
+        "secondary_discharge",
+        "journey_old_diagnoses",
+        "old_diagnosis_count",
+        "new_diagnosis_count",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "journey_end_date_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "primary_admit",
+          "dtype": "str",
+          "non_null_n": 284,
+          "non_null_pct": 74.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "primary_discharge",
+          "dtype": "str",
+          "non_null_n": 379,
+          "non_null_pct": 98.7,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "secondary_admit",
+          "dtype": "str",
+          "non_null_n": 9,
+          "non_null_pct": 2.3,
+          "first_non_null_row_index0": 14,
+          "first_non_null_row_number1": 16
+        },
+        {
+          "column": "secondary_discharge",
+          "dtype": "str",
+          "non_null_n": 361,
+          "non_null_pct": 94.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_old_diagnoses",
+          "dtype": "str",
+          "non_null_n": 160,
+          "non_null_pct": 41.7,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "old_diagnosis_count",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "new_diagnosis_count",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_end_date_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_facility_times.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_facility_times.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 16,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "facility_1_name",
+        "facility_1_time",
+        "facility_2_name",
+        "facility_2_time",
+        "facility_3_name",
+        "facility_3_time",
+        "facility_4_name",
+        "facility_4_time",
+        "death_at_facility",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "journey_end_date_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_1_name",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_1_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_2_name",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_2_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_3_name",
+          "dtype": "str",
+          "non_null_n": 50,
+          "non_null_pct": 13.0,
+          "first_non_null_row_index0": 5,
+          "first_non_null_row_number1": 7
+        },
+        {
+          "column": "facility_3_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_name",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "death_at_facility",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 166,
+          "first_non_null_row_number1": 168
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_end_date_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_medevac_journeys.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_medevac_journeys.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 91,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "journey_duration_hours",
+        "journey_end_reason",
+        "num_medevacs",
+        "num_encounters",
+        "journey_pattern",
+        "loc1",
+        "loc1_dept",
+        "loc1_encounter_id",
+        "loc1_medevac_id",
+        "loc2",
+        "loc2_dept",
+        "loc2_encounter_id",
+        "loc2_medevac_id",
+        "loc3",
+        "loc3_dept",
+        "loc3_encounter_id",
+        "loc3_medevac_id",
+        "loc4",
+        "loc4_dept",
+        "loc4_encounter_id",
+        "loc4_medevac_id",
+        "loc5",
+        "loc5_dept",
+        "loc5_encounter_id",
+        "loc5_medevac_id",
+        "loc6",
+        "loc6_dept",
+        "loc6_start",
+        "loc6_end",
+        "loc6_encounter_id",
+        "loc6_medevac_id",
+        "facility_1_name",
+        "facility_1_time",
+        "facility_2_name",
+        "facility_2_time",
+        "facility_3_name",
+        "facility_3_time",
+        "facility_4_name",
+        "facility_4_time",
+        "medevac1_id",
+        "medevac1_date",
+        "medevac1_dts",
+        "medevac1_dts_source",
+        "medevac1_from",
+        "medevac1_to",
+        "medevac1_from_encounter",
+        "medevac1_to_encounter",
+        "medevac1_match_score",
+        "medevac1_exclusion_category",
+        "medevac2_id",
+        "medevac2_date",
+        "medevac2_dts",
+        "medevac2_dts_source",
+        "medevac2_from",
+        "medevac2_to",
+        "medevac2_from_encounter",
+        "medevac2_to_encounter",
+        "medevac2_match_score",
+        "medevac2_exclusion_category",
+        "medevac3_id",
+        "medevac3_date",
+        "medevac3_dts",
+        "medevac3_dts_source",
+        "medevac3_from",
+        "medevac3_to",
+        "medevac3_from_encounter",
+        "medevac3_to_encounter",
+        "medevac3_match_score",
+        "medevac3_exclusion_category",
+        "total_locations",
+        "has_village_start",
+        "has_hub_end",
+        "has_outside_end",
+        "age_at_medevac",
+        "age_at_death",
+        "origin_type",
+        "journey_start_month",
+        "journey_start_year",
+        "journey_end_date_hours_from_start",
+        "loc1_start_hours_from_start",
+        "loc1_end_hours_from_start",
+        "loc2_start_hours_from_start",
+        "loc2_end_hours_from_start",
+        "loc3_start_hours_from_start",
+        "loc3_end_hours_from_start",
+        "loc4_start_hours_from_start",
+        "loc4_end_hours_from_start",
+        "loc5_start_hours_from_start",
+        "loc5_end_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_duration_hours",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_end_reason",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "num_medevacs",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "num_encounters",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_pattern",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1_dept",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1_encounter_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc2",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc2_dept",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc2_encounter_id",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc2_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc3",
+          "dtype": "str",
+          "non_null_n": 189,
+          "non_null_pct": 49.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "loc3_dept",
+          "dtype": "str",
+          "non_null_n": 189,
+          "non_null_pct": 49.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "loc3_encounter_id",
+          "dtype": "str",
+          "non_null_n": 187,
+          "non_null_pct": 48.7,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "loc3_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc4",
+          "dtype": "str",
+          "non_null_n": 12,
+          "non_null_pct": 3.1,
+          "first_non_null_row_index0": 46,
+          "first_non_null_row_number1": 48
+        },
+        {
+          "column": "loc4_dept",
+          "dtype": "str",
+          "non_null_n": 12,
+          "non_null_pct": 3.1,
+          "first_non_null_row_index0": 46,
+          "first_non_null_row_number1": 48
+        },
+        {
+          "column": "loc4_encounter_id",
+          "dtype": "str",
+          "non_null_n": 10,
+          "non_null_pct": 2.6,
+          "first_non_null_row_index0": 46,
+          "first_non_null_row_number1": 48
+        },
+        {
+          "column": "loc4_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc5",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 185,
+          "first_non_null_row_number1": 187
+        },
+        {
+          "column": "loc5_dept",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 185,
+          "first_non_null_row_number1": 187
+        },
+        {
+          "column": "loc5_encounter_id",
+          "dtype": "str",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 185,
+          "first_non_null_row_number1": 187
+        },
+        {
+          "column": "loc5_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6_dept",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6_start",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6_end",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6_encounter_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "loc6_medevac_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_1_name",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_1_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_2_name",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_2_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_3_name",
+          "dtype": "str",
+          "non_null_n": 50,
+          "non_null_pct": 13.0,
+          "first_non_null_row_index0": 5,
+          "first_non_null_row_number1": 7
+        },
+        {
+          "column": "facility_3_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_name",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac1_id",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_date",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac1_dts",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_dts_source",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_from",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_to",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_from_encounter",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_to_encounter",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_match_score",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac1_exclusion_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac2_id",
+          "dtype": "float64",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_date",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac2_dts",
+          "dtype": "str",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_dts_source",
+          "dtype": "str",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_from",
+          "dtype": "str",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_to",
+          "dtype": "str",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_from_encounter",
+          "dtype": "str",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_to_encounter",
+          "dtype": "str",
+          "non_null_n": 30,
+          "non_null_pct": 7.8,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_match_score",
+          "dtype": "float64",
+          "non_null_n": 34,
+          "non_null_pct": 8.9,
+          "first_non_null_row_index0": 15,
+          "first_non_null_row_number1": 17
+        },
+        {
+          "column": "medevac2_exclusion_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_id",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_date",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_dts",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_dts_source",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_from",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_to",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_from_encounter",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_to_encounter",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_match_score",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "medevac3_exclusion_category",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "total_locations",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "has_village_start",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "has_hub_end",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "has_outside_end",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "origin_type",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_end_date_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1_start_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc1_end_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc2_start_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc2_end_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "loc3_start_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 189,
+          "non_null_pct": 49.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "loc3_end_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 189,
+          "non_null_pct": 49.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "loc4_start_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 12,
+          "non_null_pct": 3.1,
+          "first_non_null_row_index0": 46,
+          "first_non_null_row_number1": 48
+        },
+        {
+          "column": "loc4_end_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 12,
+          "non_null_pct": 3.1,
+          "first_non_null_row_index0": 46,
+          "first_non_null_row_number1": 48
+        },
+        {
+          "column": "loc5_start_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 185,
+          "first_non_null_row_number1": 187
+        },
+        {
+          "column": "loc5_end_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 1,
+          "non_null_pct": 0.3,
+          "first_non_null_row_index0": 185,
+          "first_non_null_row_number1": 187
+        }
+      ]
+    },
+    {
+      "file": "pediatric_medevac_timing.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_medevac_timing.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 24,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "origin_type",
+        "origin_imputed",
+        "origin_datetime_imputed",
+        "medevac_minutes",
+        "medevac_datetime",
+        "medevac_imputed",
+        "destination_minutes",
+        "destination_datetime",
+        "destination_imputed",
+        "imputed_data",
+        "flight_time_minutes",
+        "origin_facility",
+        "destination_facility",
+        "time_to_activate_min",
+        "activate_to_arrive_min",
+        "flight_time_min",
+        "medevac_time_minutes",
+        "activate_to_flight_minutes",
+        "decision_time_category",
+        "flight_time_category",
+        "flight_time_extended",
+        "decision_time_bin"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_type",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_imputed",
+          "dtype": "bool",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_datetime_imputed",
+          "dtype": "bool",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac_minutes",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac_datetime",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac_imputed",
+          "dtype": "bool",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "destination_minutes",
+          "dtype": "float64",
+          "non_null_n": 370,
+          "non_null_pct": 96.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "destination_datetime",
+          "dtype": "str",
+          "non_null_n": 370,
+          "non_null_pct": 96.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "destination_imputed",
+          "dtype": "bool",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "imputed_data",
+          "dtype": "bool",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "flight_time_minutes",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_facility",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "destination_facility",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "time_to_activate_min",
+          "dtype": "float64",
+          "non_null_n": 232,
+          "non_null_pct": 60.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "activate_to_arrive_min",
+          "dtype": "float64",
+          "non_null_n": 370,
+          "non_null_pct": 96.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "flight_time_min",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "medevac_time_minutes",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "activate_to_flight_minutes",
+          "dtype": "float64",
+          "non_null_n": 370,
+          "non_null_pct": 96.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "decision_time_category",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "flight_time_category",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "flight_time_extended",
+          "dtype": "str",
+          "non_null_n": 370,
+          "non_null_pct": 96.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "decision_time_bin",
+          "dtype": "str",
+          "non_null_n": 232,
+          "non_null_pct": 60.4,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_meds_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_meds_long.csv",
+      "line_count_including_header": 29127,
+      "read_ok": true,
+      "row_count": 29126,
+      "column_count": 22,
+      "columns": [
+        "observation_type",
+        "MRN",
+        "EncounterLocationDSC",
+        "EncounterDepartmentDSC",
+        "ObservationID",
+        "EncounterID",
+        "ObservationCD",
+        "ObservationDSC",
+        "vital_type",
+        "ValueTXT",
+        "ValueNBR",
+        "UnitOfMeasureCVDSC",
+        "EncounterTypeDSC",
+        "journey_id",
+        "facility_phase",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "EncounterStartDTS_hours_from_start",
+        "EncounterEndDTS_hours_from_start",
+        "EffectiveDTS_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "observation_type",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterLocationDSC",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterDepartmentDSC",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationID",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterID",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationCD",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationDSC",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "vital_type",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "ValueTXT",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ValueNBR",
+          "dtype": "float64",
+          "non_null_n": 26082,
+          "non_null_pct": 89.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "UnitOfMeasureCVDSC",
+          "dtype": "str",
+          "non_null_n": 1198,
+          "non_null_pct": 4.1,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterTypeDSC",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_phase",
+          "dtype": "str",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 4734,
+          "non_null_pct": 16.3,
+          "first_non_null_row_index0": 479,
+          "first_non_null_row_number1": 481
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "EncounterStartDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterEndDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EffectiveDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 29126,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_meds_wide.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_meds_wide.csv",
+      "line_count_including_header": 381,
+      "read_ok": true,
+      "row_count": 380,
+      "column_count": 23,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "med_analgesic_non_opioid",
+        "med_antibiotic",
+        "med_anticoagulant",
+        "med_antiviral",
+        "med_cardiac_med",
+        "med_diuretic",
+        "med_endocrine_met",
+        "med_gi_med",
+        "med_iv_fluid",
+        "med_neuro_psych",
+        "med_opioid",
+        "med_other_med",
+        "med_respiratory_med",
+        "med_sedative",
+        "med_steroid",
+        "med_vasopressor",
+        "med_vitamin_supplement",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_analgesic_non_opioid",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_antibiotic",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_anticoagulant",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_antiviral",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_cardiac_med",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_diuretic",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_endocrine_met",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "med_gi_med",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_iv_fluid",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_neuro_psych",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_opioid",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_other_med",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_respiratory_med",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_sedative",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_steroid",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_vasopressor",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "med_vitamin_supplement",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 31,
+          "first_non_null_row_number1": 33
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_missed_opportunities.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_missed_opportunities.csv",
+      "line_count_including_header": 187,
+      "read_ok": true,
+      "row_count": 186,
+      "column_count": 11,
+      "columns": [
+        "EncounterID",
+        "MRN",
+        "EncounterLocationDSC",
+        "EncounterDepartmentDSC",
+        "journey_id",
+        "downstream_journey_start",
+        "journey_duration_hours",
+        "journey_end_reason",
+        "days_until_medevac",
+        "age_at_medevac",
+        "age_at_death"
+      ],
+      "column_stats": [
+        {
+          "column": "EncounterID",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterLocationDSC",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterDepartmentDSC",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "downstream_journey_start",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_duration_hours",
+          "dtype": "float64",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_end_reason",
+          "dtype": "str",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "days_until_medevac",
+          "dtype": "float64",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 186,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 3.8,
+          "first_non_null_row_index0": 2,
+          "first_non_null_row_number1": 4
+        }
+      ]
+    },
+    {
+      "file": "pediatric_observations.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_observations.csv",
+      "line_count_including_header": 961,
+      "read_ok": true,
+      "row_count": 960,
+      "column_count": 2,
+      "columns": [
+        "EncounterID",
+        "MRN"
+      ],
+      "column_stats": [
+        {
+          "column": "EncounterID",
+          "dtype": "str",
+          "non_null_n": 960,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 960,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_outcomes.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_outcomes.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 24,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "origin_type",
+        "journey_end_reason",
+        "facility_1_name",
+        "facility_1_time",
+        "facility_2_name",
+        "facility_2_time",
+        "facility_3_name",
+        "facility_3_time",
+        "facility_4_name",
+        "facility_4_time",
+        "death_at_facility",
+        "days_to_discharge",
+        "days_to_death",
+        "24hr_mortality",
+        "7d_mortality",
+        "30d_mortality",
+        "ed_discharge",
+        "short_<36h_admission",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "origin_type",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_end_reason",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_1_name",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_1_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_2_name",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 99.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_2_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_3_name",
+          "dtype": "str",
+          "non_null_n": 50,
+          "non_null_pct": 13.0,
+          "first_non_null_row_index0": 5,
+          "first_non_null_row_number1": 7
+        },
+        {
+          "column": "facility_3_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_name",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "facility_4_time",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "death_at_facility",
+          "dtype": "str",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 166,
+          "first_non_null_row_number1": 168
+        },
+        {
+          "column": "days_to_discharge",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "days_to_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "24hr_mortality",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "7d_mortality",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "30d_mortality",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ed_discharge",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "short_<36h_admission",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_patients.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_patients.csv",
+      "line_count_including_header": 335,
+      "read_ok": true,
+      "row_count": 334,
+      "column_count": 3,
+      "columns": [
+        "MRN",
+        "GenderDSC",
+        "age_at_death"
+      ],
+      "column_stats": [
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 334,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "GenderDSC",
+          "dtype": "str",
+          "non_null_n": 334,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 5,
+          "non_null_pct": 1.5,
+          "first_non_null_row_index0": 28,
+          "first_non_null_row_number1": 30
+        }
+      ]
+    },
+    {
+      "file": "pediatric_pmh.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_pmh.csv",
+      "line_count_including_header": 381,
+      "read_ok": true,
+      "row_count": 380,
+      "column_count": 8,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "pmh_diagnoses",
+        "pmh_diagnosis_count",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "pmh_diagnoses",
+          "dtype": "str",
+          "non_null_n": 66,
+          "non_null_pct": 17.4,
+          "first_non_null_row_index0": 313,
+          "first_non_null_row_number1": 315
+        },
+        {
+          "column": "pmh_diagnosis_count",
+          "dtype": "int64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_poc_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_poc_long.csv",
+      "line_count_including_header": 634,
+      "read_ok": true,
+      "row_count": 633,
+      "column_count": 22,
+      "columns": [
+        "observation_type",
+        "MRN",
+        "EncounterLocationDSC",
+        "EncounterDepartmentDSC",
+        "ObservationID",
+        "EncounterID",
+        "ObservationCD",
+        "ObservationDSC",
+        "vital_type",
+        "ValueTXT",
+        "ValueNBR",
+        "UnitOfMeasureCVDSC",
+        "EncounterTypeDSC",
+        "journey_id",
+        "facility_phase",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "EncounterStartDTS_hours_from_start",
+        "EncounterEndDTS_hours_from_start",
+        "EffectiveDTS_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "observation_type",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterLocationDSC",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterDepartmentDSC",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationID",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterID",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationCD",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationDSC",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "vital_type",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "ValueTXT",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ValueNBR",
+          "dtype": "float64",
+          "non_null_n": 152,
+          "non_null_pct": 24.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "UnitOfMeasureCVDSC",
+          "dtype": "str",
+          "non_null_n": 106,
+          "non_null_pct": 16.7,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterTypeDSC",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_phase",
+          "dtype": "str",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 25,
+          "non_null_pct": 3.9,
+          "first_non_null_row_index0": 52,
+          "first_non_null_row_number1": 54
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "EncounterStartDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterEndDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EffectiveDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 633,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_poc_wide.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_poc_wide.csv",
+      "line_count_including_header": 381,
+      "read_ok": true,
+      "row_count": 380,
+      "column_count": 16,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "poc_coag",
+        "poc_covid",
+        "poc_flu",
+        "poc_glucose",
+        "poc_hemoglobin",
+        "poc_other_poc",
+        "poc_pocus",
+        "poc_site_meta",
+        "poc_strep",
+        "poc_urine",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_coag",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_covid",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_flu",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_glucose",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_hemoglobin",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_other_poc",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_pocus",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_site_meta",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_strep",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "poc_urine",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 31,
+          "first_non_null_row_number1": 33
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_problem_list.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_problem_list.csv",
+      "line_count_including_header": 385,
+      "read_ok": true,
+      "row_count": 384,
+      "column_count": 8,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "problem_list",
+        "problem_list_count",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "problem_list",
+          "dtype": "str",
+          "non_null_n": 362,
+          "non_null_pct": 94.3,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "problem_list_count",
+          "dtype": "int64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 384,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 144,
+          "first_non_null_row_number1": 146
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "pediatric_problem_list_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_problem_list_long.csv",
+      "line_count_including_header": 5722,
+      "read_ok": true,
+      "row_count": 5721,
+      "column_count": 12,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "DiagnosisCD",
+        "DiagnosisDSC",
+        "DiagnosisType",
+        "days_prior",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "DiagnosisStartDTS_hours_from_start",
+        "DiagnosisEndDTS_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisCD",
+          "dtype": "str",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisDSC",
+          "dtype": "str",
+          "non_null_n": 5720,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisType",
+          "dtype": "str",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "days_prior",
+          "dtype": "float64",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 116,
+          "non_null_pct": 2.0,
+          "first_non_null_row_index0": 117,
+          "first_non_null_row_number1": 119
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "DiagnosisStartDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "DiagnosisEndDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 5721,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_vitals_long.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_vitals_long.csv",
+      "line_count_including_header": 11862,
+      "read_ok": true,
+      "row_count": 11861,
+      "column_count": 22,
+      "columns": [
+        "observation_type",
+        "MRN",
+        "EncounterLocationDSC",
+        "EncounterDepartmentDSC",
+        "ObservationID",
+        "EncounterID",
+        "ObservationCD",
+        "ObservationDSC",
+        "vital_type",
+        "ValueTXT",
+        "ValueNBR",
+        "UnitOfMeasureCVDSC",
+        "EncounterTypeDSC",
+        "journey_id",
+        "facility_phase",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year",
+        "EncounterStartDTS_hours_from_start",
+        "EncounterEndDTS_hours_from_start",
+        "EffectiveDTS_hours_from_start"
+      ],
+      "column_stats": [
+        {
+          "column": "observation_type",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterLocationDSC",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterDepartmentDSC",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationID",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterID",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationCD",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ObservationDSC",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "vital_type",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ValueTXT",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "ValueNBR",
+          "dtype": "float64",
+          "non_null_n": 9670,
+          "non_null_pct": 81.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "UnitOfMeasureCVDSC",
+          "dtype": "str",
+          "non_null_n": 6055,
+          "non_null_pct": 51.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterTypeDSC",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "facility_phase",
+          "dtype": "str",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 200,
+          "non_null_pct": 1.7,
+          "first_non_null_row_index0": 838,
+          "first_non_null_row_number1": 840
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "EncounterStartDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EncounterEndDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "EffectiveDTS_hours_from_start",
+          "dtype": "float64",
+          "non_null_n": 11861,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    },
+    {
+      "file": "pediatric_vitals_wide.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/pediatric_vitals_wide.csv",
+      "line_count_including_header": 381,
+      "read_ok": true,
+      "row_count": 380,
+      "column_count": 20,
+      "columns": [
+        "journey_id",
+        "MRN",
+        "BMI_median",
+        "BSA_median",
+        "Diastolic_median",
+        "GCS_median",
+        "Glucose_median",
+        "HR_median",
+        "Height_median",
+        "MAP_median",
+        "Pain_median",
+        "RR_median",
+        "SpO2_median",
+        "Systolic_median",
+        "Temperature_median",
+        "Weight_median",
+        "age_at_medevac",
+        "age_at_death",
+        "journey_start_month",
+        "journey_start_year"
+      ],
+      "column_stats": [
+        {
+          "column": "journey_id",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "MRN",
+          "dtype": "str",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "BMI_median",
+          "dtype": "float64",
+          "non_null_n": 221,
+          "non_null_pct": 58.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "BSA_median",
+          "dtype": "float64",
+          "non_null_n": 88,
+          "non_null_pct": 23.2,
+          "first_non_null_row_index0": 5,
+          "first_non_null_row_number1": 7
+        },
+        {
+          "column": "Diastolic_median",
+          "dtype": "float64",
+          "non_null_n": 252,
+          "non_null_pct": 66.3,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "GCS_median",
+          "dtype": "float64",
+          "non_null_n": 95,
+          "non_null_pct": 25.0,
+          "first_non_null_row_index0": 2,
+          "first_non_null_row_number1": 4
+        },
+        {
+          "column": "Glucose_median",
+          "dtype": "float64",
+          "non_null_n": 12,
+          "non_null_pct": 3.2,
+          "first_non_null_row_index0": 5,
+          "first_non_null_row_number1": 7
+        },
+        {
+          "column": "HR_median",
+          "dtype": "float64",
+          "non_null_n": 377,
+          "non_null_pct": 99.2,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "Height_median",
+          "dtype": "float64",
+          "non_null_n": 301,
+          "non_null_pct": 79.2,
+          "first_non_null_row_index0": 1,
+          "first_non_null_row_number1": 3
+        },
+        {
+          "column": "MAP_median",
+          "dtype": "float64",
+          "non_null_n": 122,
+          "non_null_pct": 32.1,
+          "first_non_null_row_index0": 4,
+          "first_non_null_row_number1": 6
+        },
+        {
+          "column": "Pain_median",
+          "dtype": "float64",
+          "non_null_n": 3,
+          "non_null_pct": 0.8,
+          "first_non_null_row_index0": 32,
+          "first_non_null_row_number1": 34
+        },
+        {
+          "column": "RR_median",
+          "dtype": "float64",
+          "non_null_n": 378,
+          "non_null_pct": 99.5,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "SpO2_median",
+          "dtype": "float64",
+          "non_null_n": 376,
+          "non_null_pct": 98.9,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "Systolic_median",
+          "dtype": "float64",
+          "non_null_n": 252,
+          "non_null_pct": 66.3,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "Temperature_median",
+          "dtype": "float64",
+          "non_null_n": 372,
+          "non_null_pct": 97.9,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "Weight_median",
+          "dtype": "float64",
+          "non_null_n": 368,
+          "non_null_pct": 96.8,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_medevac",
+          "dtype": "float64",
+          "non_null_n": 380,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "age_at_death",
+          "dtype": "float64",
+          "non_null_n": 7,
+          "non_null_pct": 1.8,
+          "first_non_null_row_index0": 31,
+          "first_non_null_row_number1": 33
+        },
+        {
+          "column": "journey_start_month",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        },
+        {
+          "column": "journey_start_year",
+          "dtype": "float64",
+          "non_null_n": 0,
+          "non_null_pct": 0.0,
+          "first_non_null_row_index0": null,
+          "first_non_null_row_number1": null
+        }
+      ]
+    },
+    {
+      "file": "village_name_codebook.csv",
+      "path": "/Users/brianrice/CursorProjects/pediatric_data/data/village_name_codebook.csv",
+      "line_count_including_header": 12,
+      "read_ok": true,
+      "row_count": 11,
+      "column_count": 5,
+      "columns": [
+        "anonymous_code",
+        "community_name",
+        "rank_by_journey_count",
+        "n_journeys_this_extract",
+        "reference_share_pct"
+      ],
+      "column_stats": [
+        {
+          "column": "anonymous_code",
+          "dtype": "str",
+          "non_null_n": 11,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "community_name",
+          "dtype": "str",
+          "non_null_n": 11,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "rank_by_journey_count",
+          "dtype": "int64",
+          "non_null_n": 11,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "n_journeys_this_extract",
+          "dtype": "int64",
+          "non_null_n": 11,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        },
+        {
+          "column": "reference_share_pct",
+          "dtype": "float64",
+          "non_null_n": 11,
+          "non_null_pct": 100.0,
+          "first_non_null_row_index0": 0,
+          "first_non_null_row_number1": 2
+        }
+      ]
+    }
+  ],
+  "pipeline_checks": {
+    "required_files_present": {
+      "pediatric_medevac_journeys.csv": true,
+      "pediatric_medevac_timing.csv": true,
+      "pediatric_outcomes.csv": true,
+      "pediatric_patients.csv": true
+    },
+    "journeys_read_ok": true,
+    "journeys_row_count": 384,
+    "journeys_columns": [
+      "journey_id",
+      "MRN",
+      "journey_duration_hours",
+      "journey_end_reason",
+      "num_medevacs",
+      "num_encounters",
+      "journey_pattern",
+      "loc1",
+      "loc1_dept",
+      "loc1_encounter_id",
+      "loc1_medevac_id",
+      "loc2",
+      "loc2_dept",
+      "loc2_encounter_id",
+      "loc2_medevac_id",
+      "loc3",
+      "loc3_dept",
+      "loc3_encounter_id",
+      "loc3_medevac_id",
+      "loc4",
+      "loc4_dept",
+      "loc4_encounter_id",
+      "loc4_medevac_id",
+      "loc5",
+      "loc5_dept",
+      "loc5_encounter_id",
+      "loc5_medevac_id",
+      "loc6",
+      "loc6_dept",
+      "loc6_start",
+      "loc6_end",
+      "loc6_encounter_id",
+      "loc6_medevac_id",
+      "facility_1_name",
+      "facility_1_time",
+      "facility_2_name",
+      "facility_2_time",
+      "facility_3_name",
+      "facility_3_time",
+      "facility_4_name",
+      "facility_4_time",
+      "medevac1_id",
+      "medevac1_date",
+      "medevac1_dts",
+      "medevac1_dts_source",
+      "medevac1_from",
+      "medevac1_to",
+      "medevac1_from_encounter",
+      "medevac1_to_encounter",
+      "medevac1_match_score",
+      "medevac1_exclusion_category",
+      "medevac2_id",
+      "medevac2_date",
+      "medevac2_dts",
+      "medevac2_dts_source",
+      "medevac2_from",
+      "medevac2_to",
+      "medevac2_from_encounter",
+      "medevac2_to_encounter",
+      "medevac2_match_score",
+      "medevac2_exclusion_category",
+      "medevac3_id",
+      "medevac3_date",
+      "medevac3_dts",
+      "medevac3_dts_source",
+      "medevac3_from",
+      "medevac3_to",
+      "medevac3_from_encounter",
+      "medevac3_to_encounter",
+      "medevac3_match_score",
+      "medevac3_exclusion_category",
+      "total_locations",
+      "has_village_start",
+      "has_hub_end",
+      "has_outside_end",
+      "age_at_medevac",
+      "age_at_death",
+      "origin_type",
+      "journey_start_month",
+      "journey_start_year",
+      "journey_end_date_hours_from_start",
+      "loc1_start_hours_from_start",
+      "loc1_end_hours_from_start",
+      "loc2_start_hours_from_start",
+      "loc2_end_hours_from_start",
+      "loc3_start_hours_from_start",
+      "loc3_end_hours_from_start",
+      "loc4_start_hours_from_start",
+      "loc4_end_hours_from_start",
+      "loc5_start_hours_from_start",
+      "loc5_end_hours_from_start"
+    ],
+    "top_values__medevac1_from": [
+      {
+        "value": "CAH_01",
+        "n": 76
+      },
+      {
+        "value": "Village_I",
+        "n": 75
+      },
+      {
+        "value": "Village_D",
+        "n": 52
+      },
+      {
+        "value": "Village_G",
+        "n": 42
+      },
+      {
+        "value": "Village_A",
+        "n": 37
+      },
+      {
+        "value": "Village_B",
+        "n": 25
+      },
+      {
+        "value": "Village_K",
+        "n": 24
+      },
+      {
+        "value": "Village_C",
+        "n": 16
+      },
+      {
+        "value": "Village_J",
+        "n": 12
+      },
+      {
+        "value": "Village_H",
+        "n": 10
+      },
+      {
+        "value": "Village_E",
+        "n": 8
+      },
+      {
+        "value": "Village_F",
+        "n": 7
+      }
+    ],
+    "top_values__medevac1_to": [
+      {
+        "value": "CAH_01",
+        "n": 295
+      },
+      {
+        "value": "Hub_01",
+        "n": 85
+      },
+      {
+        "value": "OutsideHospital02",
+        "n": 4
+      }
+    ],
+    "top_values__medevac2_from": [
+      {
+        "value": "CAH_01",
+        "n": 33
+      },
+      {
+        "value": "Village_B",
+        "n": 1
+      }
+    ],
+    "top_values__medevac2_to": [
+      {
+        "value": "Hub_01",
+        "n": 29
+      },
+      {
+        "value": "OutsideHospital02",
+        "n": 3
+      },
+      {
+        "value": "CAH_01",
+        "n": 1
+      },
+      {
+        "value": "OutsideHospital03",
+        "n": 1
+      }
+    ],
+    "top_values__medevac3_from": [],
+    "top_values__medevac3_to": [],
+    "top_values__journey_start_date": [],
+    "top_values__medevac1_date": [],
+    "top_values__MRN": [
+      {
+        "value": "PAT_00002",
+        "n": 7
+      },
+      {
+        "value": "PAT_00104",
+        "n": 4
+      },
+      {
+        "value": "PAT_00810",
+        "n": 4
+      },
+      {
+        "value": "PAT_00201",
+        "n": 3
+      },
+      {
+        "value": "PAT_00520",
+        "n": 3
+      },
+      {
+        "value": "PAT_00623",
+        "n": 3
+      },
+      {
+        "value": "PAT_00027",
+        "n": 2
+      },
+      {
+        "value": "PAT_00070",
+        "n": 2
+      },
+      {
+        "value": "PAT_00078",
+        "n": 2
+      },
+      {
+        "value": "PAT_00109",
+        "n": 2
+      },
+      {
+        "value": "PAT_00204",
+        "n": 2
+      },
+      {
+        "value": "PAT_00343",
+        "n": 2
+      },
+      {
+        "value": "PAT_00405",
+        "n": 2
+      },
+      {
+        "value": "PAT_00410",
+        "n": 2
+      },
+      {
+        "value": "PAT_00415",
+        "n": 2
+      }
+    ],
+    "top_values__journey_id": [
+      {
+        "value": "JRN_00001",
+        "n": 1
+      },
+      {
+        "value": "JRN_00002",
+        "n": 1
+      },
+      {
+        "value": "JRN_00003",
+        "n": 1
+      },
+      {
+        "value": "JRN_00005",
+        "n": 1
+      },
+      {
+        "value": "JRN_00007",
+        "n": 1
+      },
+      {
+        "value": "JRN_00019",
+        "n": 1
+      },
+      {
+        "value": "JRN_00021",
+        "n": 1
+      },
+      {
+        "value": "JRN_00028",
+        "n": 1
+      },
+      {
+        "value": "JRN_00034",
+        "n": 1
+      },
+      {
+        "value": "JRN_00035",
+        "n": 1
+      },
+      {
+        "value": "JRN_00038",
+        "n": 1
+      },
+      {
+        "value": "JRN_00051",
+        "n": 1
+      },
+      {
+        "value": "JRN_00052",
+        "n": 1
+      },
+      {
+        "value": "JRN_00059",
+        "n": 1
+      },
+      {
+        "value": "JRN_00061",
+        "n": 1
+      }
+    ],
+    "top_values__facility_1_name": [
+      {
+        "value": "CAH_01",
+        "n": 75
+      },
+      {
+        "value": "Village_I",
+        "n": 75
+      },
+      {
+        "value": "Village_D",
+        "n": 52
+      },
+      {
+        "value": "Village_G",
+        "n": 42
+      },
+      {
+        "value": "Village_A",
+        "n": 37
+      },
+      {
+        "value": "Village_B",
+        "n": 26
+      },
+      {
+        "value": "Village_K",
+        "n": 24
+      },
+      {
+        "value": "Village_C",
+        "n": 16
+      },
+      {
+        "value": "Village_J",
+        "n": 12
+      },
+      {
+        "value": "Village_H",
+        "n": 10
+      },
+      {
+        "value": "Village_E",
+        "n": 8
+      },
+      {
+        "value": "Village_F",
+        "n": 7
+      }
+    ],
+    "timing_overlapping_columns_with_journeys_excluding_keys": [],
+    "outcomes_columns": [
+      "journey_id",
+      "MRN",
+      "origin_type",
+      "journey_end_reason",
+      "facility_1_name",
+      "facility_1_time",
+      "facility_2_name",
+      "facility_2_time",
+      "facility_3_name",
+      "facility_3_time",
+      "facility_4_name",
+      "facility_4_time",
+      "death_at_facility",
+      "days_to_discharge",
+      "days_to_death",
+      "24hr_mortality",
+      "7d_mortality",
+      "30d_mortality",
+      "ed_discharge",
+      "short_<36h_admission",
+      "age_at_medevac",
+      "age_at_death",
+      "journey_start_month",
+      "journey_start_year"
+    ],
+    "patients_columns": [
+      "MRN",
+      "GenderDSC",
+      "age_at_death"
+    ],
+    "load_data_row_count": 384,
+    "load_data_columns": [
+      "journey_id",
+      "MRN",
+      "journey_duration_hours",
+      "journey_end_reason",
+      "num_medevacs",
+      "num_encounters",
+      "journey_pattern",
+      "loc1",
+      "loc1_dept",
+      "loc1_encounter_id",
+      "loc1_medevac_id",
+      "loc2",
+      "loc2_dept",
+      "loc2_encounter_id",
+      "loc2_medevac_id",
+      "loc3",
+      "loc3_dept",
+      "loc3_encounter_id",
+      "loc3_medevac_id",
+      "loc4",
+      "loc4_dept",
+      "loc4_encounter_id",
+      "loc4_medevac_id",
+      "loc5",
+      "loc5_dept",
+      "loc5_encounter_id",
+      "loc5_medevac_id",
+      "loc6",
+      "loc6_dept",
+      "loc6_start",
+      "loc6_end",
+      "loc6_encounter_id",
+      "loc6_medevac_id",
+      "facility_1_name",
+      "facility_1_time",
+      "facility_2_name",
+      "facility_2_time",
+      "facility_3_name",
+      "facility_3_time",
+      "facility_4_name",
+      "facility_4_time",
+      "medevac1_id",
+      "medevac1_date",
+      "medevac1_dts",
+      "medevac1_dts_source",
+      "medevac1_from",
+      "medevac1_to",
+      "medevac1_from_encounter",
+      "medevac1_to_encounter",
+      "medevac1_match_score",
+      "medevac1_exclusion_category",
+      "medevac2_id",
+      "medevac2_date",
+      "medevac2_dts",
+      "medevac2_dts_source",
+      "medevac2_from",
+      "medevac2_to",
+      "medevac2_from_encounter",
+      "medevac2_to_encounter",
+      "medevac2_match_score",
+      "medevac2_exclusion_category",
+      "medevac3_id",
+      "medevac3_date",
+      "medevac3_dts",
+      "medevac3_dts_source",
+      "medevac3_from",
+      "medevac3_to",
+      "medevac3_from_encounter",
+      "medevac3_to_encounter",
+      "medevac3_match_score",
+      "medevac3_exclusion_category",
+      "total_locations",
+      "has_village_start",
+      "has_hub_end",
+      "has_outside_end",
+      "age_at_medevac",
+      "age_at_death_x",
+      "origin_type",
+      "journey_start_month",
+      "journey_start_year",
+      "journey_end_date_hours_from_start",
+      "loc1_start_hours_from_start",
+      "loc1_end_hours_from_start",
+      "loc2_start_hours_from_start",
+      "loc2_end_hours_from_start",
+      "loc3_start_hours_from_start",
+      "loc3_end_hours_from_start",
+      "loc4_start_hours_from_start",
+      "loc4_end_hours_from_start",
+      "loc5_start_hours_from_start",
+      "loc5_end_hours_from_start",
+      "origin_imputed",
+      "origin_datetime_imputed",
+      "medevac_minutes",
+      "medevac_datetime",
+      "medevac_imputed",
+      "destination_minutes",
+      "destination_datetime",
+      "destination_imputed",
+      "imputed_data",
+      "flight_time_minutes",
+      "origin_facility",
+      "destination_facility",
+      "time_to_activate_min",
+      "activate_to_arrive_min",
+      "flight_time_min",
+      "medevac_time_minutes",
+      "activate_to_flight_minutes",
+      "decision_time_category",
+      "flight_time_category",
+      "flight_time_extended",
+      "decision_time_bin",
+      "death_at_facility",
+      "days_to_discharge",
+      "days_to_death",
+      "24hr_mortality",
+      "7d_mortality",
+      "30d_mortality",
+      "ed_discharge",
+      "short_<36h_admission",
+      "GenderDSC",
+      "age_at_death_y"
+    ],
+    "village_origin_mode_runtime": "infer",
+    "village_to_mhc_legs_count": 296,
+    "cohort_journeys_n": 296,
+    "cohort_patients_n": 259,
+    "cohort_sample_journey_ids": [
+      "JRN_00001",
+      "JRN_00002",
+      "JRN_00019",
+      "JRN_00021",
+      "JRN_00028",
+      "JRN_00034",
+      "JRN_00035",
+      "JRN_00038",
+      "JRN_00051",
+      "JRN_00052",
+      "JRN_00059",
+      "JRN_00061",
+      "JRN_00068",
+      "JRN_00081",
+      "JRN_00089",
+      "JRN_00091",
+      "JRN_00101",
+      "JRN_00111",
+      "JRN_00114",
+      "JRN_00116"
+    ]
+  }
+}
