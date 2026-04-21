@@ -45,22 +45,17 @@ from medevac_summaries import (
     build_table0_medevac_routes,
     build_table1_village_characteristics,
     build_table2_patient_characteristics_by_age,
-    build_table1_patient_characteristics,
     build_table1_cohort,
     build_table2_by_origin,
-    build_table2_1_vitals_missingness,
-    build_table2_2_vitals_repeated,
-    build_table2_3_vitals_missingness_by_age,
-    build_table2_4_vitals_repeated_by_age,
     build_table3_by_year,
     build_timing_category_tables,
     build_table5_timing_minutes,
     plot_fig1_medevac_activation_map,
-    plot_fig1_journeys_by_month,
-    plot_fig2_origin_pie,
-    plot_fig2_origin_bar,
-    plot_fig4_activation_vs_arrival_village_cah,
-    plot_fig5_medevacs_per_journey,
+    plot_fig1a_monthly_by_village,
+    plot_fig1b_monthly_by_age,
+    plot_fig2a_annual_by_village,
+    plot_fig2b_annual_by_age,
+    plot_fig4_sankey_transport_routes,
 )
 
 _df_all = load_data()
@@ -191,14 +186,14 @@ show_tbl(build_table2_4_vitals_repeated_by_age(df))
 
 ---
 
-## Figure 1. Geographic map
+## Figure 3. Geographic map
 
 Village clinic medevac legs to Maniilaq Health Center. Line width scales with leg count;
-color with legs per 1,000 residents under 18 (2020 Census).
+color with legs per 1,000 pediatric residents under 18 (2020 Census).
 
 ```{python}
 #| label: fig-map
-#| fig-cap: "Village clinic medevac legs to Maniilaq Health Center (Kotzebue)."
+#| fig-cap: "Village clinic medevac legs to Maniilaq Health Center (Kotzebue). Line width = leg count; color = utilization rate per 1,000 pediatric residents."
 #| fig-width: 8.5
 #| fig-height: 6.5
 #| out-width: 100%
@@ -212,36 +207,88 @@ plt.close(_map_fig)
 
 ---
 
-## Figure 2. Seasonal trends (journeys by month)
+## Figure 1A. Monthly medevac volume by village (2020–2024)
 
 ```{python}
-#| label: fig-monthly
-#| fig-cap: "Medevac journeys by calendar month. Tripledemic signal visible in winter peaks."
-plot_fig1_journeys_by_month(df)
+#| label: fig-1a
+#| fig-cap: "Monthly pediatric medevac volume (2020–2024), stacked by village of origin."
+#| fig-width: 11
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig1a_monthly_by_village(df)
+display(_f)
+plt.close(_f)
 ```
 
-### Journeys by calendar year
+---
+
+## Figure 1B. Monthly medevac volume by age group (2020–2024)
+
+```{python}
+#| label: fig-1b
+#| fig-cap: "Monthly pediatric medevac volume (2020–2024), stacked by age group."
+#| fig-width: 11
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig1b_monthly_by_age(df)
+display(_f)
+plt.close(_f)
+```
+
+---
+
+## Figure 2A. Annual medevac volume by village (2020–2024)
+
+```{python}
+#| label: fig-2a
+#| fig-cap: "Annual pediatric medevac volume (2020–2024), stacked by village of origin."
+#| fig-width: 8
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig2a_annual_by_village(df)
+display(_f)
+plt.close(_f)
+```
+
+---
+
+## Figure 2B. Annual medevac volume by age group (2020–2024)
+
+```{python}
+#| label: fig-2b
+#| fig-cap: "Annual pediatric medevac volume (2020–2024), stacked by age group."
+#| fig-width: 8
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig2b_annual_by_age(df)
+display(_f)
+plt.close(_f)
+```
+
+---
+
+## Figure 4. Sankey diagram of transport routes
+
+All journeys (not filtered to village→MHC). Flows: Origin Village → Transfer Location 1
+(usually Maniilaq Health Center) → Transfer Location 2 → Transfer Location 3.
+
+```{python}
+#| label: fig-sankey
+#| fig-cap: "Medevac transport routes: village → MHC → tertiary centers. Width of flows proportional to number of journeys."
+#| fig-width: 13
+#| fig-height: 7
+#| out-width: 100%
+_f = plot_fig4_sankey_transport_routes(_df_all)
+display(_f)
+plt.close(_f)
+```
+
+---
+
+## Supplemental. Journeys by calendar year
 
 ```{python}
 show_tbl(build_table3_by_year(df))
-```
-
----
-
-## Figure 3. Flow diagram of transport routes
-
-> **TODO:** Build `plot_fig3_transport_flow()` in `analysis/medevac_summaries.py`.
-> Sankey- or alluvial-style diagram showing: village clinics → MHC → tertiary centers,
-> with leg counts on each branch. Can use `matplotlib-sankey` or `plotly` Sankey.
-
----
-
-## Supplemental. Medevac legs per journey
-
-```{python}
-#| label: fig-n-medevacs
-#| fig-cap: "Number of medevac legs per journey."
-plot_fig5_medevacs_per_journey(df)
 ```
 
 ---

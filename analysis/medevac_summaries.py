@@ -2207,6 +2207,417 @@ def plot_fig7_journeys_per_patient(df: pd.DataFrame, title: str | None = None) -
     return fig
 
 
+def _age_bucket_label(age: float) -> str | None:
+    if pd.isna(age): return None
+    if age < 1:   return "<1 year"
+    if age < 5:   return "1–<5 years"
+    if age < 13:  return "5–12 years"
+    if age <= 18: return "13–18 years"
+    return None
+
+
+_VILLAGE_PALETTE = [
+    "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+    "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf","#aec7e8",
+]
+_AGE_PALETTE = ["#4C72B0","#DD8452","#55A868","#C44E52"]
+_AGE_ORDER   = ["<1 year","1–<5 years","5–12 years","13–18 years"]
+
+
+def _prep_stacked(
+    df: pd.DataFrame,
+    group_col: str,
+    group_order: list[str],
+    palette: list[str],
+    start_year: int = 2020,
+    end_year:   int = 2024,
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Filter to study period and pivot to stacked-bar format."""
+    d = df.copy()
+    yr = pd.to_numeric(d.get("journey_start_year", pd.Series([], dtype=float)), errors="coerce")
+    d = d[yr.between(start_year, end_year, inclusive="both")]
+    color_map = {g: palette[i % len(palette)] for i, g in enumerate(group_order)}
+    return d, color_map
+
+
+def _add_total_labels(ax: plt.Axes, totals: pd.Series, x_positions) -> None:
+    """Place total-n labels above each bar."""
+    for xi, total in zip(x_positions, totals):
+        ax.text(
+            xi, total + 0.3, str(int(total)),
+            ha="center", va="bottom", fontsize=9, fontweight="bold", color="#333333",
+        )
+
+
+def plot_fig1a_monthly_by_village(
+    df: pd.DataFrame,
+    start_year: int = 2020,
+    end_year:   int = 2024,
+) -> plt.Figure:
+    """Figure 1A: Monthly medevac volume, stacked by village (2020–2024)."""
+    village_order = (
+        df.groupby("facility_1_name")["journey_id"].count()
+        .sort_values(ascending=False).index.tolist()
+    )
+    d, cmap = _prep_stacked(df, "facility_1_name", village_order, _VILLAGE_PALETTE, start_year, end_year)
+    n_total = len(d)
+
+    mon = pd.to_numeric(d["journey_start_month"], errors="coerce")
+    d = d[mon.notna()].copy()
+    d["_month"] = mon[mon.notna()].astype(int)
+
+    pivot = (
+        d.groupby(["_month", "facility_1_name"])
+        .size().unstack(fill_value=0)
+        .reindex(columns=village_order, fill_value=0)
+        .reindex(range(1, 13), fill_value=0)
+    )
+
+    month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    x = range(12)
+    fig, ax = plt.subplots(figsize=(11, 5))
+
+    bottoms = [0] * 12
+    for village in village_order:
+        vals = pivot[village].values if village in pivot.columns else [0]*12
+        ax.bar(x, vals, bottom=bottoms, label=village,
+               color=cmap[village], edgecolor="white", linewidth=0.4)
+        bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+    _add_total_labels(ax, pd.Series(bottoms), x)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(month_labels)
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Num. Medevac Journeys")
+    ax.set_title(
+        f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = {n_total}",
+        fontsize=12, fontweight="bold",
+    )
+    ax.legend(title="Village", bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig1b_monthly_by_age(
+    df: pd.DataFrame,
+    start_year: int = 2020,
+    end_year:   int = 2024,
+) -> plt.Figure:
+    """Figure 1B: Monthly medevac volume, stacked by age group (2020–2024)."""
+    d, cmap = _prep_stacked(df, "_age_grp", _AGE_ORDER, _AGE_PALETTE, start_year, end_year)
+    n_total = len(d)
+
+    age = pd.to_numeric(d["age_at_medevac"], errors="coerce")
+    d["_age_grp"] = age.map(_age_bucket_label)
+    mon = pd.to_numeric(d["journey_start_month"], errors="coerce")
+    d = d[mon.notna() & d["_age_grp"].notna()].copy()
+    d["_month"] = mon[d.index].astype(int)
+
+    pivot = (
+        d.groupby(["_month", "_age_grp"])
+        .size().unstack(fill_value=0)
+        .reindex(columns=_AGE_ORDER, fill_value=0)
+        .reindex(range(1, 13), fill_value=0)
+    )
+
+    month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    x = range(12)
+    fig, ax = plt.subplots(figsize=(11, 5))
+
+    bottoms = [0] * 12
+    for grp in _AGE_ORDER:
+        vals = pivot[grp].values if grp in pivot.columns else [0]*12
+        ax.bar(x, vals, bottom=bottoms, label=grp,
+               color=cmap[grp], edgecolor="white", linewidth=0.4)
+        bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+    _add_total_labels(ax, pd.Series(bottoms), x)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(month_labels)
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Num. Medevac Journeys")
+    ax.set_title(
+        f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = {n_total}",
+        fontsize=12, fontweight="bold",
+    )
+    ax.legend(title="Age Group", bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=9)
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig2a_annual_by_village(
+    df: pd.DataFrame,
+    start_year: int = 2020,
+    end_year:   int = 2024,
+) -> plt.Figure:
+    """Figure 2A: Annual medevac volume, stacked by village (2020–2024)."""
+    village_order = (
+        df.groupby("facility_1_name")["journey_id"].count()
+        .sort_values(ascending=False).index.tolist()
+    )
+    d, cmap = _prep_stacked(df, "facility_1_name", village_order, _VILLAGE_PALETTE, start_year, end_year)
+    n_total = len(d)
+
+    yr = pd.to_numeric(d["journey_start_year"], errors="coerce")
+    d = d[yr.notna()].copy()
+    d["_year"] = yr[yr.notna()].astype(int)
+
+    years = list(range(start_year, end_year + 1))
+    pivot = (
+        d.groupby(["_year", "facility_1_name"])
+        .size().unstack(fill_value=0)
+        .reindex(columns=village_order, fill_value=0)
+        .reindex(years, fill_value=0)
+    )
+
+    x = range(len(years))
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    bottoms = [0] * len(years)
+    for village in village_order:
+        vals = pivot[village].values if village in pivot.columns else [0]*len(years)
+        ax.bar(x, vals, bottom=bottoms, label=village,
+               color=cmap[village], edgecolor="white", linewidth=0.4)
+        bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+    _add_total_labels(ax, pd.Series(bottoms), x)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([str(y) for y in years])
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Num. Medevac Journeys")
+    ax.set_title(
+        f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = {n_total}",
+        fontsize=12, fontweight="bold",
+    )
+    ax.legend(title="Village", bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig2b_annual_by_age(
+    df: pd.DataFrame,
+    start_year: int = 2020,
+    end_year:   int = 2024,
+) -> plt.Figure:
+    """Figure 2B: Annual medevac volume, stacked by age group (2020–2024)."""
+    d, cmap = _prep_stacked(df, "_age_grp", _AGE_ORDER, _AGE_PALETTE, start_year, end_year)
+    n_total = len(d)
+
+    age = pd.to_numeric(d["age_at_medevac"], errors="coerce")
+    d["_age_grp"] = age.map(_age_bucket_label)
+    yr = pd.to_numeric(d["journey_start_year"], errors="coerce")
+    d = d[yr.notna() & d["_age_grp"].notna()].copy()
+    d["_year"] = yr[d.index].astype(int)
+
+    years = list(range(start_year, end_year + 1))
+    pivot = (
+        d.groupby(["_year", "_age_grp"])
+        .size().unstack(fill_value=0)
+        .reindex(columns=_AGE_ORDER, fill_value=0)
+        .reindex(years, fill_value=0)
+    )
+
+    x = range(len(years))
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    bottoms = [0] * len(years)
+    for grp in _AGE_ORDER:
+        vals = pivot[grp].values if grp in pivot.columns else [0]*len(years)
+        ax.bar(x, vals, bottom=bottoms, label=grp,
+               color=cmap[grp], edgecolor="white", linewidth=0.4)
+        bottoms = [b + v for b, v in zip(bottoms, vals)]
+
+    _add_total_labels(ax, pd.Series(bottoms), x)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([str(y) for y in years])
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Num. Medevac Journeys")
+    ax.set_title(
+        f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = {n_total}",
+        fontsize=12, fontweight="bold",
+    )
+    ax.legend(title="Age Group", bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
+    """
+    Figure 4: Alluvial/Sankey diagram of medevac transport routes.
+    Layers: Origin Village → Transfer Location 1 → Transfer Location 2 → Transfer Location 3.
+    Uses all journeys (df_all), not the village→MHC filtered subset.
+    """
+    import matplotlib.patches as mpatches
+    from matplotlib.patches import FancyArrowPatch
+    import numpy as np
+
+    j = df_all.drop_duplicates(subset=["journey_id"]).copy()
+
+    def _dest_label(code: str | float) -> str:
+        if pd.isna(code) or str(code).strip() == "":
+            return "No further transfer"
+        return expand_facility_label(str(code).strip())
+
+    def _origin_label(row: pd.Series) -> str:
+        raw = str(row.get("facility_1_name", "") or row.get("medevac1_from", "") or "")
+        return raw.strip() if raw.strip() else "Unknown"
+
+    j["_v"]   = j.apply(_origin_label, axis=1)
+    j["_t1"]  = j["medevac1_to"].map(_dest_label)
+    j["_t2"]  = j.get("medevac2_to", pd.Series(dtype=str)).map(
+        lambda x: _dest_label(x) if pd.notna(x) else "No further transfer"
+    )
+    j["_t3"]  = j.get("medevac3_to", pd.Series(dtype=str)).map(
+        lambda x: _dest_label(x) if pd.notna(x) else "No further transfer"
+    )
+
+    # Build flow counts across layers
+    flows_01 = j.groupby(["_v", "_t1"]).size().reset_index(name="n")
+    flows_12 = j.groupby(["_t1", "_t2"]).size().reset_index(name="n")
+    flows_23 = j.groupby(["_t2", "_t3"]).size().reset_index(name="n")
+
+    # Node sets per layer
+    layer0 = sorted(j["_v"].unique(), key=lambda v: -j[j["_v"]==v].shape[0])
+    layer1 = sorted(j["_t1"].unique(), key=lambda v: -j[j["_t1"]==v].shape[0])
+    layer2 = sorted(j["_t2"].unique(), key=lambda v: -j[j["_t2"]==v].shape[0])
+    layer3 = sorted(j["_t3"].unique(), key=lambda v: -j[j["_t3"]==v].shape[0])
+
+    layers = [layer0, layer1, layer2, layer3]
+    layer_labels = ["Origin\nVillage", "Transfer\nLocation 1", "Transfer\nLocation 2", "Transfer\nLocation 3"]
+    all_flows = [flows_01, flows_12, flows_23]
+    flow_src = ["_v", "_t1", "_t2"]
+    flow_dst = ["_t1", "_t2", "_t3"]
+
+    # Layout parameters
+    BAR_W   = 0.18
+    GAP     = 0.06
+    X_LOCS  = [0.0, 0.33, 0.66, 1.0]
+    palette = sns.color_palette("tab10", n_colors=max(len(layer0), 4))
+    node_colors: dict[str, str] = {}
+    for i, v in enumerate(layer0):
+        node_colors[v] = palette[i % len(palette)]
+
+    def _node_positions(layer: list[str], flow_df: pd.DataFrame, src_col: str) -> dict[str, tuple[float, float]]:
+        totals = {n: flow_df[flow_df[src_col] == n]["n"].sum() for n in layer}
+        total_all = sum(totals.values()) or 1
+        pos: dict[str, tuple[float, float]] = {}
+        y = 1.0
+        for n in layer:
+            h = totals.get(n, 0) / total_all
+            pos[n] = (y, h)
+            y -= h + GAP
+        return pos
+
+    # Compute positions for each layer
+    pos0 = _node_positions(layer0, flows_01, "_v")
+    pos1 = _node_positions(layer1, flows_12, "_t1")
+    pos2 = _node_positions(layer2, flows_23, "_t2")
+    # Layer 3 sizes from layer 2 flows
+    l3_totals = {n: flows_23[flows_23["_t3"] == n]["n"].sum() for n in layer3}
+    total_l3 = sum(l3_totals.values()) or 1
+    pos3: dict[str, tuple[float, float]] = {}
+    y3 = 1.0
+    for n in layer3:
+        h = l3_totals.get(n, 0) / total_l3
+        pos3[n] = (y3, h)
+        y3 -= h + GAP
+
+    all_pos = [pos0, pos1, pos2, pos3]
+
+    fig, ax = plt.subplots(figsize=(13, 7))
+    ax.set_xlim(-0.1, 1.15)
+    ax.set_ylim(-0.15, 1.1)
+    ax.axis("off")
+
+    def _bar_color(node: str, layer_idx: int) -> str:
+        return node_colors.get(node, "#aaaaaa")
+
+    # Draw nodes
+    for li, (x_loc, layer) in enumerate(zip(X_LOCS, layers)):
+        pos = all_pos[li]
+        for node in layer:
+            if node not in pos:
+                continue
+            y_top, h = pos[node]
+            color = _bar_color(node, li)
+            rect = mpatches.FancyBboxPatch(
+                (x_loc - BAR_W / 2, y_top - h),
+                BAR_W, h,
+                boxstyle="square,pad=0",
+                facecolor=color, edgecolor="white", linewidth=0.6, alpha=0.88,
+            )
+            ax.add_patch(rect)
+            # Node label
+            label = node.replace(" Health Center", "\nHealth Center").replace("No further", "No further\n")
+            ax.text(
+                x_loc + BAR_W / 2 + 0.01, y_top - h / 2,
+                label, va="center", ha="left", fontsize=7,
+                color="#333333",
+            )
+
+    # Draw flows between layers as bezier curves
+    def _draw_flow(ax, x0, x1, y0_top, y0_h, y1_top, y1_h, color, alpha=0.35):
+        from matplotlib.path import Path
+        import matplotlib.patches as mpatches
+        y0_bot = y0_top - y0_h
+        y1_bot = y1_top - y1_h
+        verts = [
+            (x0, y0_top), (x0 + (x1-x0)*0.5, y0_top),
+            (x0 + (x1-x0)*0.5, y1_top), (x1, y1_top),
+            (x1, y1_bot), (x0 + (x1-x0)*0.5, y1_bot),
+            (x0 + (x1-x0)*0.5, y0_bot), (x0, y0_bot),
+            (x0, y0_top),
+        ]
+        codes = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4,
+                 Path.LINETO, Path.CURVE4, Path.CURVE4, Path.CURVE4,
+                 Path.CLOSEPOLY]
+        path = Path(verts, codes)
+        patch = mpatches.PathPatch(path, facecolor=color, edgecolor="none", alpha=alpha)
+        ax.add_patch(patch)
+
+    # Track used portion of each destination node for stacking flows
+    for fi, (flows, src_col, dst_col) in enumerate(zip(all_flows, flow_src, flow_dst)):
+        x0 = X_LOCS[fi] + BAR_W / 2
+        x1 = X_LOCS[fi + 1] - BAR_W / 2
+        pos_src = all_pos[fi]
+        pos_dst = all_pos[fi + 1]
+        # Track consumed height in destination nodes
+        dst_consumed: dict[str, float] = {n: 0.0 for n in all_pos[fi+1]}
+        src_consumed: dict[str, float] = {n: 0.0 for n in all_pos[fi]}
+        total_flow = flows["n"].sum() or 1
+
+        for _, row in flows.sort_values("n", ascending=False).iterrows():
+            s, d, n = row[src_col], row[dst_col], row["n"]
+            if s not in pos_src or d not in pos_dst:
+                continue
+            frac = n / total_flow
+            sy_top, sh = pos_src[s]
+            dy_top, dh = pos_dst[d]
+            sy0 = sy_top - src_consumed.get(s, 0)
+            sy1 = sy0 - sh * frac / (sum(flows[flows[src_col]==s]["n"]) / total_flow or 1)
+            dy0 = dy_top - dst_consumed.get(d, 0)
+            dy1 = dy0 - dh * frac / (sum(flows[flows[dst_col]==d]["n"]) / total_flow or 1)
+            color = _bar_color(s, fi)
+            _draw_flow(ax, x0, x1,
+                       (sy0 + sy1) / 2, abs(sy1 - sy0),
+                       (dy0 + dy1) / 2, abs(dy1 - dy0),
+                       color)
+            src_consumed[s] = src_consumed.get(s, 0) + sh * frac / (sum(flows[flows[src_col]==s]["n"]) / total_flow or 1)
+            dst_consumed[d] = dst_consumed.get(d, 0) + dh * frac / (sum(flows[flows[dst_col]==d]["n"]) / total_flow or 1)
+
+    # Layer headers
+    for x_loc, label in zip(X_LOCS, layer_labels):
+        ax.text(x_loc, 1.07, label, ha="center", va="bottom", fontsize=9,
+                fontweight="bold", color="#333333")
+
+    ax.set_title(
+        f"Pediatric Medevac Transport Routes (n = {len(j)} journeys)",
+        fontsize=12, fontweight="bold", pad=14,
+    )
+    fig.tight_layout()
+    return fig
+
+
 def save_all_figures(df: pd.DataFrame) -> None:
     OUT_FIGS.mkdir(parents=True, exist_ok=True)
     specs = [
