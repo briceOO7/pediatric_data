@@ -238,16 +238,21 @@ def load_data():
     out_keep = ["journey_id"] + [c for c in outcome_extra if c in outcomes.columns]
     df = df.merge(outcomes[out_keep], on="journey_id", how="left")
     df = df.merge(patients, on="MRN", how="left")
-    # Some PHI extracts omit precomputed journey_start_year/month; derive from medevac1_date.
-    if (
-        ("journey_start_year" not in df.columns or "journey_start_month" not in df.columns)
-        and "medevac1_date" in df.columns
-    ):
-        d = pd.to_datetime(df["medevac1_date"], errors="coerce")
-        if "journey_start_year" not in df.columns:
-            df["journey_start_year"] = d.dt.year
-        if "journey_start_month" not in df.columns:
-            df["journey_start_month"] = d.dt.month
+    # Derive journey_start_year/month from the best available timestamp source.
+    # Priority: journey_start_year/month (precomputed) → medevac1_date → medevac1_dts.
+    # Columns may exist in the CSV but be entirely null, so check both presence and nullness.
+    def _col_missing(col: str) -> bool:
+        return col not in df.columns or df[col].isna().all()
+
+    if _col_missing("journey_start_year") or _col_missing("journey_start_month"):
+        for src in ("medevac1_date", "medevac1_dts"):
+            if src in df.columns and not df[src].isna().all():
+                d = pd.to_datetime(df[src], errors="coerce")
+                if _col_missing("journey_start_year"):
+                    df["journey_start_year"] = d.dt.year
+                if _col_missing("journey_start_month"):
+                    df["journey_start_month"] = d.dt.month
+                break
     # For de-identified synthetic extracts, decode Village_* placeholders so
     # tables and map use community names consistently.
     if village_origin_mode() == "codebook":
@@ -381,16 +386,16 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     n_patients_cohort = int(j["MRN"].nunique())
     rows.append({"characteristic": "Unique patients", "value": str(n_patients_cohort)})
     # Replace leg-ID summary with patient-level distribution in 2020-2024.
-    if "journey_start_date" in j.columns:
-        dsrc = pd.to_datetime(j["journey_start_date"], errors="coerce")
+    # Use pre-populated journey_start_year if available; fall back to timestamp sources.
+    if "journey_start_year" in j.columns and not j["journey_start_year"].isna().all():
+        j["_year"] = pd.to_numeric(j["journey_start_year"], errors="coerce")
     else:
-        dsrc = pd.Series(pd.NaT, index=j.index)
-    if dsrc.isna().all():
-        if "medevac1_date" in j.columns:
-            dsrc = pd.to_datetime(j["medevac1_date"], errors="coerce")
-        else:
-            dsrc = pd.Series(pd.NaT, index=j.index)
-    j["_year"] = dsrc.dt.year
+        _yr_src = pd.Series(pd.NaT, index=j.index, dtype="datetime64[ns]")
+        for _col in ("journey_start_date", "medevac1_date", "medevac1_dts"):
+            if _col in j.columns and not pd.to_datetime(j[_col], errors="coerce").isna().all():
+                _yr_src = pd.to_datetime(j[_col], errors="coerce")
+                break
+        j["_year"] = _yr_src.dt.year
     j_yr = j[j["_year"].between(2020, 2024, inclusive="both")].copy()
     rows.append({"characteristic": "Medevacs per Patient, 2020-2024, n(%)", "value": ""})
     source_for_counts = j_yr
@@ -538,12 +543,17 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         rows.append({"characteristic": "  Age missing or >18 y", "value": fmt_n_pct(n_miss, N)})
 
     # Seasonal pattern across study years: month of each patient's first qualifying medevac.
-    msrc = pd.Series(pd.NaT, index=p.index, dtype="datetime64[ns]")
-    if "journey_start_date" in p.columns:
-        msrc = pd.to_datetime(p["journey_start_date"], errors="coerce")
-    if msrc.isna().all() and "medevac1_date" in p.columns:
-        msrc = pd.to_datetime(p["medevac1_date"], errors="coerce")
-    mon = msrc.dt.month
+    # Use pre-populated journey_start_month if available; fall back to timestamp sources.
+    if "journey_start_month" in p.columns and not p["journey_start_month"].isna().all():
+        mon = pd.to_numeric(p["journey_start_month"], errors="coerce")
+        msrc = None  # only used below for year; will re-derive if needed
+    else:
+        msrc = pd.Series(pd.NaT, index=p.index, dtype="datetime64[ns]")
+        for _col in ("journey_start_date", "medevac1_date", "medevac1_dts"):
+            if _col in p.columns and not pd.to_datetime(p[_col], errors="coerce").isna().all():
+                msrc = pd.to_datetime(p[_col], errors="coerce")
+                break
+        mon = msrc.dt.month
     month_labels = [
         (1, "Jan"),
         (2, "Feb"),
@@ -848,6 +858,221 @@ def _age_bucket_key(a: float) -> str | None:
     if a <= 18:
         return "b3"
     return "other"
+
+
+def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 1, Table 2: Patient characteristics stratified by age group.
+
+    Rows  = # Unique Patients, Female Sex, Race, Insurance Type subcategories.
+    Columns = Overall | <1 year | 1 to <5 years | 5–12 years | 13–18 years.
+
+    One row per patient = earliest qualifying journey per MRN.
+    Race and Insurance show NR placeholder if PHI columns absent from pediatric_patients.csv.
+    """
+    AGE_GROUPS = [
+        ("<1 year",       "b0"),
+        ("1 to <5 years", "b1"),
+        ("5–12 years",    "b2"),
+        ("13–18 years",   "b3"),
+    ]
+    INSURANCE_CATS = ["Commercial", "Government", "IHS", "Self-Pay", "Other"]
+
+    patients = pd.read_csv(DATA / "pediatric_patients.csv")
+
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    # Sort by best available date to pick each patient's earliest journey.
+    for src in ("journey_start_year", "medevac1_dts", "medevac1_date"):
+        if src in j.columns and not j[src].isna().all():
+            j["_sort_key"] = pd.to_numeric(
+                pd.to_datetime(j[src], errors="coerce"), errors="coerce"
+            ) if "dts" in src or "date" in src else pd.to_numeric(j[src], errors="coerce")
+            break
+    else:
+        j["_sort_key"] = range(len(j))
+
+    first = j.sort_values("_sort_key").groupby("MRN", as_index=False).first()
+
+    # Merge optional PHI columns.
+    phi_cols = [c for c in ("AI_AN", "RaceDSC", "PrimaryPayorNM") if c in patients.columns]
+    if "GenderDSC" not in first.columns and "GenderDSC" in patients.columns:
+        phi_cols.append("GenderDSC")
+    if phi_cols:
+        first = first.merge(patients[["MRN"] + phi_cols], on="MRN", how="left")
+    if "GenderDSC" not in first.columns and "GenderDSC" in patients.columns:
+        first = first.merge(patients[["MRN", "GenderDSC"]], on="MRN", how="left")
+
+    # Age bucket on first journey.
+    age = pd.to_numeric(first["age_at_medevac"], errors="coerce")
+    def _bucket(a: float) -> str | None:
+        if pd.isna(a): return None
+        if a < 1:   return "b0"
+        if a < 5:   return "b1"
+        if a < 13:  return "b2"
+        if a <= 18: return "b3"
+        return None
+    first["_age_grp"] = age.map(_bucket)
+
+    # Insurance categorisation helper.
+    def _ins_cat(raw: str) -> str:
+        r = str(raw).lower()
+        if any(x in r for x in ("commercial", "private", "blue cross", "aetna", "cigna", "united", "humana")):
+            return "Commercial"
+        if any(x in r for x in ("medicaid", "medicare", "chip", "government", "tricare", "va ")):
+            return "Government"
+        if any(x in r for x in ("ihs", "indian health", "tribal")):
+            return "IHS"
+        if any(x in r for x in ("self", "uninsured", "none", "no insurance")):
+            return "Self-Pay"
+        if r in ("nan", "", "missing", "unknown"):
+            return None
+        return "Other"
+
+    def _col_stats(sub: pd.DataFrame) -> dict:
+        N = len(sub)
+        female = int((sub.get("GenderDSC", pd.Series([])) == "Female").sum()) if "GenderDSC" in sub.columns else None
+
+        # Race
+        if "RaceDSC" in sub.columns:
+            ai = sub["RaceDSC"].astype(str).str.contains(
+                r"indian|alaska\s*native|american\s*indian", case=False, na=False, regex=True
+            )
+            race_val = fmt_n_pct(int(ai.sum()), N)
+        elif "AI_AN" in sub.columns:
+            known = sub["AI_AN"].notna() & (sub["AI_AN"].astype(str).str.strip() != "")
+            yes = known & sub["AI_AN"].apply(
+                lambda x: str(x).strip().lower() in ("1", "y", "yes", "true") or x is True
+            )
+            race_val = fmt_n_pct(int(yes.sum()), N) if known.any() else None
+        else:
+            race_val = None
+
+        # Insurance
+        if "PrimaryPayorNM" in sub.columns:
+            cats = sub["PrimaryPayorNM"].astype(str).map(_ins_cat)
+            ins = {c: int((cats == c).sum()) for c in INSURANCE_CATS}
+        else:
+            ins = None
+
+        return {"N": N, "female": female, "race": race_val, "ins": ins}
+
+    def _fmt_col(stats: dict) -> list[str]:
+        N = stats["N"]
+        rows_out = [str(N)]
+        rows_out.append(fmt_n_pct(stats["female"], N) if stats["female"] is not None else "NR*")
+        rows_out.append(stats["race"] if stats["race"] is not None else "NR*")
+        # Insurance header (blank cell)
+        rows_out.append("")
+        for cat in INSURANCE_CATS:
+            if stats["ins"] is not None:
+                rows_out.append(fmt_n_pct(stats["ins"][cat], N))
+            else:
+                rows_out.append("NR*")
+        return rows_out
+
+    metric_col = [
+        "# Unique Patients",
+        "Female Sex",
+        "Race (AI/AN)",
+        "Insurance Type:",
+    ] + [f"  {c}" for c in INSURANCE_CATS]
+
+    result = {"Metric of Interest": metric_col}
+    result["Overall"] = _fmt_col(_col_stats(first))
+    for label, bucket in AGE_GROUPS:
+        sub = first[first["_age_grp"] == bucket]
+        result[label] = _fmt_col(_col_stats(sub))
+
+    out = pd.DataFrame(result)
+    out.to_csv(ROOT / "outputs" / "tables" / "table2_patient_characteristics_by_age.csv", index=False)
+    return out
+
+
+def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 1, Table 1: Medevac characteristics by village of origin.
+
+    Rows  = metrics (flights, patients, mean/year, flight time stats,
+             destination, legs, utilization rate).
+    Columns = Overall | each village sorted by n desc.
+
+    *df* should be the village→MHC journey cohort from filter_journeys_village_to_mhc().
+    Flight time uses ``flight_time_min`` (air transport minutes, 100 % coverage).
+    Utilization rate = journeys per 1,000 pediatric residents (2020 Census).
+    """
+    census_path = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
+    census = pd.read_csv(census_path) if census_path.exists() else None
+    census_map: dict[str, int] = (
+        dict(zip(census["NAME"], census["pediatric_pop"].astype(int))) if census is not None else {}
+    )
+
+    village_col = "facility_1_name"
+    j = df.copy()
+
+    # Study period: min–max year in this cohort.
+    yr_col = "journey_start_year"
+    if yr_col in j.columns and not j[yr_col].isna().all():
+        yr = pd.to_numeric(j[yr_col], errors="coerce").dropna()
+        study_years = max(1.0, float(yr.max() - yr.min() + 1))
+    else:
+        study_years = 1.0
+
+    def _fmt_ft(series: pd.Series) -> dict[str, str]:
+        ft = pd.to_numeric(series, errors="coerce").dropna()
+        if len(ft) == 0:
+            return {"mean_sd": "—", "median_iqr": "—", "min_max": "—"}
+        mean_sd = f"{ft.mean():.0f} ({ft.std(ddof=1):.0f})" if len(ft) >= 2 else f"{ft.mean():.0f} (—)"
+        med = ft.median()
+        q1, q3 = ft.quantile(0.25), ft.quantile(0.75)
+        median_iqr = f"{med:.0f} ({q1:.0f}–{q3:.0f})"
+        min_max = f"{ft.min():.0f}, {ft.max():.0f}"
+        return {"mean_sd": mean_sd, "median_iqr": median_iqr, "min_max": min_max}
+
+    def _stats(sub: pd.DataFrame, pop: int | None) -> list[str]:
+        n_flights = len(sub)
+        n_patients = int(sub["MRN"].nunique())
+        n_legs = int(sub["num_medevacs"].sum()) if "num_medevacs" in sub.columns else n_flights
+        mean_yr = f"{n_flights / study_years:.1f}"
+        ft = _fmt_ft(sub.get("activate_to_arrive_min", pd.Series([], dtype=float)))
+        util = (
+            f"{n_flights / pop * 1_000:.1f}"
+            if pop and pop > 0
+            else "—"
+        )
+        return [
+            str(n_flights),
+            str(n_patients),
+            mean_yr,
+            ft["mean_sd"],
+            ft["median_iqr"],
+            ft["min_max"],
+            str(n_legs),
+            util,
+        ]
+
+    metric_labels = [
+        "Total number of flights (journeys)",
+        "Total number of patients",
+        "Mean number of flights per year",
+        "Activation-to-arrival time, min — Mean (SD)",
+        "Activation-to-arrival time, min — Median (IQR)",
+        "Activation-to-arrival time, min — Min, Max",
+        "Total medevac legs",
+        "Utilization rate per 1,000 pediatric residents",
+    ]
+
+    villages = j[village_col].value_counts().index.tolist()
+    overall_pop = sum(census_map.get(v, 0) for v in villages) or None
+
+    result = {"Metric of Interest": metric_labels, "Overall": _stats(j, overall_pop)}
+    for v in villages:
+        sub = j[j[village_col] == v]
+        result[v] = _stats(sub, census_map.get(v))
+
+    out = pd.DataFrame(result)
+    out.to_csv(ROOT / "outputs" / "tables" / "table1_village_characteristics.csv", index=False)
+    return out
 
 
 def build_table2_village_visit_vitals(df: pd.DataFrame) -> pd.DataFrame:
@@ -1191,21 +1416,25 @@ def build_table2_4_vitals_repeated_by_age(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def build_table3_pews_per_patient(df: pd.DataFrame) -> pd.DataFrame:
+def build_table3_pews_data_availability_by_age(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Table 3: patient-level PEWS approximation from village vitals.
-    Score = max proxy score per patient across available village rows.
-    Components: RR, HR, SBP, Temp, and consciousness approximated from GCS.
+    Table 3: proportion of patients with data needed to calculate PEWS proxy,
+    stratified by age group.
+
+    A patient is counted as "has PEWS-required data" if they have >=1 village-vitals
+    row with non-missing RR, HR, SBP, Temp, and GCS.
     """
     first = _first_cohort_patients(df)
     if len(first) == 0:
-        return pd.DataFrame([{"MRN": "—", "PEWS (proxy max)": "—", "Band": "—", "Rows scored": "0"}])
+        return pd.DataFrame(
+            [{"Age Group": "—", "Patients (N)": "0", "With PEWS-required data n(%)": "—"}]
+        )
 
     vit, cm, err = _load_vitals_for_cohort()
     if vit is None or cm is None:
         note = "— (no vitals file)" if err == "no vitals file" else "— (missing vital columns)"
         return pd.DataFrame(
-            [{"MRN": "All cohort patients", "PEWS (proxy max)": note, "Band": "—", "Rows scored": "0"}]
+            [{"Age Group": "All patients", "Patients (N)": str(len(first)), "With PEWS-required data n(%)": note}]
         )
 
     gcs_col = _pick_vitals_col(vit, _GCS_ALIASES)
@@ -1213,53 +1442,43 @@ def build_table3_pews_per_patient(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(
             [
                 {
-                    "MRN": "All cohort patients",
-                    "PEWS (proxy max)": "— (missing GCS column)",
-                    "Band": "—",
-                    "Rows scored": "0",
+                    "Age Group": "All patients",
+                    "Patients (N)": str(len(first)),
+                    "With PEWS-required data n(%)": "— (missing GCS column)",
                 }
             ]
         )
 
     in_cohort = set(first["_mrn_k"].tolist())
     sub = vit[vit["_mrn_k"].isin(in_cohort)].copy()
-    sub["_pews"] = sub.apply(lambda r: _pews_proxy_score_row(r, cm, gcs_col), axis=1)
-    scored = sub[sub["_pews"].notna()].copy()
-    if len(scored) == 0:
-        return pd.DataFrame(
-            [
-                {
-                    "MRN": "All cohort patients",
-                    "PEWS (proxy max)": "— (no rows with full RR/HR/SBP/Temp/GCS)",
-                    "Band": "—",
-                    "Rows scored": "0",
-                }
-            ]
+    sub["_pews_ready"] = sub.apply(lambda r: _pews_proxy_score_row(r, cm, gcs_col) is not None, axis=1)
+    ready_mrns = set(sub.loc[sub["_pews_ready"], "_mrn_k"])
+
+    rows: list[dict[str, str]] = []
+    n_all = len(in_cohort)
+    n_ready_all = int(len(in_cohort & ready_mrns))
+    rows.append(
+        {
+            "Age Group": "All patients",
+            "Patients (N)": str(n_all),
+            "With PEWS-required data n(%)": fmt_n_pct(n_ready_all, n_all),
+        }
+    )
+
+    age = pd.to_numeric(first["age_at_medevac"], errors="coerce")
+    ag = age.map(_age_bucket_key)
+    for label, key in (("<1 year", "b0"), ("1 to <5 years", "b1"), ("5–12 years", "b2"), ("13–18 years", "b3")):
+        sub_mrns = set(first.loc[ag == key, "_mrn_k"])
+        nd = len(sub_mrns)
+        n_ready = int(len(sub_mrns & ready_mrns))
+        rows.append(
+            {
+                "Age Group": label,
+                "Patients (N)": str(nd),
+                "With PEWS-required data n(%)": fmt_n_pct(n_ready, nd) if nd > 0 else "—",
+            }
         )
-
-    by_mrn_max = scored.groupby("_mrn_k")["_pews"].max().astype(int)
-    by_mrn_n = scored.groupby("_mrn_k")["_pews"].size().astype(int)
-    out = first[["MRN", "_mrn_k"]].drop_duplicates("_mrn_k").copy()
-    out["PEWS (proxy max)"] = out["_mrn_k"].map(by_mrn_max)
-    out["Rows scored"] = out["_mrn_k"].map(by_mrn_n).fillna(0).astype(int)
-
-    def _band(x: object) -> str:
-        if pd.isna(x):
-            return "Not scored"
-        v = int(x)
-        if v <= 2:
-            return "Low (0-2)"
-        if v <= 4:
-            return "Medium (3-4)"
-        return "High (>=5)"
-
-    out["Band"] = out["PEWS (proxy max)"].map(_band)
-    out["PEWS (proxy max)"] = out["PEWS (proxy max)"].map(lambda x: "—" if pd.isna(x) else str(int(x)))
-    out["_band_rank"] = out["Band"].map(
-        {"High (>=5)": 0, "Medium (3-4)": 1, "Low (0-2)": 2, "Not scored": 3}
-    ).fillna(9)
-    out = out.sort_values(by=["_band_rank", "Rows scored", "MRN"], ascending=[True, False, True])
-    return out[["MRN", "PEWS (proxy max)", "Band", "Rows scored"]].reset_index(drop=True)
+    return pd.DataFrame(rows)
 
 
 def _format_cedis_code(x: object) -> object:
@@ -1276,6 +1495,216 @@ def _format_cedis_code(x: object) -> object:
     except (TypeError, ValueError):
         pass
     return s
+
+
+def _has_value(x: object) -> bool:
+    if pd.isna(x):
+        return False
+    return str(x).strip() != ""
+
+
+def _first_cc_triplet(row: pd.Series, prefix: str, start: int, end: int) -> tuple[object, object, object] | None:
+    """
+    Return first non-empty CC triplet (text, cedis_code, cedis_complaint)
+    for the given prefix and index range, preferring slots with code present.
+    """
+    for i in range(start, end + 1):
+        txt_col = f"{prefix}_cc_{i}"
+        code_col = f"{prefix}_cedis_code_{i}"
+        cmp_col = f"{prefix}_cedis_complaint_{i}"
+        txt = row[txt_col] if txt_col in row.index else pd.NA
+        code = row[code_col] if code_col in row.index else pd.NA
+        cmpv = row[cmp_col] if cmp_col in row.index else pd.NA
+        if _has_value(code):
+            return txt, _format_cedis_code(code), cmpv
+    for i in range(start, end + 1):
+        txt_col = f"{prefix}_cc_{i}"
+        code_col = f"{prefix}_cedis_code_{i}"
+        cmp_col = f"{prefix}_cedis_complaint_{i}"
+        txt = row[txt_col] if txt_col in row.index else pd.NA
+        code = row[code_col] if code_col in row.index else pd.NA
+        cmpv = row[cmp_col] if cmp_col in row.index else pd.NA
+        if _has_value(txt) or _has_value(cmpv):
+            return txt, _format_cedis_code(code), cmpv
+    return None
+
+
+def _all_cc_triplets(row: pd.Series, prefix: str, start: int, end: int) -> list[tuple[int, object, object, object]]:
+    """
+    Return all non-empty CC triplets (slot, text, cedis_code, cedis_complaint)
+    for a location prefix, in slot order.
+    """
+    out: list[tuple[int, object, object, object]] = []
+    for i in range(start, end + 1):
+        txt_col = f"{prefix}_cc_{i}"
+        code_col = f"{prefix}_cedis_code_{i}"
+        cmp_col = f"{prefix}_cedis_complaint_{i}"
+        txt = row[txt_col] if txt_col in row.index else pd.NA
+        code = row[code_col] if code_col in row.index else pd.NA
+        cmpv = row[cmp_col] if cmp_col in row.index else pd.NA
+        if _has_value(txt) or _has_value(code) or _has_value(cmpv):
+            out.append((i, txt, _format_cedis_code(code), cmpv))
+    return out
+
+
+def _location_anchor_times(jrow: pd.Series) -> dict[str, pd.Timestamp]:
+    """
+    Best-effort per-location anchor times from facility_#_name/facility_#_time.
+    """
+    names: list[str] = []
+    times: list[pd.Timestamp] = []
+    for i in range(1, 5):
+        n = str(jrow.get(f"facility_{i}_name", "")).strip()
+        t = pd.to_datetime(jrow.get(f"facility_{i}_time", pd.NA), errors="coerce")
+        names.append(n)
+        times.append(t)
+
+    def _first_idx(pred) -> int | None:
+        for k, n in enumerate(names):
+            if n and pred(n):
+                return k
+        return None
+
+    village_i = _first_idx(lambda n: is_village_medevac_origin(n))
+    mhc_i = _first_idx(lambda n: _is_mhc_cah_destination(n))
+    anmc_i = _first_idx(lambda n: ("anmc" in n.lower()) or n.startswith("Hub") or n == "Hub_01")
+    return {
+        "village": times[village_i] if village_i is not None else pd.NaT,
+        "mhc_ed": times[mhc_i] if mhc_i is not None else pd.NaT,
+        "mhc_inpatient": times[mhc_i] if mhc_i is not None else pd.NaT,
+        "anmc_ed": times[anmc_i] if anmc_i is not None else pd.NaT,
+    }
+
+
+def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Expanded review table for village follow-up CEDIS 888 journeys.
+
+    Includes ALL documented chief complaint rows in journey order across:
+      village, mhc_ed, mhc_inpatient, anmc_ed.
+    Adds per-event delta time from previous complaint (hours; when timestamps
+    are available), and journey-level expanded follow-up target:
+      first non-888/999 CEDIS code in event order.
+    """
+    if not CHIEF_COMPLAINTS_WIDE.is_file():
+        return pd.DataFrame(
+            [
+                {
+                    "journey_id": "—",
+                    "MRN": "—",
+                    "cc_location": "—",
+                    "cc_text": "Chief complaint file missing",
+                    "cc_cedis_code": "—",
+                    "cc_cedis_complaint": "—",
+                    "hours_since_previous_cc": "—",
+                    "expanded_cc_code": "—",
+                    "expanded_cc_complaint": "—",
+                    "expanded_cc_fu": "No",
+                }
+            ]
+        )
+
+    cohort_ids = set(df["journey_id"].astype(str))
+    cc = pd.read_csv(CHIEF_COMPLAINTS_WIDE, low_memory=False)
+    cc = cc[cc["journey_id"].astype(str).isin(cohort_ids)].copy()
+
+    juniq = df.drop_duplicates("journey_id").copy()
+    juniq["_jid"] = juniq["journey_id"].astype(str)
+    journey_lookup = juniq.set_index("_jid", drop=False).to_dict(orient="index")
+
+    out_rows: list[dict[str, object]] = []
+    for _, r in cc.iterrows():
+        jid = str(r.get("journey_id", "")).strip()
+        if not jid:
+            continue
+        village = _first_cc_triplet(r, "village", 1, 19)
+        if village is None:
+            continue
+        v_txt, v_code, v_cmp = village
+        v_code_s = "" if pd.isna(v_code) else str(v_code).strip()
+        if v_code_s != "888":
+            continue
+
+        events: list[dict[str, object]] = []
+        for loc, prefix, nmax, loc_rank in (
+            ("village", "village", 19, 1),
+            ("mhc_ed", "mhc_ed", 8, 2),
+            ("mhc_inpatient", "mhc_inpatient", 5, 3),
+            ("anmc_ed", "anmc_ed", 2, 4),
+        ):
+            for slot, txt, code, cmpv in _all_cc_triplets(r, prefix, 1, nmax):
+                events.append(
+                    {
+                        "loc_rank": loc_rank,
+                        "slot": slot,
+                        "cc_location": loc,
+                        "cc_text": txt,
+                        "cc_cedis_code": code,
+                        "cc_cedis_complaint": cmpv,
+                    }
+                )
+        if not events:
+            continue
+        events.sort(key=lambda x: (int(x["loc_rank"]), int(x["slot"])))
+
+        expanded_code = v_code
+        expanded_cmp = v_cmp
+        for e in events:
+            c = e["cc_cedis_code"]
+            cs = "" if pd.isna(c) else str(c).strip()
+            if cs and cs not in {"888", "999"}:
+                expanded_code = c
+                expanded_cmp = e["cc_cedis_complaint"] if _has_value(e["cc_cedis_complaint"]) else expanded_cmp
+                break
+        expanded_fu = "Yes" if str(expanded_code).strip() != "888" else "No"
+
+        jrow = journey_lookup.get(jid, {})
+        anchors = _location_anchor_times(pd.Series(jrow)) if jrow else {}
+        prev_time = pd.NaT
+        for idx, e in enumerate(events, start=1):
+            et = anchors.get(str(e["cc_location"]), pd.NaT) if anchors else pd.NaT
+            if pd.notna(prev_time) and pd.notna(et):
+                delta_h = (et - prev_time).total_seconds() / 3600.0
+                delta_h = round(float(delta_h), 2)
+            else:
+                delta_h = pd.NA
+            out_rows.append(
+                {
+                    "journey_id": jid,
+                    "MRN": r.get("MRN", pd.NA),
+                    "cc_sequence": idx,
+                    "cc_location": e["cc_location"],
+                    "cc_text": e["cc_text"],
+                    "cc_cedis_code": e["cc_cedis_code"],
+                    "cc_cedis_complaint": e["cc_cedis_complaint"],
+                    "hours_since_previous_cc": delta_h,
+                    "expanded_cc_code": expanded_code,
+                    "expanded_cc_complaint": expanded_cmp,
+                    "expanded_cc_fu": expanded_fu,
+                }
+            )
+            if pd.notna(et):
+                prev_time = et
+    if not out_rows:
+        return pd.DataFrame(
+            [
+                {
+                    "journey_id": "—",
+                    "MRN": "—",
+                    "cc_sequence": 1,
+                    "cc_location": "—",
+                    "cc_text": "No village CEDIS 888 rows in cohort",
+                    "cc_cedis_code": "—",
+                    "cc_cedis_complaint": "—",
+                    "hours_since_previous_cc": "—",
+                    "expanded_cc_code": "—",
+                    "expanded_cc_complaint": "—",
+                    "expanded_cc_fu": "No",
+                }
+            ]
+        )
+    out = pd.DataFrame(out_rows)
+    return out.sort_values(["expanded_cc_fu", "journey_id", "cc_sequence"], ascending=[False, True, True]).reset_index(drop=True)
 
 
 def _chief_complaint_per_journey(df: pd.DataFrame) -> pd.DataFrame:
@@ -1814,6 +2243,7 @@ def main():
     write_table(build_table2_2_vitals_repeated(df_vtm), "table2_2_vitals_repeated")
     write_table(build_table2_3_vitals_missingness_by_age(df_vtm), "table2_3_vitals_missingness_by_age")
     write_table(build_table2_4_vitals_repeated_by_age(df_vtm), "table2_4_vitals_repeated_by_age")
+    write_table(build_table3_pews_data_availability_by_age(df_vtm), "table3_pews_data_availability_by_age")
     write_table(build_table1_cohort(df_vtm), "table_cohort_overview")
     write_table(build_table2_by_origin(df_vtm), "table2_by_origin_type")
     write_table(build_table3_chief_complaints_overall(df_vtm), "table4_chief_complaints_overall")
@@ -1830,6 +2260,10 @@ def main():
     write_table(
         build_table3_followup_prior_visit_check(df_vtm),
         "table4_followup_prior_visit_check",
+    )
+    write_table(
+        build_table4_6_expanded_followup_cc_review(df_vtm),
+        "table4_6_expanded_followup_cc_review",
     )
     write_table(build_table3_by_year(df_vtm), "table5_journeys_by_year")
     for col, t in build_timing_category_tables(df_vtm).items():

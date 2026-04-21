@@ -1,0 +1,174 @@
+---
+title: "Outcomes of Pediatric Medevac in the Alaska Arctic"
+subtitle: "Disposition, Resource Utilization, and System Efficiency"
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+#| include: false
+import os
+import sys
+from pathlib import Path
+
+_proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
+# manuscripts/paper3/ → repo root
+if (_proj / "analysis").exists():
+    _root = _proj
+else:
+    _root = _proj.parents[1]
+sys.path.insert(0, str(_root / "analysis"))
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from IPython.display import Markdown, display
+
+from medevac_summaries import (
+    load_data,
+    filter_journeys_village_to_mhc,
+    build_table6_mortality,
+)
+
+_df_all = load_data()
+df = filter_journeys_village_to_mhc(_df_all)
+
+
+def show_tbl(d: pd.DataFrame):
+    return d.style.hide(axis="index")
+```
+
+## Objective
+
+To evaluate clinical outcomes and resource utilization following pediatric medevac,
+and assess the appropriateness of transport decisions.
+
+**Conceptual framework:** Value of care; Overtriage vs. undertriage; Health system efficiency.
+
+**Unit of analysis:** Patient (retrospective cohort with linked outcomes).
+
+**Key derived variables:**
+
+- **High-acuity outcome** — ICU admission or major procedure at receiving facility
+- **Potential overtriage** — ED discharge after medevac (no admission)
+- **Potential undertriage** — ICU admission after transfer with documented delayed activation
+
+---
+
+## Table 1. Disposition
+
+> **TODO:** Build `build_table1_disposition()` in `analysis/medevac_summaries.py`.
+> Using `pediatric_outcomes.csv`, report for each destination (MHC, ANMC, Providence, UW):
+>
+> - ED discharge: n (%)
+> - Ward admission: n (%)
+> - ICU admission: n (%)
+> - Missing / unknown: n (%)
+>
+> Stratify by route type (primary village → MHC vs. secondary transfer vs. direct tertiary).
+
+---
+
+## Table 2. Resource utilization
+
+> **TODO:** Build `build_table2_resource_utilization()` in `analysis/medevac_summaries.py`.
+> Report:
+>
+> - Length of stay: median (IQR), by destination
+> - Procedures performed: n (%) by type if coded
+> - ICU length of stay (where ICU admission documented)
+>
+> Data source: `pediatric_outcomes.csv`.
+
+---
+
+## Table 3. Outcomes by destination
+
+> **TODO:** Build `build_table3_outcomes_by_destination()` in `analysis/medevac_summaries.py`.
+> Cross-tab of destination hospital × disposition category. Include:
+>
+> - High-acuity outcome composite (ICU or major procedure): n (%)
+> - Potential overtriage (ED discharge): n (%)
+> - Mortality: n (%)
+>
+> Stratify by chief complaint category (respiratory, infectious, injury, other).
+
+---
+
+## Table 4. Predictors of high-acuity care
+
+> **TODO:** Build `build_table4_high_acuity_predictors()` in `analysis/medevac_summaries.py`.
+> Logistic regression (if sample size allows) with outcome = high-acuity composite.
+> Candidate predictors:
+>
+> - Age group
+> - Sex
+> - Chief complaint category
+> - Route type (primary vs. secondary vs. direct tertiary)
+> - Vital sign completeness at village
+> - Time to activation (continuous or categorical)
+>
+> Report OR (95% CI), p-value. Note sample size constraints explicitly if model is underpowered.
+
+---
+
+## Existing: Mortality (journey-level)
+
+```{python}
+_m = build_table6_mortality(df)
+show_tbl(_m if _m is not None else pd.DataFrame({"note": ["No mortality columns in outcomes data."]}))
+```
+
+---
+
+## Figure 1. Sankey diagram (origin → complaint → outcome)
+
+> **TODO:** Build `plot_fig1_sankey_origin_complaint_outcome()` in
+> `analysis/medevac_summaries.py`. Node layers:
+>
+> 1. Origin type (village clinic / MHC secondary)
+> 2. Chief complaint category (respiratory / infectious / injury / pregnancy / other)
+> 3. Disposition (ED discharge / ward / ICU)
+>
+> Use `plotly` Sankey or `matplotlib` Sankey. Color-code by final disposition.
+
+---
+
+## Figure 2. Outcome distribution by chief complaint
+
+> **TODO:** Build `plot_fig2_outcome_by_complaint()` in `analysis/medevac_summaries.py`.
+> Grouped or stacked bar chart: x-axis = chief complaint category,
+> bars = disposition proportions (ED discharge / ward / ICU / missing).
+> Overlay sample size labels.
+
+---
+
+## Figure 3. ICU vs. non-ICU by transport type
+
+> **TODO:** Build `plot_fig3_icu_by_transport_type()` in `analysis/medevac_summaries.py`.
+> Side-by-side bar or dot plot comparing ICU admission rate (%) across:
+>
+> - Primary (village → MHC)
+> - Secondary transfer (MHC → tertiary)
+> - Direct tertiary (village → tertiary)
+>
+> Include 95% CI (Wilson score or exact binomial). Note: secondary transfers are
+> expected to be enriched for high-acuity outcomes by design.
+
+---
+
+*To render:* `quarto render manuscripts/paper3/paper3.qmd` (from project root).

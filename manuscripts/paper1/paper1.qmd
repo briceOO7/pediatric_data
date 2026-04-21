@@ -1,0 +1,249 @@
+---
+title: "Pediatric Medevac Operations in a Remote Arctic Health System"
+subtitle: "Utilization, Timeliness, and Regional Variation"
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+#| include: false
+import os
+import sys
+from pathlib import Path
+
+_proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
+# manuscripts/paper1/ → repo root
+if (_proj / "analysis").exists():
+    _root = _proj
+else:
+    _root = _proj.parents[1]
+sys.path.insert(0, str(_root / "analysis"))
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from IPython.display import Markdown, display
+
+from medevac_summaries import (
+    load_data,
+    count_village_to_mhc_legs,
+    filter_journeys_village_to_mhc,
+    build_table0_medevac_routes,
+    build_table1_village_characteristics,
+    build_table2_patient_characteristics_by_age,
+    build_table1_patient_characteristics,
+    build_table1_cohort,
+    build_table2_by_origin,
+    build_table2_1_vitals_missingness,
+    build_table2_2_vitals_repeated,
+    build_table2_3_vitals_missingness_by_age,
+    build_table2_4_vitals_repeated_by_age,
+    build_table3_by_year,
+    build_timing_category_tables,
+    build_table5_timing_minutes,
+    plot_fig1_medevac_activation_map,
+    plot_fig1_journeys_by_month,
+    plot_fig2_origin_pie,
+    plot_fig2_origin_bar,
+    plot_fig4_activation_vs_arrival_village_cah,
+    plot_fig5_medevacs_per_journey,
+)
+
+_df_all = load_data()
+N_VILLAGE_TO_MHC_LEGS = count_village_to_mhc_legs(_df_all)
+df = filter_journeys_village_to_mhc(_df_all)
+
+
+def show_tbl(d: pd.DataFrame):
+    return d.style.hide(axis="index")
+```
+
+## Objective
+
+To characterize the structure and performance of pediatric medevac operations across a
+geographically dispersed Arctic health system.
+
+**Conceptual framework:** Donabedian (Structure → Process); Rural health access / transport systems.
+
+**Unit of analysis:** Transport leg.
+
+**Target journals:** Prehospital Emergency Care; Air Medical Journal.
+
+---
+
+## Table 1. Medevac characteristics by village
+
+One row per metric, one column per village of origin, sorted by total flights descending.
+**Flight time** = activation-to-arrival minutes (measured transport time from medevac activation
+to patient arrival at destination). **Utilization rate** = journeys per 1,000 pediatric
+residents (2020 Census, Maniilaq service area villages).
+
+```{python}
+show_tbl(build_table1_village_characteristics(df))
+```
+
+---
+
+## Table 2. Patient characteristics by age group
+
+One row per patient (earliest qualifying journey per MRN). Age groups: <1, 1–<5, 5–12,
+13–18 years. n (%) within each age group column. **NR\*** = field not yet present in
+`pediatric_patients.csv` — add `RaceDSC` or `AI_AN` (1 = AI/AN) and `PrimaryPayorNM`
+from the PHI extract to populate Race and Insurance rows.
+
+```{python}
+show_tbl(build_table2_patient_characteristics_by_age(df))
+```
+
+---
+
+## Table 3. Route typology
+
+Medevac legs by route type across all journeys:
+
+- **Primary** — village clinic → Maniilaq Health Center (CAH)
+- **Direct tertiary** — village → tertiary center (ANMC / Providence / UW)
+- **Secondary transfer** — MHC → tertiary center
+
+```{python}
+show_tbl(build_table0_medevac_routes())
+```
+
+### By origin type
+
+```{python}
+show_tbl(build_table2_by_origin(df))
+```
+
+---
+
+## Table 3. Village-level utilization
+
+> **TODO:** Build `build_table3_village_utilization()` in `analysis/medevac_summaries.py`.
+> Columns: village name, n legs, n unique patients, legs per 100 pediatric residents
+> (if census denominator available), median annual legs. Sort by leg count descending.
+
+---
+
+## Table 4. Time intervals
+
+### Categorical timing
+
+```{python}
+for col, tbl in build_timing_category_tables(df).items():
+    display(Markdown(f"**{col.replace('_', ' ')}**"))
+    display(show_tbl(tbl))
+```
+
+### Continuous timing (minutes) — village → MHC only
+
+```{python}
+show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
+```
+
+### Continuous timing (minutes) — all origin types
+
+```{python}
+show_tbl(build_table5_timing_minutes(df, village_cah_only=False))
+```
+
+---
+
+## Table 5. Data completeness / missingness
+
+### Vital missingness by measure
+
+```{python}
+show_tbl(build_table2_1_vitals_missingness(df))
+```
+
+### Vital missingness by age group
+
+```{python}
+show_tbl(build_table2_3_vitals_missingness_by_age(df))
+```
+
+### Repeated vitals by measure
+
+```{python}
+show_tbl(build_table2_2_vitals_repeated(df))
+```
+
+### Repeated vitals by age group
+
+```{python}
+show_tbl(build_table2_4_vitals_repeated_by_age(df))
+```
+
+---
+
+## Figure 1. Geographic map
+
+Village clinic medevac legs to Maniilaq Health Center. Line width scales with leg count;
+color with legs per 1,000 residents under 18 (2020 Census).
+
+```{python}
+#| label: fig-map
+#| fig-cap: "Village clinic medevac legs to Maniilaq Health Center (Kotzebue)."
+#| fig-width: 8.5
+#| fig-height: 6.5
+#| out-width: 100%
+#| fig-align: center
+plt.ioff()
+plt.close("all")
+_map_fig = plot_fig1_medevac_activation_map(_df_all)
+display(_map_fig)
+plt.close(_map_fig)
+```
+
+---
+
+## Figure 2. Seasonal trends (journeys by month)
+
+```{python}
+#| label: fig-monthly
+#| fig-cap: "Medevac journeys by calendar month. Tripledemic signal visible in winter peaks."
+plot_fig1_journeys_by_month(df)
+```
+
+### Journeys by calendar year
+
+```{python}
+show_tbl(build_table3_by_year(df))
+```
+
+---
+
+## Figure 3. Flow diagram of transport routes
+
+> **TODO:** Build `plot_fig3_transport_flow()` in `analysis/medevac_summaries.py`.
+> Sankey- or alluvial-style diagram showing: village clinics → MHC → tertiary centers,
+> with leg counts on each branch. Can use `matplotlib-sankey` or `plotly` Sankey.
+
+---
+
+## Supplemental. Medevac legs per journey
+
+```{python}
+#| label: fig-n-medevacs
+#| fig-cap: "Number of medevac legs per journey."
+plot_fig5_medevacs_per_journey(df)
+```
+
+---
+
+*To render:* `quarto render manuscripts/paper1/paper1.qmd` (from project root).

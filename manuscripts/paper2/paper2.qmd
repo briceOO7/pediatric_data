@@ -1,0 +1,224 @@
+---
+title: "Clinical Characteristics and Missed Opportunities for Escalation in Pediatric Medevac from Remote Arctic Communities"
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+#| include: false
+import os
+import sys
+from pathlib import Path
+
+_proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
+# manuscripts/paper2/ → repo root
+if (_proj / "analysis").exists():
+    _root = _proj
+else:
+    _root = _proj.parents[1]
+sys.path.insert(0, str(_root / "analysis"))
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from IPython.display import Markdown, display
+
+from medevac_summaries import (
+    load_data,
+    filter_journeys_village_to_mhc,
+    build_table2_village_visit_vitals,
+    build_table2_1_vitals_missingness,
+    build_table2_2_vitals_repeated,
+    build_table2_3_vitals_missingness_by_age,
+    build_table2_4_vitals_repeated_by_age,
+    build_table3_pews_data_availability_by_age,
+    build_table3_chief_complaints_overall,
+    build_table3_chief_complaints_by_age,
+    build_table3_followup_prior_visit_check,
+)
+
+_df_all = load_data()
+df = filter_journeys_village_to_mhc(_df_all)
+
+
+def show_tbl(d: pd.DataFrame):
+    return d.style.hide(axis="index")
+```
+
+## Objective
+
+To evaluate clinical presentation, assessment completeness, and potential missed opportunities
+for earlier transfer among pediatric medevac patients.
+
+**Conceptual framework:** Diagnostic delay / escalation failure; CFIR (capability, workflow,
+documentation); CHAM adherence (clinical standards).
+
+**Unit of analysis:** Patient (retrospective cohort).
+
+**Target journals:** Academic Emergency Medicine; Journal of Pediatrics; Pediatric Emergency Care.
+
+---
+
+## Table 1. Chief complaints
+
+Overall distribution of chief complaints (CEDIS categorized) across all village → MHC journeys.
+Percent denominator = all journeys with a documented village chief complaint.
+
+```{python}
+show_tbl(build_table3_chief_complaints_overall(df))
+```
+
+### By age group: <1 year
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b0", "<1 year"))
+```
+
+### By age group: 1 to <5 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b1", "1 to <5 years"))
+```
+
+### By age group: 5–12 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b2", "5–12 years"))
+```
+
+### By age group: 13–18 years
+
+```{python}
+show_tbl(build_table3_chief_complaints_by_age(df, "b3", "13–18 years"))
+```
+
+---
+
+## Table 2. Follow-up visit analysis
+
+Journeys flagged as **follow-up** chief complaints, with validation of a documented prior
+encounter before medevac start (`pediatric_missed_opportunities.csv`,
+`days_until_medevac > 0`). Follow-up vs. initial presentation comparison.
+
+```{python}
+show_tbl(build_table3_followup_prior_visit_check(df))
+```
+
+> **TODO:** Add subgroup analysis comparing follow-up vs. initial presentation across
+> key clinical characteristics (vitals completeness, time-to-activation, age group).
+> Build `build_table2_followup_vs_initial()` in `analysis/medevac_summaries.py`.
+
+---
+
+## Table 3. Vital sign completeness
+
+**Complete vitals** = at least one row with HR, O2 sat, BP systolic, BP diastolic, RR,
+and Temp all non-missing. Assessed at the village clinic encounter prior to medevac.
+
+### Overall completeness
+
+```{python}
+show_tbl(build_table2_village_visit_vitals(df))
+```
+
+### Missingness by measure
+
+```{python}
+show_tbl(build_table2_1_vitals_missingness(df))
+```
+
+### Missingness by age group
+
+```{python}
+show_tbl(build_table2_3_vitals_missingness_by_age(df))
+```
+
+### Repeated vitals by measure
+
+```{python}
+show_tbl(build_table2_2_vitals_repeated(df))
+```
+
+### PEWS data availability by age group
+
+Proportion of patients with all fields required to calculate PEWS proxy
+(RR, HR, systolic BP, Temp, GCS).
+
+```{python}
+show_tbl(build_table3_pews_data_availability_by_age(df))
+```
+
+---
+
+## Table 4. Clinical assessment completeness
+
+> **TODO:** Build `build_table4_clinical_assessment_completeness()` in
+> `analysis/medevac_summaries.py`. Include:
+>
+> - Glucose obtained (yes / no / missing) — overall and by age group
+> - Mental status documented (AVPU vs GCS vs undocumented)
+> - **Complete assessment composite**: all vitals + mental status + glucose
+> - Stratify by age group and by follow-up vs. initial presentation
+>
+> Data sources: `pediatric_poc_long.csv` (glucose), `pediatric_observations.csv`
+> or `pediatric_vitals_wide.csv` (GCS/AVPU).
+
+---
+
+## Table 5. Delayed vs. non-delayed transfers
+
+> **TODO:** Build `build_table5_delayed_transfers()` in `analysis/medevac_summaries.py`.
+> Define **delayed transfer** = ≥2 visits OR documented abnormal vitals without same-day
+> transfer. Compare delayed vs. non-delayed on:
+>
+> - Age, sex, chief complaint
+> - Vital completeness
+> - Time-to-activation (median, IQR)
+> - Assessment composite completion
+>
+> Data sources: `pediatric_missed_opportunities.csv`, `pediatric_medevac_timing.csv`.
+
+---
+
+## Figure 1. Patient pathway diagram (visits → medevac)
+
+> **TODO:** Build `plot_fig1_patient_pathway()` in `analysis/medevac_summaries.py`.
+> Show the flow from initial village presentation → (optional) follow-up visits →
+> medevac activation → MHC arrival. Include counts at each node and median time
+> between steps. Consider a swimmer plot or simplified flowchart style.
+
+---
+
+## Figure 2. Assessment completeness bar chart
+
+> **TODO:** Build `plot_fig2_assessment_completeness()` in `analysis/medevac_summaries.py`.
+> Horizontal stacked bar chart: each row = one assessment element (HR, O2 sat, BP, RR,
+> Temp, Glucose, Mental status), columns = % complete / missing / not applicable.
+> Stratify by age group as a facet or grouped bars.
+
+---
+
+## Figure 3. Flow diagram of missed opportunities
+
+> **TODO:** Build `plot_fig3_missed_opportunities_flow()` in `analysis/medevac_summaries.py`.
+> Alluvial / Sankey diagram: all patients → flagged as follow-up → had prior documented
+> visit → had abnormal vitals at prior visit → delayed transfer.
+> Use `matplotlib-sankey`, `plotly`, or `floweaver`.
+
+---
+
+*To render:* `quarto render manuscripts/paper2/paper2.qmd` (from project root).
