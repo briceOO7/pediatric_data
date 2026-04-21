@@ -27,8 +27,33 @@ from medevac_summaries import load_data, filter_journeys_village_to_mhc
 OUT = ROOT / "outputs" / "diagnostics"
 OUT.mkdir(parents=True, exist_ok=True)
 
+# ── Load raw tables and check for join integrity issues ────────────────────────
+print("Checking raw table integrity before merge...")
+_journeys_raw = pd.read_csv(ROOT / "data" / "pediatric_medevac_journeys.csv")
+_timing_raw   = pd.read_csv(ROOT / "data" / "pediatric_medevac_timing.csv")
+
+_j_dups = _journeys_raw["journey_id"].duplicated().sum()
+_t_dups = _timing_raw["journey_id"].duplicated().sum()
+print(f"  journey_id duplicates in journeys CSV: {_j_dups}")
+print(f"  journey_id duplicates in timing CSV:   {_t_dups}")
+if _j_dups or _t_dups:
+    print("  *** WARNING: duplicates will cause mismatched dates after merge ***")
+    if _t_dups:
+        dups = _timing_raw[_timing_raw["journey_id"].duplicated(keep=False)].sort_values("journey_id")
+        dup_path = OUT / "timing_duplicate_journey_ids.csv"
+        dups.to_csv(dup_path, index=False)
+        print(f"  Duplicate timing rows written to: {dup_path}")
+    if _j_dups:
+        dups = _journeys_raw[_journeys_raw["journey_id"].duplicated(keep=False)].sort_values("journey_id")
+        dup_path = OUT / "journeys_duplicate_journey_ids.csv"
+        dups.to_csv(dup_path, index=False)
+        print(f"  Duplicate journey rows written to: {dup_path}")
+
+# Cross-reference: for suspect rows verify raw timing dates match journeys dates
+print()
+
 # ── Load data ──────────────────────────────────────────────────────────────────
-print("Loading data...")
+print("Loading merged data...")
 df = filter_journeys_village_to_mhc(load_data())
 print(f"  Village→MHC journeys: {len(df)}")
 
@@ -85,6 +110,28 @@ suspect = (
 )
 
 suspect.to_csv(OUT / "timing_suspect_journeys.csv", index=False)
+
+# Cross-reference: pull the same rows directly from raw timing CSV to verify merge integrity
+_timing_check = _timing_raw[
+    _timing_raw["journey_id"].isin(suspect["journey_id"])
+][["journey_id", "medevac_datetime", "destination_datetime", "activate_to_arrive_min"]].copy()
+_timing_check.columns = ["journey_id", "raw_medevac_datetime", "raw_destination_datetime", "raw_activate_to_arrive_min"]
+
+suspect_xref = suspect[["journey_id", "medevac1_dts", "medevac_datetime", "destination_datetime", "activate_to_arrive_min"]].merge(
+    _timing_check, on="journey_id", how="left"
+)
+suspect_xref["date_mismatch"] = (
+    suspect_xref["medevac_datetime"].astype(str) != suspect_xref["raw_medevac_datetime"].astype(str)
+) | (
+    suspect_xref["destination_datetime"].astype(str) != suspect_xref["raw_destination_datetime"].astype(str)
+)
+suspect_xref.to_csv(OUT / "timing_suspect_xref.csv", index=False)
+n_mismatch = int(suspect_xref["date_mismatch"].sum())
+if n_mismatch:
+    print(f"\n  *** WARNING: {n_mismatch} suspect rows have dates that differ between merged df and raw timing CSV ***")
+    print("  This confirms a merge integrity problem — see timing_suspect_xref.csv")
+else:
+    print(f"\n  Merge integrity check passed: all {len(suspect)} suspect rows match raw timing CSV")
 print(f"\n  Suspect journeys: {len(suspect)}")
 print(f"    same_timestamp:    {df['flag_same_timestamp'].sum()}")
 print(f"    below_flight_time: {df['flag_below_flight_time'].sum()}")
