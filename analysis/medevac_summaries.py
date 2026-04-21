@@ -894,14 +894,13 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     first = j.sort_values("_sort_key").groupby("MRN", as_index=False).first()
 
-    # Merge optional PHI columns.
-    phi_cols = [c for c in ("AI_AN", "RaceDSC", "PrimaryPayorNM") if c in patients.columns]
-    if "GenderDSC" not in first.columns and "GenderDSC" in patients.columns:
-        phi_cols.append("GenderDSC")
+    # Merge optional PHI columns only if not already carried in from load_data().
+    phi_cols = [
+        c for c in ("AI_AN", "RaceDSC", "PrimaryPayorNM", "GenderDSC")
+        if c in patients.columns and c not in first.columns
+    ]
     if phi_cols:
         first = first.merge(patients[["MRN"] + phi_cols], on="MRN", how="left")
-    if "GenderDSC" not in first.columns and "GenderDSC" in patients.columns:
-        first = first.merge(patients[["MRN", "GenderDSC"]], on="MRN", how="left")
 
     # Age bucket on first journey.
     age = pd.to_numeric(first["age_at_medevac"], errors="coerce")
