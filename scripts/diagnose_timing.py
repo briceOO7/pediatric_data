@@ -62,7 +62,15 @@ df["flag_any"] = (
 # ── Detail report ──────────────────────────────────────────────────────────────
 detail_cols = [
     "journey_id", "MRN", "facility_1_name", "journey_start_year",
-    "medevac1_dts",
+    # medevac leg timestamps and encounter IDs
+    "medevac1_dts", "medevac1_dts_source",
+    "medevac1_from_encounter", "medevac1_to_encounter",
+    "medevac2_dts", "medevac2_from_encounter", "medevac2_to_encounter",
+    # facility encounter IDs and start timestamps (loc1 = village, loc2 = MHC)
+    "loc1_encounter_id", "facility_1_time",
+    "loc2_encounter_id", "facility_2_time",
+    "loc3_encounter_id", "facility_3_time",
+    # timing fields
     "activate_to_arrive_min", "time_to_activate_min", "flight_time_min",
     "medevac_datetime", "destination_datetime",
     "origin_imputed", "destination_imputed", "medevac_imputed",
