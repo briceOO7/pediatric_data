@@ -45,6 +45,7 @@ from medevac_summaries import (
     build_table0_medevac_routes,
     build_table1_village_characteristics,
     build_table2_patient_characteristics_by_age,
+    build_table3_village_utilization,
     build_table1_cohort,
     build_table2_by_origin,
     build_table3_by_year,
@@ -126,15 +127,18 @@ show_tbl(build_table2_by_origin(df))
 
 ---
 
-## Table 3. Village-level utilization
+## Table 4. Village-level utilization
 
-> **TODO:** Build `build_table3_village_utilization()` in `analysis/medevac_summaries.py`.
-> Columns: village name, n legs, n unique patients, legs per 100 pediatric residents
-> (if census denominator available), median annual legs. Sort by leg count descending.
+One row per village of origin, sorted by total legs descending. Utilization rate =
+journeys per 1,000 pediatric residents (2020 Census, Maniilaq service area villages).
+
+```{python}
+show_tbl(build_table3_village_utilization(df))
+```
 
 ---
 
-## Table 4. Time intervals
+## Table 5. Time intervals
 
 ### Categorical timing
 
@@ -154,34 +158,6 @@ show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
 
 ```{python}
 show_tbl(build_table5_timing_minutes(df, village_cah_only=False))
-```
-
----
-
-## Table 5. Data completeness / missingness
-
-### Vital missingness by measure
-
-```{python}
-show_tbl(build_table2_1_vitals_missingness(df))
-```
-
-### Vital missingness by age group
-
-```{python}
-show_tbl(build_table2_3_vitals_missingness_by_age(df))
-```
-
-### Repeated vitals by measure
-
-```{python}
-show_tbl(build_table2_2_vitals_repeated(df))
-```
-
-### Repeated vitals by age group
-
-```{python}
-show_tbl(build_table2_4_vitals_repeated_by_age(df))
 ```
 
 ---

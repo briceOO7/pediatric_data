@@ -1051,6 +1051,66 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def build_table3_village_utilization(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 1, Table 3: Village-level utilization summary.
+
+    Rows = one per village of origin, sorted by n legs descending.
+    Columns: Village, N Legs, N Unique Patients, Median Annual Legs,
+             Utilization Rate per 1,000 Pediatric Residents.
+
+    *df* should be the village→MHC journey cohort from filter_journeys_village_to_mhc().
+    """
+    census_path = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
+    census = pd.read_csv(census_path) if census_path.exists() else None
+    census_map: dict[str, int] = (
+        dict(zip(census["NAME"], census["pediatric_pop"].astype(int))) if census is not None else {}
+    )
+
+    village_col = "facility_1_name"
+    yr_col = "journey_start_year"
+    j = df.copy()
+    j["_year"] = pd.to_numeric(j.get(yr_col, pd.Series(dtype=float)), errors="coerce")
+
+    rows = []
+    for village, sub in j.groupby(village_col):
+        n_legs = int(sub["num_medevacs"].sum()) if "num_medevacs" in sub.columns else len(sub)
+        n_patients = int(sub["MRN"].nunique())
+        annual = sub.groupby("_year").size()
+        median_annual = f"{annual.median():.1f}" if len(annual) > 0 else "—"
+        pop = census_map.get(village)
+        util = f"{len(sub) / pop * 1_000:.1f}" if pop and pop > 0 else "—"
+        rows.append({
+            "Village": village,
+            "N Legs": n_legs,
+            "N Unique Patients": n_patients,
+            "Median Annual Legs": median_annual,
+            "Utilization Rate per 1,000 Pediatric Residents": util,
+        })
+
+    out = (
+        pd.DataFrame(rows)
+        .sort_values("N Legs", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    # Overall total row
+    total_pop = sum(census_map.get(v, 0) for v in j[village_col].unique()) or None
+    total_annual = j.groupby("_year").size()
+    out.loc[len(out)] = {
+        "Village": "Overall",
+        "N Legs": int(j["num_medevacs"].sum()) if "num_medevacs" in j.columns else len(j),
+        "N Unique Patients": int(j["MRN"].nunique()),
+        "Median Annual Legs": f"{total_annual.median():.1f}" if len(total_annual) > 0 else "—",
+        "Utilization Rate per 1,000 Pediatric Residents": (
+            f"{len(j) / total_pop * 1_000:.1f}" if total_pop else "—"
+        ),
+    }
+
+    out.to_csv(ROOT / "outputs" / "tables" / "table3_village_utilization.csv", index=False)
+    return out
+
+
 def build_table2_village_visit_vitals(df: pd.DataFrame) -> pd.DataFrame:
     """
     Table 2: among village→MHC cohort patients (earliest qualifying journey per MRN),
