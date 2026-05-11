@@ -156,6 +156,49 @@ def _is_village_place(name: object) -> bool:
     return is_village_medevac_origin(name)
 
 
+def _classify_journey_route(row: pd.Series) -> str:
+    """
+    Classify a journey row into one of three route types.
+
+    Logic uses the first non-empty leg destination to determine where the patient
+    ultimately lands on leg 1, guarding against sparse/null medevac1_to values.
+
+    Returns
+    -------
+    "Primary (village → MHC)"   — leg 1 ends at MHC, no further transfer leg
+    "Secondary transfer"        — leg 1 ends at MHC AND a leg 2 destination exists
+    "Direct tertiary"           — first populated leg destination is NOT MHC
+                                  (village flew directly to ANMC / UW / Providence)
+    """
+    # Walk legs in order; use the first leg that has a populated destination.
+    first_to = ""
+    second_to = ""
+    found_first = False
+    for i in (1, 2, 3):
+        to_val = str(row.get(f"medevac{i}_to", "") or "").strip()
+        from_val = str(row.get(f"medevac{i}_from", "") or "").strip()
+        if not to_val:
+            continue
+        if not found_first:
+            # Only count this as the "first" leg if it originates from a village
+            # OR it is literally leg 1 (covers edge case where medevac1_from is blank).
+            if i == 1 or is_village_medevac_origin(from_val):
+                first_to = to_val
+                found_first = True
+        else:
+            second_to = to_val
+            break
+
+    if not first_to:
+        return "Unknown"
+
+    if _is_mhc_cah_destination(first_to):
+        if second_to:
+            return "Secondary transfer"
+        return "Primary (village → MHC)"
+    return "Direct tertiary"
+
+
 def _is_mhc_cah_destination(to_raw: object) -> bool:
     """Medevac destination is Maniilaq Health Center (critical access hospital)."""
     b = str(to_raw).strip()
@@ -2251,17 +2294,7 @@ def build_p3_table1_disposition(df: pd.DataFrame) -> pd.DataFrame:
     Uses icu_admission, ed_discharge, short_<36h_admission, death_at_facility from outcomes.
     """
     j = df.drop_duplicates(subset=["journey_id"]).copy()
-
-    def _route(row: pd.Series) -> str:
-        t1 = str(row.get("medevac1_to", "") or "")
-        t2 = str(row.get("medevac2_to", "") or "")
-        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
-            return "Secondary transfer"
-        if _is_mhc_cah_destination(t1):
-            return "Primary (village → MHC)"
-        return "Direct tertiary"
-
-    j["_route"] = j.apply(_route, axis=1)
+    j["_route"] = j.apply(_classify_journey_route, axis=1)
     route_order = ["Primary (village → MHC)", "Secondary transfer", "Direct tertiary"]
 
     disp_cols = {
@@ -2299,17 +2332,7 @@ def build_p3_table2_resource_utilization(df: pd.DataFrame) -> pd.DataFrame:
     Reports median (IQR) days_to_discharge overall and by route type.
     """
     j = df.drop_duplicates(subset=["journey_id"]).copy()
-
-    def _route(row: pd.Series) -> str:
-        t1 = str(row.get("medevac1_to", "") or "")
-        t2 = str(row.get("medevac2_to", "") or "")
-        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
-            return "Secondary transfer"
-        if _is_mhc_cah_destination(t1):
-            return "Primary (village → MHC)"
-        return "Direct tertiary"
-
-    j["_route"] = j.apply(_route, axis=1)
+    j["_route"] = j.apply(_classify_journey_route, axis=1)
     route_order = ["Primary (village → MHC)", "Secondary transfer", "Direct tertiary"]
 
     def _stats(sub: pd.DataFrame, label: str) -> dict:
@@ -2401,16 +2424,7 @@ def build_p3_table4_high_acuity_predictors(df: pd.DataFrame) -> pd.DataFrame:
 
     age = pd.to_numeric(j["age_at_medevac"], errors="coerce")
     j["_age_grp"] = age.map(_age_bucket_label)
-
-    def _route(row: pd.Series) -> str:
-        t1 = str(row.get("medevac1_to", "") or "")
-        t2 = str(row.get("medevac2_to", "") or "")
-        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
-            return "Secondary transfer"
-        if _is_mhc_cah_destination(t1):
-            return "Primary (village → MHC)"
-        return "Direct tertiary"
-    j["_route"] = j.apply(_route, axis=1)
+    j["_route"] = j.apply(_classify_journey_route, axis=1)
 
     def _rate(sub: pd.DataFrame) -> str:
         N = len(sub)
