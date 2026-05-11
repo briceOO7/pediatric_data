@@ -42,10 +42,14 @@ from medevac_summaries import (
     load_data,
     filter_journeys_village_to_mhc,
     build_table6_mortality,
+    build_p3_table1_disposition,
+    build_p3_table2_resource_utilization,
+    build_p3_table3_outcomes_by_destination,
+    build_p3_table4_high_acuity_predictors,
 )
 
 _df_all = load_data()
-df = filter_journeys_village_to_mhc(_df_all)
+df     = filter_journeys_village_to_mhc(_df_all)
 
 
 def show_tbl(d: pd.DataFrame):
@@ -71,58 +75,45 @@ and assess the appropriateness of transport decisions.
 
 ## Table 1. Disposition
 
-> **TODO:** Build `build_table1_disposition()` in `analysis/medevac_summaries.py`.
-> Using `pediatric_outcomes.csv`, report for each destination (MHC, ANMC, Providence, UW):
->
-> - ED discharge: n (%)
-> - Ward admission: n (%)
-> - ICU admission: n (%)
-> - Missing / unknown: n (%)
->
-> Stratify by route type (primary village → MHC vs. secondary transfer vs. direct tertiary).
+Disposition by route type. **Primary** = village → MHC; **Secondary transfer** = MHC → tertiary;
+**Direct tertiary** = village → tertiary center. High-acuity outcome = ICU admission or surgery.
+
+```{python}
+show_tbl(build_p3_table1_disposition(_df_all))
+```
 
 ---
 
 ## Table 2. Resource utilization
 
-> **TODO:** Build `build_table2_resource_utilization()` in `analysis/medevac_summaries.py`.
-> Report:
->
-> - Length of stay: median (IQR), by destination
-> - Procedures performed: n (%) by type if coded
-> - ICU length of stay (where ICU admission documented)
->
-> Data source: `pediatric_outcomes.csv`.
+Length of stay (days) and procedure rates by route type. Secondary transfers are enriched
+for high-acuity outcomes by design — patients requiring tertiary-level care.
+
+```{python}
+show_tbl(build_p3_table2_resource_utilization(_df_all))
+```
 
 ---
 
 ## Table 3. Outcomes by destination
 
-> **TODO:** Build `build_table3_outcomes_by_destination()` in `analysis/medevac_summaries.py`.
-> Cross-tab of destination hospital × disposition category. Include:
->
-> - High-acuity outcome composite (ICU or major procedure): n (%)
-> - Potential overtriage (ED discharge): n (%)
-> - Mortality: n (%)
->
-> Stratify by chief complaint category (respiratory, infectious, injury, other).
+Disposition and mortality rates cross-tabulated by receiving facility.
+ED discharge rate indicates potential overtriage; ICU rate indicates high-acuity need.
+
+```{python}
+show_tbl(build_p3_table3_outcomes_by_destination(_df_all))
+```
 
 ---
 
 ## Table 4. Predictors of high-acuity care
 
-> **TODO:** Build `build_table4_high_acuity_predictors()` in `analysis/medevac_summaries.py`.
-> Logistic regression (if sample size allows) with outcome = high-acuity composite.
-> Candidate predictors:
->
-> - Age group
-> - Sex
-> - Chief complaint category
-> - Route type (primary vs. secondary vs. direct tertiary)
-> - Vital sign completeness at village
-> - Time to activation (continuous or categorical)
->
-> Report OR (95% CI), p-value. Note sample size constraints explicitly if model is underpowered.
+High-acuity outcome = ICU admission or surgery. Rates reported by age group, sex, and
+route type. Logistic regression to follow once sample size is confirmed adequate.
+
+```{python}
+show_tbl(build_p3_table4_high_acuity_predictors(_df_all))
+```
 
 ---
 

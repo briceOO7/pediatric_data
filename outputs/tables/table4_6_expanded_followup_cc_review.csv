@@ -1,0 +1,226 @@
+journey_id,MRN,cc_sequence,cc_location,cc_text,cc_cedis_code,cc_cedis_complaint,hours_since_previous_cc,expanded_cc_code,expanded_cc_complaint,expanded_cc_fu
+JRN_00002,PAT_00002,1,village,f/u bronchitis Mom: <PERSON>: <PHONE_NUMBER> improving,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00002,PAT_00002,2,village,"Pt had u/s appt <DATE_TIME> in which <PERSON> was scanned from PCP appt , pt reports tech pushed to hard on <PERSON> and now has <PHONE_NUMBER> abd pain . Sitting in wc , color good , speaking clear , resp e/u , VSS . Pt reports wants ""torodal shot"" or something to help her rest .",251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_00002,PAT_00002,3,village,"Pt had u/s appt <DATE_TIME> in which <PERSON> was scanned from PCP appt , pt reports tech pushed to hard on <PERSON> and now has <PHONE_NUMBER> abd pain . Sitting in wc , color good , speaking clear , resp e/u , VSS . Pt reports wants ""torodal shot"" or something to help her rest .",251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_00002,PAT_00002,4,mhc_inpatient,Cough/congestion/fever for <DATE_TIME> symptoms increasing this am . Cradiac hx,653,Cough/congestion,,251,Abdominal pain,Yes
+JRN_00034,PAT_00033,1,village,Follow up R peritonsillar abscess,888,Follow-up visit,,852,Fever,Yes
+JRN_00034,PAT_00033,2,mhc_inpatient,"Fever of <DATE_TIME> . Taking PO , voiding , no cough or nasal drainage . Active , moves all extremities equally . Skin war , pink , and dry . Vaccines <DATE_TIME> .",852,Fever,,852,Fever,Yes
+JRN_00120,PAT_00002,1,village,follow up hospital dc for pneumonia,888,Follow-up visit,,555,Lower extremity pain,Yes
+JRN_00120,PAT_00002,2,village,"Right knee started hurting out of know where , started locking and cannot stand it . Extreme pain to it .",555,Lower extremity pain,,555,Lower extremity pain,Yes
+JRN_00120,PAT_00002,3,mhc_ed,RPNV 36 <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,555,Lower extremity pain,Yes
+JRN_00125,PAT_00107,1,village,F/U Suction D&C,888,Follow-up visit,,154,URTI complaints,Yes
+JRN_00125,PAT_00107,2,village,common cold: respiratory 2 other illness with <LOCATION>,154,URTI complaints,,154,URTI complaints,Yes
+JRN_00125,PAT_00107,3,village,<DATE_TIME> her for recheck,888,Follow-up visit,,154,URTI complaints,Yes
+JRN_00125,PAT_00107,4,mhc_ed,Authorized in from <LOCATION> with Guardian <DATE_TIME> related to fever/cough . Here for a follow-up,888,Follow-up visit,,154,URTI complaints,Yes
+JRN_00125,PAT_00107,5,mhc_ed,MISCARRIAGE,457,"Pregnancy issues, <20 weeks",,154,URTI complaints,Yes
+JRN_00134,PAT_00113,1,village,"FV , AVB , PPM , post-op , device check",888,Follow-up visit,,510,Eye trauma,Yes
+JRN_00134,PAT_00113,2,village,<DATE_TIME> female C/O L) eye,999,Unknown,,510,Eye trauma,Yes
+JRN_00134,PAT_00113,3,village,L) Eye Injury,510,Eye trauma,,510,Eye trauma,Yes
+JRN_00134,PAT_00113,4,village,prenatal,458,"Pregnancy issues, >20 weeks",,510,Eye trauma,Yes
+JRN_00134,PAT_00113,5,mhc_inpatient,pt with left eye injury .,510,Eye trauma,,510,Eye trauma,Yes
+JRN_00135,PAT_00114,1,village,f/u respritory bib mom <PERSON> and escort staying at guest house leave: tomrrow <PERSON> and <PERSON>: <PERSON> <PHONE_NUMBER>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00135,PAT_00114,2,village,vitals for rural provider,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00135,PAT_00114,3,village,pt BIB Guardian from <LOCATION> for SOB d/t COVID+. pt on 6L <LOCATION> and increased RR . pt in 80% on room air .,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_00135,PAT_00114,4,mhc_ed,snow machine accident at high speeds . left hip injury,557,Lower extremity injury,,651,Shortness of breath,Yes
+JRN_00135,PAT_00114,5,mhc_ed,"Authorized in from <LOCATION> , For <DATE_TIME> now superbic area pain , possibally related to belt that holds left stump",251,Abdominal pain,,651,Shortness of breath,Yes
+JRN_00135,PAT_00114,6,mhc_ed,Febrile,852,Fever,,651,Shortness of breath,Yes
+JRN_00149,PAT_00125,1,village,recheck,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00149,PAT_00125,2,village,"BIBA from <LOCATION> for <PERSON> , <PERSON> started <DATE_TIME> . Surgery at bedside upon arrival .",251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_00149,PAT_00125,3,village,s/p lap appy,865,Post-operative complications,,251,Abdominal pain,Yes
+JRN_00172,PAT_00145,1,village,<DATE_TIME> post-op follow up,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00172,PAT_00145,2,mhc_ed,"Authorized in from <LOCATION> by guardian , related to hypertension and hyperlipidemia , has been non-compliant with all medications . abdominal pain with N/v for <DATE_TIME> . tested positive in clinic <DATE_TIME>",251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_00174,PAT_00104,1,village,bib parents <PERSON> and <PERSON> for f/u EEG,888,Follow-up visit,,863,Abnormal lab values,Yes
+JRN_00174,PAT_00104,2,village,"BIBA from <LOCATION> regional for generalized weakness and AMS , blood cultures + for MRSA . Hx renal failure and bladder cancer . 50 mcg of fentynal given en route",863,Abnormal lab values,,863,Abnormal lab values,Yes
+JRN_00174,PAT_00104,3,village,"BIBA from <LOCATION> regional for generalized weakness and AMS , blood cultures + for MRSA . Hx renal failure and bladder cancer . 50 mcg of fentynal given en route",863,Abnormal lab values,,863,Abnormal lab values,Yes
+JRN_00174,PAT_00104,4,mhc_inpatient,"Authorized in from <LOCATION> by Guardian , positive covid , fever , and possible seizure activity on <DATE_TIME> . Active , playful , eating , drinking with wet diapers . tylenol at <DATE_TIME>",405,Seizure,,863,Abnormal lab values,Yes
+JRN_00174,PAT_00104,5,mhc_inpatient,seizure <DATE_TIME> with fever . hx of febrile seizure .,405,Seizure,,863,Abnormal lab values,Yes
+JRN_00179,PAT_00104,1,village,bib parents <PERSON> and <PERSON> for f/u EEG,888,Follow-up visit,,405,Seizure,Yes
+JRN_00179,PAT_00104,2,village,"Hx febrile sz . Per Mom , pt was sleeping , woke up and ""eyes rolled back of head and he was shaking ."" Mom reports cry diminished . Pt in NAD in <LOCATION> . Full term vaginal deliv . no nicu stay . 4moi vaccines only . Normal wet diapers .",405,Seizure,,405,Seizure,Yes
+JRN_00179,PAT_00104,3,village,f/u fever: BIB mother,888,Follow-up visit,,405,Seizure,Yes
+JRN_00179,PAT_00104,4,village,f/u: BIB mother <PERSON> and father <PERSON>,888,Follow-up visit,,405,Seizure,Yes
+JRN_00179,PAT_00104,5,village,f/u: BIB mother <PERSON> and father <PERSON>,888,Follow-up visit,,405,Seizure,Yes
+JRN_00179,PAT_00104,6,mhc_inpatient,seizure <DATE_TIME> with fever . hx of febrile seizure .,405,Seizure,,405,Seizure,Yes
+JRN_00212,PAT_00175,1,village,Follow up Hospital Discharge,888,Follow-up visit,,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00212,PAT_00175,2,mhc_inpatient,SI/,351,Depression/suicidal/deliberate self-harm,,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00382,PAT_00304,1,village,Village vitals,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,2,village,Pain Epigastrium and burning sensation,251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,3,mhc_ed,"Authorized in from <LOCATION> , for the last <DATE_TIME> running a fever , black stools , not eating or drinking since <DATE_TIME> . Temp in clinic 102.7 was given 180mg in clinic",852,Fever,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,4,mhc_ed,"Authorized in from <LOCATION> with guardian <DATE_TIME> , seen in ed related to a fever and constipation . Here for a follow-up , slept <DATE_TIME> , two wet diapers , eating during triage",888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,5,mhc_ed,"Authorized in from <LOCATION> <DATE_TIME> frlated to fever , here <DATE_TIME> for third follow-up",888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,6,mhc_ed,B/P check,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_00382,PAT_00304,7,mhc_ed,Fetal monitoring,458,"Pregnancy issues, >20 weeks",,251,Abdominal pain,Yes
+JRN_00436,PAT_00349,1,village,recheck,888,Follow-up visit,,101,Dental/gum problem,Yes
+JRN_00436,PAT_00349,2,village,<DATE_TIME> female came in for mouth problems,101,Dental/gum problem,,101,Dental/gum problem,Yes
+JRN_00461,PAT_00204,1,village,flu due,888,Follow-up visit,,103,Sore throat,Yes
+JRN_00461,PAT_00204,2,mhc_ed,sore throat,103,Sore throat,,103,Sore throat,Yes
+JRN_00485,PAT_00388,1,village,immunizations due .,888,Follow-up visit,,855,Direct referral for consultation,Yes
+JRN_00485,PAT_00388,2,village,Pre op lithotripsy,855,Direct referral for consultation,,855,Direct referral for consultation,Yes
+JRN_00485,PAT_00388,3,mhc_inpatient,Temperature 102.0,852,Fever,,855,Direct referral for consultation,Yes
+JRN_00513,PAT_00412,1,village,F/V: Traumatic C6 Facet Fx,888,Follow-up visit,,752,Overdose ingestion,Yes
+JRN_00513,PAT_00412,2,village,F/V: Traumatic C6 Facet Fx,888,Follow-up visit,,752,Overdose ingestion,Yes
+JRN_00513,PAT_00412,3,mhc_inpatient,"overdose on <NRP> . pt states 8 pills . vomited up a few pills per ems . pt alert and oriented , states she was not trying to kill herself , she was just sad .",752,Overdose ingestion,,752,Overdose ingestion,Yes
+JRN_00533,PAT_00427,1,village,Baby for Hosp . D/C follow-up here with grandma-<PERSON> . <PHONE_NUMBER>,888,Follow-up visit,,5,Palpitations/irregular heart beat,Yes
+JRN_00533,PAT_00427,2,mhc_ed,"Has been under incresed stress <DATE_TIME> , hx of anxiety , c/o palpitations , SOB",5,Palpitations/irregular heart beat,,5,Palpitations/irregular heart beat,Yes
+JRN_00533,PAT_00427,3,mhc_inpatient,Fever,852,Fever,,5,Palpitations/irregular heart beat,Yes
+JRN_00548,PAT_00437,1,village,Recheck abdominal pain,888,Follow-up visit,,657,Allergic reaction,Yes
+JRN_00548,PAT_00437,2,mhc_inpatient,"allergic reaction , eye swelling",657,Allergic reaction,,657,Allergic reaction,Yes
+JRN_00594,PAT_00472,1,village,<DATE_TIME> check up and immunizations,888,Follow-up visit,,866,Minor complaints NOS,Yes
+JRN_00594,PAT_00472,2,village,<DATE_TIME> well child care,888,Follow-up visit,,866,Minor complaints NOS,Yes
+JRN_00594,PAT_00472,3,village,Self Ref: Pap smear,866,Minor complaints NOS,,866,Minor complaints NOS,Yes
+JRN_00594,PAT_00472,4,mhc_ed,"was sent to <LOCATION> related to abdominal swelling and pain . Dx cirrhosis , aceities , was drained . Had another scheldued but was sent home . No bowel movement in <DATE_TIME>",263,Abdominal mass/distention,,866,Minor complaints NOS,Yes
+JRN_00594,PAT_00472,5,mhc_ed,"was sent to <LOCATION> related to abdominal swelling and pain . Dx cirrhosis , aceities , was drained . Had another scheldued but was sent home . No bowel movement in <DATE_TIME>",263,Abdominal mass/distention,,866,Minor complaints NOS,Yes
+JRN_00641,PAT_00504,1,village,follow up after hospital visit,888,Follow-up visit,,802,Major trauma—blunt,Yes
+JRN_00641,PAT_00504,2,mhc_ed,Recheck,888,Follow-up visit,,802,Major trauma—blunt,Yes
+JRN_00641,PAT_00504,3,mhc_ed,ATV crash with another ATV head-on . ABD pain .,802,Major trauma—blunt,,802,Major trauma—blunt,Yes
+JRN_00682,PAT_00531,1,village,f/u hosp D/C bib mom <LOCATION> <PHONE_NUMBER>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,2,village,F/U hosp D/C bib mom <PERSON>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,3,village,"Weight Check , with Mother/Sylvia",888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,4,village,5 wk old M here for difficulty breathing,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,5,village,possible Bronchiolitis,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,6,village,"hosp . <LOCATION> , rsv",888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,7,village,"mom <PERSON> , hospital d/c and respritory distress",888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,8,village,mom <PERSON> here for Hosp F/U resp distress baby goes by <PERSON>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00682,PAT_00531,9,village,Here for F/U hosp . resp . distress .,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_00731,PAT_00520,1,village,FV,888,Follow-up visit,,402,Confusion,Yes
+JRN_00731,PAT_00520,2,mhc_inpatient,"Pt had fall today with lower back pain , states ammonia is high and 'feels drunk'. Has been taking lactulose with less stool output . BIB brother <PERSON> .",402,Confusion,,402,Confusion,Yes
+JRN_00731,PAT_00520,3,mhc_inpatient,Shortness of breath,651,Shortness of breath,,402,Confusion,Yes
+JRN_00733,PAT_00570,1,village,<DATE_TIME> female came in for follow up from,888,Follow-up visit,,709,Localized swelling/redness,Yes
+JRN_00733,PAT_00570,2,village,F/U L 2nd Toe,888,Follow-up visit,,709,Localized swelling/redness,Yes
+JRN_00733,PAT_00570,3,mhc_ed,"3rd toe left foot , laceration with suturing on <DATE_TIME>",999,Unknown,,709,Localized swelling/redness,Yes
+JRN_00733,PAT_00570,4,mhc_ed,"Authorided in from <LOCATION> , sutures in place for <DATE_TIME> to left third toe , now pain and infection",709,Localized swelling/redness,,709,Localized swelling/redness,Yes
+JRN_00830,PAT_00640,1,village,"F/U: Low Back Pain , last seen <DATE_TIME>",888,Follow-up visit,,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00830,PAT_00640,2,mhc_inpatient,attempted to hang self,351,Depression/suicidal/deliberate self-harm,,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00937,PAT_00719,1,village,F/u R sided cyst removal,888,Follow-up visit,,852,Fever,Yes
+JRN_00937,PAT_00719,2,mhc_ed,Pt medivaced from <LOCATION> for fever and nasal congestion x <DATE_TIME>,852,Fever,,852,Fever,Yes
+JRN_00943,PAT_00723,1,village,Hospital discharge; ablation/ICD revision,888,Follow-up visit,,557,Lower extremity injury,Yes
+JRN_00943,PAT_00723,2,village,fractured,999,Unknown,,557,Lower extremity injury,Yes
+JRN_00943,PAT_00723,3,mhc_ed,L ankle pain/swelling,557,Lower extremity injury,,557,Lower extremity injury,Yes
+JRN_00945,PAT_00725,1,village,F/u D/c bib foster parents <PHONE_NUMBER> <PERSON>,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,2,village,f/u,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,3,village,f/u bronchiolitis: BIB father <PERSON>,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,4,village,"wheezing , fever , and vomiting",659,Wheezing—no other complaints,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,5,village,"cough , fever , vomiting , fussy , occasional wheezing",653,Cough/congestion,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,6,village,pt . is here for a follow-up for RSV and coughing . <PERSON> reports it is getting worse . dad reports wheezing and fever since <DATE_TIME>,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,7,village,pruritus of pregnancy,458,"Pregnancy issues, >20 weeks",,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,8,village,F/U Hospital,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00945,PAT_00725,9,village,Follow up here with <PERSON> . <PHONE_NUMBER>,888,Follow-up visit,,659,Wheezing—no other complaints,Yes
+JRN_00983,PAT_00754,1,village,follow up UTI/kidney infection,888,Follow-up visit,,852,Fever,Yes
+JRN_00983,PAT_00754,2,village,"follow up kidney/urine infection , went on a home visit",888,Follow-up visit,,852,Fever,Yes
+JRN_00983,PAT_00754,3,village,"<DATE_TIME> male chief complaint of fever of 100, possible thrush",852,Fever,,852,Fever,Yes
+JRN_00983,PAT_00754,4,village,Normal Appearing Child - No Dehydration,999,Unknown,,852,Fever,Yes
+JRN_00983,PAT_00754,5,village,<DATE_TIME> male chief complaint of a fever 100.4,852,Fever,,852,Fever,Yes
+JRN_00983,PAT_00754,6,village,Sick Child - Possible Right AOM - No Dehydration,51,Earache,,852,Fever,Yes
+JRN_00983,PAT_00754,7,village,Immunizations Due,888,Follow-up visit,,852,Fever,Yes
+JRN_00983,PAT_00754,8,village,"Cried for <DATE_TIME> and vomit twice <DATE_TIME> , the last time was all his mild which was 3-4 oz and then called 911. Mom says he did get tense while he was crying a lot .",867,Inconsolable crying,,852,Fever,Yes
+JRN_00983,PAT_00754,9,village,Normal Appearing Child,999,Unknown,,852,Fever,Yes
+JRN_00983,PAT_00754,10,village,"Recheck acute abd pain , doing better",888,Follow-up visit,,852,Fever,Yes
+JRN_00983,PAT_00754,11,village,recheck acute abd pain,888,Follow-up visit,,852,Fever,Yes
+JRN_00983,PAT_00754,12,mhc_ed,"fever , n/v x <DATE_TIME>",852,Fever,,852,Fever,Yes
+JRN_00991,PAT_00761,1,village,f/u labs,888,Follow-up visit,,752,Overdose ingestion,Yes
+JRN_00991,PAT_00761,2,village,immunizations due,888,Follow-up visit,,752,Overdose ingestion,Yes
+JRN_00991,PAT_00761,3,mhc_inpatient,Intentional drug overdose: Inpatient Psychiatric Phone Consult,752,Overdose ingestion,,752,Overdose ingestion,Yes
+JRN_00991,PAT_00761,4,mhc_inpatient,"fell from standing on highchair , fell and hit front of head on wood floor . vomiting after . 7 times total .",407,Head injury,,752,Overdose ingestion,Yes
+JRN_01189,PAT_00889,1,village,<DATE_TIME> week wwc,888,Follow-up visit,,852,Fever,Yes
+JRN_01189,PAT_00889,2,mhc_inpatient,fever in <DATE_TIME> after taking immunizations,852,Fever,,852,Fever,Yes
+JRN_01214,PAT_00901,1,village,General check up/Pap,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_01214,PAT_00901,2,village,"BIB LifeMed for left sided abdominal pain . Pt reports pain <DATE_TIME> at this time . Pt reports had some mild nausea , received medications in flight . <PERSON> is guardian at bedside",251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_01214,PAT_00901,3,village,s/p lap chole,865,Post-operative complications,,251,Abdominal pain,Yes
+JRN_01214,PAT_00901,4,village,Vitals for Provider,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,1,village,"F/<PERSON> , labs , echo",888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,2,village,Extremem Cramping,251,Abdominal pain,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,3,village,f/u inpatient d/c,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,4,village,FV Stroke /Hospital discharge,888,Follow-up visit,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,5,mhc_ed,Reports sent from <LOCATION> for Abnormal EKG; pt reported near-syncopal episode <DATE_TIME>; denied complaint at this time,8,Syncope/pre-syncope,,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,6,mhc_inpatient,possible seizure activity,405,Seizure,,251,Abdominal pain,Yes
+JRN_01266,PAT_00802,1,village,<DATE_TIME> female came in for recheck,888,Follow-up visit,,752,Overdose ingestion,Yes
+JRN_01266,PAT_00802,2,mhc_ed,took overdose of abx <DATE_TIME> <PHONE_NUMBER> mg of keflex,752,Overdose ingestion,,752,Overdose ingestion,Yes
+JRN_01286,PAT_00955,1,village,FU BACK PAIN MED REFILL,888,Follow-up visit,,855,Direct referral for consultation,Yes
+JRN_01286,PAT_00955,2,village,Direct Admission,855,Direct referral for consultation,,855,Direct referral for consultation,Yes
+JRN_01286,PAT_00955,3,mhc_inpatient,Authorized in from <LOCATION> with guardian related to intentional overdose of tylenol <DATE_TIME> . was given charcoal and <LOCATION> . has been depressed as of late,752,Overdose ingestion,,855,Direct referral for consultation,Yes
+JRN_01289,PAT_00958,1,village,Re-check,888,Follow-up visit,,852,Fever,Yes
+JRN_01289,PAT_00958,2,mhc_inpatient,"Authorized in from <LOCATION> related to fever , cough , decreased po intake for <DATE_TIME> . contact with RSV . Taking amoxil",852,Fever,,852,Fever,Yes
+JRN_01310,PAT_00972,1,village,F/U Care,888,Follow-up visit,,556,Upper extremity injury,Yes
+JRN_01310,PAT_00972,2,village,Eval L BBFA fx,556,Upper extremity injury,,556,Upper extremity injury,Yes
+JRN_01310,PAT_00972,3,mhc_ed,"authorized in for left arm deformity , same is splinted in a sugar tong , brisk cap refill distally",556,Upper extremity injury,,556,Upper extremity injury,Yes
+JRN_01327,PAT_00986,1,village,"WCC , <PERSON> , lab , panhypopituitarism",888,Follow-up visit,,257,Nausea and/or vomiting,Yes
+JRN_01327,PAT_00986,2,mhc_ed,"c/o nausea x <DATE_TIME> , denied <PERSON> or diarrhea , afebrile . Last BM <DATE_TIME>",257,Nausea and/or vomiting,,257,Nausea and/or vomiting,Yes
+JRN_01327,PAT_00986,3,mhc_inpatient,cold symptoms,154,URTI complaints,,257,Nausea and/or vomiting,Yes
+JRN_01334,PAT_00993,1,village,follow up left clavicle injury,888,Follow-up visit,,103,Sore throat,Yes
+JRN_01334,PAT_00993,2,village,follow up left clavicle injury,888,Follow-up visit,,103,Sore throat,Yes
+JRN_01334,PAT_00993,3,village,Viral Pharyngitis,103,Sore throat,,103,Sore throat,Yes
+JRN_01334,PAT_00993,4,village,Mother brings in <DATE_TIME> female for sore throat and fever .,103,Sore throat,,103,Sore throat,Yes
+JRN_01334,PAT_00993,5,mhc_ed,abd <DATE_TIME> pregenant,457,"Pregnancy issues, <20 weeks",,103,Sore throat,Yes
+JRN_01334,PAT_00993,6,mhc_ed,"follow up post MVC , fx left clavicle",888,Follow-up visit,,103,Sore throat,Yes
+JRN_01334,PAT_00993,7,mhc_ed,pain in groin .,256,Groin pain/mass,,103,Sore throat,Yes
+JRN_01349,PAT_01001,1,village,NP osteoporosis,888,Follow-up visit,,852,Fever,Yes
+JRN_01349,PAT_01001,2,village,2months immunizrions,888,Follow-up visit,,852,Fever,Yes
+JRN_01349,PAT_01001,3,village,"<DATE_TIME> baby needs immunizations ,",888,Follow-up visit,,852,Fever,Yes
+JRN_01349,PAT_01001,4,mhc_ed,temp check,852,Fever,,852,Fever,Yes
+JRN_01349,PAT_01001,5,mhc_inpatient,"cp , weakness",3,Chest pain—cardiac features,,852,Fever,Yes
+JRN_01420,PAT_01050,1,village,recheck cough and breathing,888,Follow-up visit,,653,Cough/congestion,Yes
+JRN_01420,PAT_01050,2,village,f/u on plan for nephrostomy tube exchange with IR & lower urinary tract,888,Follow-up visit,,653,Cough/congestion,Yes
+JRN_01420,PAT_01050,3,mhc_inpatient,cough x <DATE_TIME> .,653,Cough/congestion,,653,Cough/congestion,Yes
+JRN_01420,PAT_01050,4,mhc_inpatient,cough week and a half,653,Cough/congestion,,653,Cough/congestion,Yes
+JRN_01481,PAT_01096,1,village,FV - s/p lap appy,888,Follow-up visit,,852,Fever,Yes
+JRN_01481,PAT_01096,2,mhc_ed,"Authorized in from <LOCATION> , fever/cough for <DATE_TIME> , seen in ed for the same",852,Fever,,852,Fever,Yes
+JRN_01481,PAT_01096,3,mhc_ed,F/U being seen <DATE_TIME> for cough/fever,888,Follow-up visit,,852,Fever,Yes
+JRN_01481,PAT_01096,4,mhc_inpatient,"Authorized in from <LOCATION> , fever cough for <DATE_TIME> seen in er <DATE_TIME> and outpatient <DATE_TIME> . positive blood cultures",863,Abnormal lab values,,852,Fever,Yes
+JRN_01481,PAT_01096,5,mhc_inpatient,"Hypoglycemia , General Malaise , Nausea , Vaginal Bleeding , Decreased appitite",854,Hypoglycemia,,852,Fever,Yes
+JRN_01519,PAT_01125,1,village,F/u L shoulder,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01519,PAT_01125,2,village,Recheck Cough,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01519,PAT_01125,3,village,Recheck cough,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01519,PAT_01125,4,village,4 <LOCATION>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01519,PAT_01125,5,mhc_inpatient,respiratory concerns . increased oxygen demand Decadron given <DATE_TIME> . febrile <DATE_TIME>,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_01531,PAT_01134,1,village,F lap appy,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01531,PAT_01134,2,mhc_ed,Medevac for respiratory distress,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_01533,PAT_01136,1,village,recheck fractured clavicle- right side,888,Follow-up visit,,852,Fever,Yes
+JRN_01533,PAT_01136,2,village,PT BIB GF for <LOCATION> <DATE_TIME> SBO and sepsis intubated and on pressors . pt is slated to go to OR followed by ICU . Surg and CCU MD @ bedside .,852,Fever,,852,Fever,Yes
+JRN_01533,PAT_01136,3,mhc_inpatient,Authorized in from <LOCATION> with Guardian related to possible seizure activity while in class <DATE_TIME> . fell out of chair left arm and right leg were shaking . fSBS 99,405,Seizure,,852,Fever,Yes
+JRN_01643,PAT_01218,1,village,FV discharged API R) ft injury,888,Follow-up visit,,154,URTI complaints,Yes
+JRN_01643,PAT_01218,2,village,FV discharged API R) ft injury,888,Follow-up visit,,154,URTI complaints,Yes
+JRN_01643,PAT_01218,3,village,URI,154,URTI complaints,,154,URTI complaints,Yes
+JRN_01688,PAT_01246,1,village,Hosp d/c Bib mom Heather <PHONE_NUMBER>,888,Follow-up visit,,407,Head injury,Yes
+JRN_01688,PAT_01246,2,mhc_ed,"pt hit forehead on <DATE_TIME> with no LOC , small abrasion covered with butterfly , <PERSON> <DATE_TIME> , age approrpriate responses",407,Head injury,,407,Head injury,Yes
+JRN_01688,PAT_01246,3,mhc_ed,"Authorized in From <LOCATION> with Guardian . thrush x <DATE_TIME> then fever and hypoxia , <DATE_TIME> in <LOCATION> . tylenol/motrin at 1030",651,Shortness of breath,,407,Head injury,Yes
+JRN_01811,PAT_01332,1,village,<PERSON> for f/u peds inpatient and <LOCATION>,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01811,PAT_01332,2,village,Hosptail dc f/u,888,Follow-up visit,,651,Shortness of breath,Yes
+JRN_01811,PAT_01332,3,mhc_ed,Respiratory distress,651,Shortness of breath,,651,Shortness of breath,Yes
+JRN_01843,PAT_00993,1,village,follow up,888,Follow-up visit,,103,Sore throat,Yes
+JRN_01843,PAT_00993,2,village,Sore throat/earache,103,Sore throat,,103,Sore throat,Yes
+JRN_01843,PAT_00993,3,mhc_ed,pt brought in by ems . pt was in <LOCATION> in village . converted by medevac team with 6mg adenosine .,5,Palpitations/irregular heart beat,,103,Sore throat,Yes
+JRN_01844,PAT_01352,1,village,FV - s/p PTHC drain +malignant pancreatic cancer,888,Follow-up visit,,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,2,village,contractions,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,3,village,possible labor contractions,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,4,village,contractions,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,5,village,Beta #2,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,6,village,prenatal,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,7,village,Labor check,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,8,village,IV iron #2,888,Follow-up visit,,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,9,village,IV ironn #3,888,Follow-up visit,,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,10,mhc_ed,"ATV collision , c/o pain to left hip and pelvic area . <DATE_TIME> have LOC for just a very short period of time . Reports not going very fast but was hit head on .",802,Major trauma—blunt,,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01844,PAT_01352,11,mhc_ed,premature labor pains <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01864,PAT_01364,1,village,recheck frost bites,888,Follow-up visit,,867,Inconsolable crying,Yes
+JRN_01864,PAT_01364,2,village,"fussy baby , crying in pain; snotty .",867,Inconsolable crying,,867,Inconsolable crying,Yes
+JRN_01864,PAT_01364,3,village,Hosp D/c bib mom <PERSON> <PHONE_NUMBER>,888,Follow-up visit,,867,Inconsolable crying,Yes
+JRN_01864,PAT_01364,4,mhc_ed,Sob X approx <DATE_TIME> . increase wob .,651,Shortness of breath,,867,Inconsolable crying,Yes
+JRN_01870,PAT_01370,1,village,f/u hospital d/c,888,Follow-up visit,,859,Imaging tests,Yes
+JRN_01870,PAT_01370,2,village,f/u hospital d/c,888,Follow-up visit,,859,Imaging tests,Yes
+JRN_01870,PAT_01370,3,village,FV xrays,859,Imaging tests,,859,Imaging tests,Yes
+JRN_01870,PAT_01370,4,mhc_ed,"left arm injury . <PERSON> was jumping on trampoline , states he was doing a flip",556,Upper extremity injury,,859,Imaging tests,Yes
+JRN_01892,PAT_01386,1,village,D/c F/u Bib mom Barbara <PHONE_NUMBER>,888,Follow-up visit,,855,Direct referral for consultation,Yes
+JRN_01892,PAT_01386,2,village,RTPN,855,Direct referral for consultation,,855,Direct referral for consultation,Yes
+JRN_01892,PAT_01386,3,village,Constipation/Lt . leg pain/,253,Constipation,,855,Direct referral for consultation,Yes
+JRN_01892,PAT_01386,4,village,Constipation/Lt . Leg pain,253,Constipation,,855,Direct referral for consultation,Yes
+JRN_01892,PAT_01386,5,village,F/U From ER,888,Follow-up visit,,855,Direct referral for consultation,Yes
+JRN_00068,PAT_00002,1,village,f/u bilat ORIF distal radius,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00068,PAT_00002,2,village,f/u bilat ORIF distal radius,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00185,PAT_00109,1,village,pt . is here for F/U for right forearm fracture,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00225,PAT_00185,1,village,follow up seizure,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00225,PAT_00185,2,village,follow up seizures,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00252,PAT_00208,1,village,f/u s/p pacer <DATE_TIME>,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00556,PAT_00070,1,village,f/u multiple injuries,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00556,PAT_00070,2,village,f/u after post procedural visit,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00752,PAT_00343,1,village,F/U Labs,888,Follow-up visit,,888,Follow-up visit,No
+JRN_00800,PAT_00623,1,village,phone call visit post op f/u,888,Follow-up visit,,888,Follow-up visit,No
+JRN_01064,PAT_00805,1,village,Inpatient CD F/U,888,Follow-up visit,,888,Follow-up visit,No
+JRN_01914,PAT_01401,1,village,F/U ER,888,Follow-up visit,,888,Follow-up visit,No

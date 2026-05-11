@@ -1,0 +1,5 @@
+Group,N journeys,"LOS median (IQR), days","LOS mean (SD), days","ICU admission, n (%)","Surgery, n (%)",LOS n (non-missing)
+Overall,384,1.8 (0.7–3.7),2.9 (4.1),NR,NR,384
+Primary (village → MHC),264,1.1 (0.6–2.5),2.1 (2.6),NR,NR,264
+Secondary transfer,31,4.8 (2.1–6.2),4.9 (3.5),NR,NR,31
+Direct tertiary,89,3.1 (1.7–5.5),4.7 (6.6),NR,NR,89

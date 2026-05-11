@@ -234,25 +234,12 @@ def load_data():
         "30d_mortality",
         "ed_discharge",
         "short_<36h_admission",
+        "icu_admission",
+        "had_surgery",
     ]
     out_keep = ["journey_id"] + [c for c in outcome_extra if c in outcomes.columns]
     df = df.merge(outcomes[out_keep], on="journey_id", how="left")
     df = df.merge(patients, on="MRN", how="left")
-    # Derive journey_start_year/month from the best available timestamp source.
-    # Priority: journey_start_year/month (precomputed) → medevac1_date → medevac1_dts.
-    # Columns may exist in the CSV but be entirely null, so check both presence and nullness.
-    def _col_missing(col: str) -> bool:
-        return col not in df.columns or df[col].isna().all()
-
-    if _col_missing("journey_start_year") or _col_missing("journey_start_month"):
-        for src in ("medevac1_date", "medevac1_dts"):
-            if src in df.columns and not df[src].isna().all():
-                d = pd.to_datetime(df[src], errors="coerce")
-                if _col_missing("journey_start_year"):
-                    df["journey_start_year"] = d.dt.year
-                if _col_missing("journey_start_month"):
-                    df["journey_start_month"] = d.dt.month
-                break
     # For de-identified synthetic extracts, decode Village_* placeholders so
     # tables and map use community names consistently.
     if village_origin_mode() == "codebook":
@@ -385,24 +372,14 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict[str, str]] = []
     n_patients_cohort = int(j["MRN"].nunique())
     rows.append({"characteristic": "Unique patients", "value": str(n_patients_cohort)})
-    # Replace leg-ID summary with patient-level distribution in 2020-2024.
-    # Use pre-populated journey_start_year if available; fall back to timestamp sources.
-    if "journey_start_year" in j.columns and not j["journey_start_year"].isna().all():
-        j["_year"] = pd.to_numeric(j["journey_start_year"], errors="coerce")
-    else:
-        _yr_src = pd.Series(pd.NaT, index=j.index, dtype="datetime64[ns]")
-        for _col in ("journey_start_date", "medevac1_date", "medevac1_dts"):
-            if _col in j.columns and not pd.to_datetime(j[_col], errors="coerce").isna().all():
-                _yr_src = pd.to_datetime(j[_col], errors="coerce")
-                break
-        j["_year"] = _yr_src.dt.year
+    # Patient-level medevac distribution in 2020-2024.
+    j["_year"] = pd.to_numeric(j["journey_start_year"], errors="coerce")
     j_yr = j[j["_year"].between(2020, 2024, inclusive="both")].copy()
     rows.append({"characteristic": "Medevacs per Patient, 2020-2024, n(%)", "value": ""})
     source_for_counts = j_yr
     if len(j_yr) == 0:
-        # Fallback for datasets where journey dates are unavailable.
         source_for_counts = j
-        rows.append({"characteristic": "  (Fallback: all years; 2020-2024 dates unavailable)", "value": ""})
+        rows.append({"characteristic": "  (No journeys in 2020-2024; showing all years)", "value": ""})
     if len(source_for_counts) == 0:
         rows.append({"characteristic": "  No cohort journeys available", "value": "—"})
     else:
@@ -542,31 +519,13 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     if n_miss:
         rows.append({"characteristic": "  Age missing or >18 y", "value": fmt_n_pct(n_miss, N)})
 
-    # Seasonal pattern across study years: month of each patient's first qualifying medevac.
-    # Use pre-populated journey_start_month if available; fall back to timestamp sources.
-    if "journey_start_month" in p.columns and not p["journey_start_month"].isna().all():
-        mon = pd.to_numeric(p["journey_start_month"], errors="coerce")
-        msrc = None  # only used below for year; will re-derive if needed
-    else:
-        msrc = pd.Series(pd.NaT, index=p.index, dtype="datetime64[ns]")
-        for _col in ("journey_start_date", "medevac1_date", "medevac1_dts"):
-            if _col in p.columns and not pd.to_datetime(p[_col], errors="coerce").isna().all():
-                msrc = pd.to_datetime(p[_col], errors="coerce")
-                break
-        mon = msrc.dt.month
+    # Seasonal and annual pattern using pre-populated journey_start_month/year.
+    mon = pd.to_numeric(p["journey_start_month"], errors="coerce")
+    yr  = pd.to_numeric(p["journey_start_year"],  errors="coerce")
+
     month_labels = [
-        (1, "Jan"),
-        (2, "Feb"),
-        (3, "Mar"),
-        (4, "Apr"),
-        (5, "May"),
-        (6, "Jun"),
-        (7, "Jul"),
-        (8, "Aug"),
-        (9, "Sep"),
-        (10, "Oct"),
-        (11, "Nov"),
-        (12, "Dec"),
+        (1,"Jan"),(2,"Feb"),(3,"Mar"),(4,"Apr"),(5,"May"),(6,"Jun"),
+        (7,"Jul"),(8,"Aug"),(9,"Sep"),(10,"Oct"),(11,"Nov"),(12,"Dec"),
     ]
     rows.append({"characteristic": "Month of Medevac, n(%)", "value": ""})
     for mnum, mlab in month_labels:
@@ -576,9 +535,7 @@ def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     if n_miss_month:
         rows.append({"characteristic": "  Month missing", "value": fmt_n_pct(n_miss_month, N)})
 
-    # Annual pattern across study years: year of each patient's first qualifying medevac.
     rows.append({"characteristic": "Medevac Per Year, n(%)", "value": ""})
-    yr = msrc.dt.year
     for y in range(2020, 2025):
         n = int((yr == y).sum())
         rows.append({"characteristic": f"  {y}", "value": fmt_n_pct(n, N)})
@@ -2205,6 +2162,204 @@ def plot_fig7_journeys_per_patient(df: pd.DataFrame, title: str | None = None) -
     ax.set_title(title or "Number of journeys per patient")
     fig.tight_layout()
     return fig
+
+
+def build_p3_table1_disposition(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 3, Table 1: Disposition by route type.
+    Rows = disposition categories; columns = Overall | Primary | Secondary | Direct Tertiary.
+    Uses icu_admission, ed_discharge, short_<36h_admission, death_at_facility from outcomes.
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    def _route(row: pd.Series) -> str:
+        t1 = str(row.get("medevac1_to", "") or "")
+        t2 = str(row.get("medevac2_to", "") or "")
+        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
+            return "Secondary transfer"
+        if _is_mhc_cah_destination(t1):
+            return "Primary (village → MHC)"
+        return "Direct tertiary"
+
+    j["_route"] = j.apply(_route, axis=1)
+    route_order = ["Primary (village → MHC)", "Secondary transfer", "Direct tertiary"]
+
+    disp_cols = {
+        "ED discharge":          "ed_discharge",
+        "Short admission (<36h)": "short_<36h_admission",
+        "ICU admission":         "icu_admission",
+        "Surgery":               "had_surgery",
+        "Death at facility":     "death_at_facility",
+    }
+
+    def _col_stats(sub: pd.DataFrame) -> list[str]:
+        N = len(sub)
+        out = [str(N)]
+        for label, col in disp_cols.items():
+            if col in sub.columns:
+                n = int(pd.to_numeric(sub[col], errors="coerce").fillna(0).astype(bool).sum())
+                out.append(fmt_n_pct(n, N))
+            else:
+                out.append("NR")
+        return out
+
+    metric_col = ["N journeys"] + list(disp_cols.keys())
+    result = {"Disposition": metric_col, "Overall": _col_stats(j)}
+    for route in route_order:
+        result[route] = _col_stats(j[j["_route"] == route])
+
+    out = pd.DataFrame(result)
+    out.to_csv(ROOT / "outputs" / "tables" / "p3_table1_disposition.csv", index=False)
+    return out
+
+
+def build_p3_table2_resource_utilization(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 3, Table 2: Resource utilization — LOS by destination and route type.
+    Reports median (IQR) days_to_discharge overall and by route type.
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    def _route(row: pd.Series) -> str:
+        t1 = str(row.get("medevac1_to", "") or "")
+        t2 = str(row.get("medevac2_to", "") or "")
+        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
+            return "Secondary transfer"
+        if _is_mhc_cah_destination(t1):
+            return "Primary (village → MHC)"
+        return "Direct tertiary"
+
+    j["_route"] = j.apply(_route, axis=1)
+    route_order = ["Primary (village → MHC)", "Secondary transfer", "Direct tertiary"]
+
+    def _stats(sub: pd.DataFrame, label: str) -> dict:
+        N = len(sub)
+        los = pd.to_numeric(sub.get("days_to_discharge", pd.Series([], dtype=float)), errors="coerce").dropna()
+        icu = pd.to_numeric(sub.get("icu_admission", pd.Series([], dtype=float)), errors="coerce")
+        surg = pd.to_numeric(sub.get("had_surgery", pd.Series([], dtype=float)), errors="coerce")
+        return {
+            "Group": label,
+            "N journeys": N,
+            "LOS median (IQR), days": (
+                f"{los.median():.1f} ({los.quantile(0.25):.1f}–{los.quantile(0.75):.1f})"
+                if len(los) >= 4 else "—"
+            ),
+            "LOS mean (SD), days": (
+                f"{los.mean():.1f} ({los.std(ddof=1):.1f})" if len(los) >= 2 else "—"
+            ),
+            "ICU admission, n (%)": fmt_n_pct(int(icu.fillna(0).astype(bool).sum()), N) if "icu_admission" in sub.columns else "NR",
+            "Surgery, n (%)": fmt_n_pct(int(surg.fillna(0).astype(bool).sum()), N) if "had_surgery" in sub.columns else "NR",
+            "LOS n (non-missing)": len(los),
+        }
+
+    rows = [_stats(j, "Overall")]
+    for route in route_order:
+        rows.append(_stats(j[j["_route"] == route], route))
+
+    out = pd.DataFrame(rows)
+    out.to_csv(ROOT / "outputs" / "tables" / "p3_table2_resource_utilization.csv", index=False)
+    return out
+
+
+def build_p3_table3_outcomes_by_destination(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 3, Table 3: High-acuity outcomes by destination facility.
+    Rows = destination; columns = N, ICU %, surgery %, ED discharge %, mortality %.
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    dest_col = next((c for c in ("destination_facility", "medevac1_to") if c in j.columns), None)
+    if dest_col:
+        j["_dest"] = j[dest_col].map(lambda x: expand_facility_label(str(x)) if pd.notna(x) else "Unknown")
+    else:
+        j["_dest"] = "Unknown"
+
+    def _row(sub: pd.DataFrame, label: str) -> dict:
+        N = len(sub)
+        def _pct(col: str) -> str:
+            if col not in sub.columns:
+                return "NR"
+            n = int(pd.to_numeric(sub[col], errors="coerce").fillna(0).astype(bool).sum())
+            return fmt_n_pct(n, N)
+        return {
+            "Destination": label,
+            "N": N,
+            "ICU admission":      _pct("icu_admission"),
+            "Surgery":            _pct("had_surgery"),
+            "ED discharge":       _pct("ed_discharge"),
+            "Short admission":    _pct("short_<36h_admission"),
+            "Death at facility":  _pct("death_at_facility"),
+            "24h mortality":      _pct("24hr_mortality"),
+            "7d mortality":       _pct("7d_mortality"),
+            "30d mortality":      _pct("30d_mortality"),
+        }
+
+    rows = [_row(j, "Overall")]
+    for dest in sorted(j["_dest"].unique()):
+        rows.append(_row(j[j["_dest"] == dest], dest))
+
+    out = pd.DataFrame(rows)
+    out.to_csv(ROOT / "outputs" / "tables" / "p3_table3_outcomes_by_destination.csv", index=False)
+    return out
+
+
+def build_p3_table4_high_acuity_predictors(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Paper 3, Table 4: Descriptive predictors of high-acuity outcome (ICU or surgery).
+    Reports high-acuity rate by age group, sex, route type, and chief complaint category.
+    Full logistic regression deferred until sample size confirmed adequate.
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    if "icu_admission" not in j.columns or "had_surgery" not in j.columns:
+        return pd.DataFrame([{"note": "icu_admission or had_surgery not in dataset."}])
+
+    j["_high_acuity"] = (
+        pd.to_numeric(j["icu_admission"], errors="coerce").fillna(0).astype(bool)
+        | pd.to_numeric(j["had_surgery"],  errors="coerce").fillna(0).astype(bool)
+    )
+
+    age = pd.to_numeric(j["age_at_medevac"], errors="coerce")
+    j["_age_grp"] = age.map(_age_bucket_label)
+
+    def _route(row: pd.Series) -> str:
+        t1 = str(row.get("medevac1_to", "") or "")
+        t2 = str(row.get("medevac2_to", "") or "")
+        if _is_mhc_cah_destination(t1) and pd.notna(row.get("medevac2_to")) and t2:
+            return "Secondary transfer"
+        if _is_mhc_cah_destination(t1):
+            return "Primary (village → MHC)"
+        return "Direct tertiary"
+    j["_route"] = j.apply(_route, axis=1)
+
+    def _rate(sub: pd.DataFrame) -> str:
+        N = len(sub)
+        if N == 0: return "—"
+        n = int(sub["_high_acuity"].sum())
+        return fmt_n_pct(n, N)
+
+    rows = []
+    rows.append({"Predictor": "Overall", "N": len(j), "High-acuity outcome, n (%)": _rate(j)})
+
+    rows.append({"Predictor": "Age group", "N": "", "High-acuity outcome, n (%)": ""})
+    for grp in ["<1 year", "1–<5 years", "5–12 years", "13–18 years"]:
+        sub = j[j["_age_grp"] == grp]
+        rows.append({"Predictor": f"  {grp}", "N": len(sub), "High-acuity outcome, n (%)": _rate(sub)})
+
+    rows.append({"Predictor": "Sex", "N": "", "High-acuity outcome, n (%)": ""})
+    for sex in ["Female", "Male"]:
+        if "GenderDSC" in j.columns:
+            sub = j[j["GenderDSC"] == sex]
+            rows.append({"Predictor": f"  {sex}", "N": len(sub), "High-acuity outcome, n (%)": _rate(sub)})
+
+    rows.append({"Predictor": "Route type", "N": "", "High-acuity outcome, n (%)": ""})
+    for route in ["Primary (village → MHC)", "Secondary transfer", "Direct tertiary"]:
+        sub = j[j["_route"] == route]
+        rows.append({"Predictor": f"  {route}", "N": len(sub), "High-acuity outcome, n (%)": _rate(sub)})
+
+    out = pd.DataFrame(rows)
+    out.to_csv(ROOT / "outputs" / "tables" / "p3_table4_high_acuity_predictors.csv", index=False)
+    return out
 
 
 def _age_bucket_label(age: float) -> str | None:
