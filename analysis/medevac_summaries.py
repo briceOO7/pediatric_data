@@ -126,11 +126,19 @@ def village_origin_mode() -> str:
 
 def _is_study_facility_origin(place: object) -> bool:
     """Hub / CAH / outside hospital codes — not a village clinic origin."""
+    if pd.isna(place):
+        return True
     t = str(place).strip()
     if not t:
         return True
     u = t.upper().replace("_", "")
     if u.startswith("CAH") or u.startswith("HUB") or "OUTSIDEHOSPITAL" in u:
+        return True
+    # Catch full MHC names that appear in PHI data
+    tl = t.lower()
+    if "maniilaq" in tl and "health" in tl:
+        return True
+    if "mhc" == tl:
         return True
     return False
 
@@ -419,8 +427,12 @@ def build_table3a_primary_routes(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for _, r in df.iterrows():
         for i in (1, 2, 3):
-            frm = str(r.get(f"medevac{i}_from", "") or "").strip()
-            to  = str(r.get(f"medevac{i}_to",   "") or "").strip()
+            raw_frm = r.get(f"medevac{i}_from")
+            raw_to  = r.get(f"medevac{i}_to")
+            if pd.isna(raw_frm) or pd.isna(raw_to):
+                continue
+            frm = str(raw_frm).strip()
+            to  = str(raw_to).strip()
             if not frm or not to:
                 continue
             if is_village_medevac_origin(frm):
@@ -465,11 +477,15 @@ def build_table3b_secondary_routes(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for _, r in df.iterrows():
         for i in (1, 2, 3):
-            frm = str(r.get(f"medevac{i}_from", "") or "").strip()
-            to  = str(r.get(f"medevac{i}_to",   "") or "").strip()
+            raw_frm = r.get(f"medevac{i}_from")
+            raw_to  = r.get(f"medevac{i}_to")
+            if pd.isna(raw_frm) or pd.isna(raw_to):
+                continue
+            frm = str(raw_frm).strip()
+            to  = str(raw_to).strip()
             if not frm or not to:
                 continue
-            if _is_mhc_cah_destination(frm) or frm.startswith("CAH"):
+            if _is_mhc_cah_destination(frm):
                 rows.append({"destination": _table0_destination_label(to)})
 
     if not rows:
