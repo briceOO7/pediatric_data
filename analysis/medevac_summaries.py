@@ -12,7 +12,27 @@ import seaborn as sns
 
 # Paths
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
+
+# Pediatric CSV source directory.
+# On the PHI machine the medevac_pipeline_project produces all pediatric CSVs in
+# data/final/pediatric/.  Point DATA at that directory so no manual copy step is needed.
+#
+# Resolution order:
+#   1. MEDEVAC_PIPELINE_DIR env var  (set this if the two projects are not siblings)
+#   2. Sibling directory  ../medevac_pipeline_project/data/final/pediatric/
+#   3. Local data/  (fallback for dev machines running synthetic data)
+_pipeline_root = Path(
+    os.environ.get("MEDEVAC_PIPELINE_DIR",
+                   ROOT.parent / "medevac_pipeline_project")
+).resolve()
+_pipeline_pediatric = _pipeline_root / "data" / "final" / "pediatric"
+
+if _pipeline_pediatric.exists():
+    DATA = _pipeline_pediatric
+    print(f"[medevac_summaries] Reading data from pipeline: {DATA}", flush=True)
+else:
+    DATA = ROOT / "data"
+
 VILLAGE_CODEBOOK = ROOT / "docs" / "village_name_codebook.csv"
 FACILITY_CODEBOOK = ROOT / "docs" / "facility_name_codebook.csv"
 # infer = real PHI CSV community names (default)

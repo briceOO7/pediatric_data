@@ -22,15 +22,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "analysis"))
 
 import pandas as pd
-from medevac_summaries import load_data, filter_journeys_village_to_mhc
+from medevac_summaries import load_data, filter_journeys_village_to_mhc, DATA
 
 OUT = ROOT / "outputs" / "diagnostics"
 OUT.mkdir(parents=True, exist_ok=True)
 
 # ── Load raw tables and check for join integrity issues ────────────────────────
 print("Checking raw table integrity before merge...")
-_journeys_raw = pd.read_csv(ROOT / "data" / "pediatric_medevac_journeys.csv")
-_timing_raw   = pd.read_csv(ROOT / "data" / "pediatric_medevac_timing.csv")
+_journeys_raw = pd.read_csv(DATA / "pediatric_medevac_journeys.csv")
+_timing_raw   = pd.read_csv(DATA / "pediatric_medevac_timing.csv")
 
 _j_dups = _journeys_raw["journey_id"].duplicated().sum()
 _t_dups = _timing_raw["journey_id"].duplicated().sum()
