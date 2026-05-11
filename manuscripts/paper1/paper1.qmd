@@ -42,12 +42,11 @@ from medevac_summaries import (
     load_data,
     count_village_to_mhc_legs,
     filter_journeys_village_to_mhc,
-    build_table0_medevac_routes,
+    build_table3a_primary_routes,
+    build_table3b_secondary_routes,
     build_table1_village_characteristics,
     build_table2_patient_characteristics_by_age,
     build_table3_village_utilization,
-    build_table1_cohort,
-    build_table2_by_origin,
     build_table3_by_year,
     build_timing_category_tables,
     build_table5_timing_minutes,
@@ -107,22 +106,25 @@ show_tbl(build_table2_patient_characteristics_by_age(df))
 
 ---
 
-## Table 3. Route typology
+## Table 3a. Primary transfers (village → MHC or direct tertiary)
 
-Medevac legs by route type across all journeys:
-
-- **Primary** — village clinic → Maniilaq Health Center (CAH)
-- **Direct tertiary** — village → tertiary center (ANMC / Providence / UW)
-- **Secondary transfer** — MHC → tertiary center
+One row per village of origin × destination pair. A **primary leg** is any medevac
+leg originating from a village clinic (village → MHC, or village → tertiary center
+directly). Percent denominator = all primary legs.
 
 ```{python}
-show_tbl(build_table0_medevac_routes())
+show_tbl(build_table3a_primary_routes(_df_all))
 ```
 
-### By origin type
+---
+
+## Table 3b. Secondary transfers (MHC → tertiary center)
+
+One row per tertiary destination. A **secondary leg** originates from Maniilaq Health
+Center after an initial village → MHC transport. Percent denominator = all secondary legs.
 
 ```{python}
-show_tbl(build_table2_by_origin(df))
+show_tbl(build_table3b_secondary_routes(_df_all))
 ```
 
 ---

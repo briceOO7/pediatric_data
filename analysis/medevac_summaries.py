@@ -406,6 +406,97 @@ def build_table0_medevac_routes(journeys: pd.DataFrame | None = None) -> pd.Data
     return pd.DataFrame(rows)
 
 
+def build_table3a_primary_routes(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 3a: Primary transfers — village-origin legs only.
+
+    Rows = each village of origin, sorted by leg count descending.
+    Columns: Village of Origin | Destination | N Legs | % of Primary Legs.
+
+    A 'primary' leg is any medevac leg where the origin is a village clinic
+    (regardless of destination — includes village→MHC and village→direct tertiary).
+    """
+    rows = []
+    for _, r in df.iterrows():
+        for i in (1, 2, 3):
+            frm = str(r.get(f"medevac{i}_from", "") or "").strip()
+            to  = str(r.get(f"medevac{i}_to",   "") or "").strip()
+            if not frm or not to:
+                continue
+            if is_village_medevac_origin(frm):
+                rows.append({"village": frm, "destination": _table0_destination_label(to)})
+
+    if not rows:
+        return pd.DataFrame(columns=["Village of Origin", "Destination", "N Legs", "% of Primary Legs"])
+
+    leg_df = pd.DataFrame(rows)
+    total = len(leg_df)
+
+    summary = (
+        leg_df.groupby(["village", "destination"])
+        .size()
+        .reset_index(name="N Legs")
+        .sort_values(["N Legs"], ascending=False)
+    )
+    summary["% of Primary Legs"] = (summary["N Legs"] / total * 100).map(lambda x: f"{x:.1f}%")
+    summary = summary.rename(columns={"village": "Village of Origin", "destination": "Destination"})
+
+    total_row = pd.DataFrame([{
+        "Village of Origin": "All primary legs",
+        "Destination": "—",
+        "N Legs": total,
+        "% of Primary Legs": "100.0%",
+    }])
+    out = pd.concat([summary, total_row], ignore_index=True)
+    out.to_csv(ROOT / "outputs" / "tables" / "table3a_primary_routes.csv", index=False)
+    return out
+
+
+def build_table3b_secondary_routes(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 3b: Secondary transfers — MHC-origin legs only.
+
+    Rows = each tertiary destination, sorted by leg count descending.
+    Columns: Destination | N Legs | % of Secondary Legs.
+
+    A 'secondary' leg is any medevac leg where the origin is Maniilaq Health Center
+    (CAH), i.e. the patient is being transferred onward from MHC.
+    """
+    rows = []
+    for _, r in df.iterrows():
+        for i in (1, 2, 3):
+            frm = str(r.get(f"medevac{i}_from", "") or "").strip()
+            to  = str(r.get(f"medevac{i}_to",   "") or "").strip()
+            if not frm or not to:
+                continue
+            if _is_mhc_cah_destination(frm) or frm.startswith("CAH"):
+                rows.append({"destination": _table0_destination_label(to)})
+
+    if not rows:
+        return pd.DataFrame(columns=["Destination", "N Legs", "% of Secondary Legs"])
+
+    leg_df = pd.DataFrame(rows)
+    total = len(leg_df)
+
+    summary = (
+        leg_df.groupby("destination")
+        .size()
+        .reset_index(name="N Legs")
+        .sort_values("N Legs", ascending=False)
+    )
+    summary["% of Secondary Legs"] = (summary["N Legs"] / total * 100).map(lambda x: f"{x:.1f}%")
+    summary = summary.rename(columns={"destination": "Destination"})
+
+    total_row = pd.DataFrame([{
+        "Destination": "All secondary legs",
+        "N Legs": total,
+        "% of Secondary Legs": "100.0%",
+    }])
+    out = pd.concat([summary, total_row], ignore_index=True)
+    out.to_csv(ROOT / "outputs" / "tables" / "table3b_secondary_routes.csv", index=False)
+    return out
+
+
 def build_table1_patient_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     """
     One row per patient = earliest journey (by medevac1_date) in *df*.
