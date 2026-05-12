@@ -51,6 +51,7 @@ from medevac_summaries import (
     build_timing_category_tables,
     build_table5_timing_minutes,
     plot_fig1_medevac_activation_map,
+    plot_fig_voronoi_service_districts,
     plot_fig1a_monthly_by_village,
     plot_fig1b_monthly_by_age,
     plot_fig2a_annual_by_village,
@@ -164,7 +165,7 @@ show_tbl(build_table5_timing_minutes(df, village_cah_only=False))
 
 ---
 
-## Figure 3. Geographic map
+## Figure 3. Geographic map — flow lines
 
 Village clinic medevac legs to Maniilaq Health Center. Line width scales with leg count;
 color with legs per 1,000 pediatric residents under 18 (2020 Census).
@@ -181,6 +182,28 @@ plt.close("all")
 _map_fig = plot_fig1_medevac_activation_map(_df_all)
 display(_map_fig)
 plt.close(_map_fig)
+```
+
+---
+
+## Figure 3b. Geographic map — service district choropleth
+
+Northwest Arctic Borough divided into approximate medevac service zones (Voronoi
+tessellation around village clinic centroids). Each zone is colored by utilization
+rate (village→MHC legs per 1,000 pediatric residents, 2020 Census).
+
+```{python}
+#| label: fig-map-voronoi
+#| fig-cap: "Approximate medevac service districts: Northwest Arctic Borough divided by nearest village clinic. Color = utilization rate per 1,000 pediatric residents."
+#| fig-width: 8.5
+#| fig-height: 6.5
+#| out-width: 100%
+#| fig-align: center
+plt.ioff()
+plt.close("all")
+_vor_fig = plot_fig_voronoi_service_districts(_df_all)
+display(_vor_fig)
+plt.close(_vor_fig)
 ```
 
 ---

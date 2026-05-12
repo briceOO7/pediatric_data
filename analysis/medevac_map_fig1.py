@@ -248,6 +248,225 @@ def _village_to_mhc_leg_counts(
     return c
 
 
+def _voronoi_polygons_clipped(points_xy: np.ndarray, clip_geom):
+    """
+    Compute finite Voronoi polygons for *points_xy* clipped to *clip_geom*.
+
+    Returns a list of shapely Polygon/MultiPolygon objects in the same order
+    as *points_xy*.  Uses far-field dummy points so no region is unbounded.
+    """
+    from scipy.spatial import Voronoi
+    from shapely.geometry import MultiPoint
+    from shapely.ops import unary_union
+
+    # Pad with dummy points well outside the region so all real regions are finite.
+    bounds = clip_geom.bounds  # (minx, miny, maxx, maxy)
+    pad = max(bounds[2] - bounds[0], bounds[3] - bounds[1]) * 3.0
+    cx = (bounds[0] + bounds[2]) / 2
+    cy = (bounds[1] + bounds[3]) / 2
+    dummies = np.array([
+        [cx - pad, cy - pad],
+        [cx + pad, cy - pad],
+        [cx + pad, cy + pad],
+        [cx - pad, cy + pad],
+        [cx, cy - pad],
+        [cx, cy + pad],
+        [cx - pad, cy],
+        [cx + pad, cy],
+    ])
+    all_pts = np.vstack([points_xy, dummies])
+    vor = Voronoi(all_pts)
+
+    n_real = len(points_xy)
+    polys = []
+    for i in range(n_real):
+        region_idx = vor.point_region[i]
+        region = vor.regions[region_idx]
+        if -1 in region or len(region) == 0:
+            # Fallback: build convex hull of nearest vertices
+            verts = [vor.vertices[j] for j in region if j >= 0]
+            if not verts:
+                polys.append(clip_geom)
+                continue
+            poly = MultiPoint(verts).convex_hull
+        else:
+            verts = [vor.vertices[j] for j in region]
+            from shapely.geometry import Polygon as _Poly
+            poly = _Poly(verts)
+        clipped = poly.intersection(clip_geom)
+        polys.append(clipped)
+    return polys
+
+
+def plot_fig_voronoi_service_districts(
+    journeys: pd.DataFrame,
+    village_names: set[str] | None,
+    *,
+    infer: bool = False,
+    figsize: tuple[float, float] | None = None,
+) -> plt.Figure:
+    """
+    Choropleth map: Northwest Arctic Borough divided into approximate medevac
+    service zones using Voronoi tessellation around village centroids.
+
+    Each zone is colored by utilization rate (village→MHC legs per 1,000
+    pediatric residents, 2020 Census), same colour scale as Figure 1.
+    No flow lines — clean district-style layout.
+    """
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    if not FAC_SHP.is_file() or not BOROUGH_SHP.is_file():
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5,
+                "Missing shapefiles under mapping_data/.",
+                ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    if infer:
+        village_names = set(_census_village_names_excl_hub())
+    elif not village_names:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5, "village_names required when infer=False.",
+                ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    counts = _village_to_mhc_leg_counts(journeys, village_names, infer=infer)
+
+    # ── Load facilities, census, borough ─────────────────────────────────────
+    fac = gpd.read_file(FAC_SHP)
+    man_full = fac[fac["ManagingOr"] == "Maniilaq Association"].copy()
+    man_full = man_full.rename(columns={"CommunityN": "NAME"})
+    man_full["NAME"] = man_full["NAME"].astype(str).str.strip()
+    man_full_g = gpd.GeoDataFrame(man_full, geometry="geometry",
+                                   crs=fac.crs).to_crs(epsg=3338)
+
+    names_plot = list(village_names) + ["Kotzebue"]
+    man = man_full[
+        man_full["NAME"].isin(names_plot) |
+        man_full["NAME"].str.lower().eq("kotzebue")
+    ].drop_duplicates(subset=["NAME"]).copy()
+    man.loc[man["NAME"].str.lower() == "kotzebue", "NAME"] = "Kotzebue"
+
+    pop = pd.read_csv(POP_CSV)
+    man = man.merge(pop, on="NAME", how="left")
+    man["medevac_count"] = man["NAME"].map(lambda n: int(counts.get(n, 0)))
+    man["pediatric_pop"] = man["pediatric_pop"].fillna(
+        float(man["pediatric_pop"].median())).clip(lower=1)
+    man["rate_per_1k"] = (man["medevac_count"] / man["pediatric_pop"]) * 1_000.0
+
+    man_g = gpd.GeoDataFrame(man, geometry="geometry",
+                              crs=fac.crs).to_crs(epsg=3338)
+
+    bor = gpd.read_file(BOROUGH_SHP)
+    bor_ak = bor[bor["STATE"] == "02"].to_crs(epsg=3338)
+    nwab = bor_ak[bor_ak["NAME"].str.contains(
+        "Northwest Arctic", case=False, na=False)]
+
+    if nwab.empty:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5, "Northwest Arctic Borough not found.",
+                ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    borough_geom = nwab.union_all()
+
+    # ── Voronoi zones clipped to borough ─────────────────────────────────────
+    # Keep only facilities whose centroid falls within (or very near) the
+    # Northwest Arctic Borough — e.g. Point Hope is a Maniilaq facility but
+    # sits in the North Slope Borough and would get a zero-area Voronoi zone.
+    nwab_buffered = borough_geom.buffer(50_000)  # 50 km tolerance
+    centroids = man_g.copy()
+    centroids["_cx"] = centroids.geometry.apply(
+        lambda g: float(g.x if isinstance(g, Point) else g.centroid.x))
+    centroids["_cy"] = centroids.geometry.apply(
+        lambda g: float(g.y if isinstance(g, Point) else g.centroid.y))
+    centroids["_in_borough"] = centroids.apply(
+        lambda r: nwab_buffered.contains(Point(r["_cx"], r["_cy"])), axis=1)
+    centroids = centroids[centroids["_in_borough"]].copy()
+
+    pts = centroids[["_cx", "_cy"]].values
+    clipped_polys = _voronoi_polygons_clipped(pts, borough_geom)
+    centroids["zone_geom"] = clipped_polys
+
+    zones_gdf = gpd.GeoDataFrame(centroids, geometry="zone_geom",
+                                  crs="EPSG:3338")
+
+    # ── Colour scale ──────────────────────────────────────────────────────────
+    gs_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "reds_med", plt.get_cmap("Reds")(np.linspace(0.15, 1.0, 256)))
+    colorbar_max = max(80.0,
+                       float(man_g["rate_per_1k"].quantile(0.95)) + 5)
+    rate_norm = mcolors.Normalize(vmin=0, vmax=colorbar_max)
+
+    # ── Figure ────────────────────────────────────────────────────────────────
+    bx0, bx1, by0, by1 = _map_bounds_manuscript(man_full_g)
+    if figsize is None:
+        _dw = max(bx1 - bx0, 1.0)
+        _dh = max(by1 - by0, 1.0)
+        _h = 9.2
+        _w_map = _h * (_dw / _dh)
+        _w_cbar = max(0.9, min(1.45, 0.06 * _w_map + 0.85))
+        figsize = (_w_map + _w_cbar, _h + 0.95)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Grey background for adjacent boroughs
+    bor_ak.plot(ax=ax, color="lightgrey", edgecolor="black",
+                alpha=0.25, linewidth=0.3)
+
+    # Colour each village zone
+    for _, row in zones_gdf.iterrows():
+        rate = float(row["rate_per_1k"])
+        col = gs_cmap(rate_norm(np.clip(rate, 0, colorbar_max)))
+        zone = gpd.GeoDataFrame(geometry=[row["zone_geom"]], crs="EPSG:3338")
+        zone.plot(ax=ax, color=col, edgecolor="white", linewidth=0.6, alpha=0.88)
+
+    # Borough outline on top
+    nwab.boundary.plot(ax=ax, edgecolor="black", linewidth=1.0)
+
+    # ── Village labels ────────────────────────────────────────────────────────
+    fs_village = 9
+    for _, row in zones_gdf.iterrows():
+        name = str(row["NAME"])
+        cx, cy = float(row["_cx"]), float(row["_cy"])
+        nleg = int(row["medevac_count"])
+        rate = float(row["rate_per_1k"])
+        lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
+
+        # Kotzebue is the hub — label in bold
+        fw = "bold" if name.lower() == "kotzebue" else "normal"
+        ax.text(cx, cy, lbl,
+                ha="center", va="center",
+                fontsize=fs_village, fontweight=fw,
+                bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
+                          edgecolor="0.55", alpha=0.85, linewidth=0.4),
+                zorder=10)
+
+    ax.set_xlim(bx0, bx1)
+    ax.set_ylim(by0, by1)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    sm = plt.cm.ScalarMappable(cmap=gs_cmap, norm=rate_norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.72, pad=0.015, aspect=22)
+    cbar.set_label(
+        "Medevac legs to MHC per 1,000 residents under 18 (2020 Census)",
+        fontsize=12)
+    cbar.ax.tick_params(labelsize=10)
+
+    ax.set_title(
+        "Figure 3. Approximate medevac service districts — pediatric utilization by village",
+        fontsize=15, pad=8)
+
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.03)
+    return fig
+
+
 def plot_fig1_medevac_map(
     journeys: pd.DataFrame,
     village_names: set[str] | None,
