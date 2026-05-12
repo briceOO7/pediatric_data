@@ -380,7 +380,13 @@ def plot_fig_voronoi_service_districts(
     clip_boroughs = pd.concat([nwab, ns]) if not ns.empty else nwab
     borough_geom = clip_boroughs.union_all()
 
-    # ── Voronoi zones clipped to borough ─────────────────────────────────────
+    # ── Voronoi zones, each clipped to its own borough ───────────────────────
+    # Compute tessellation against the combined borough so zones compete across
+    # the full area, then clip each zone to the borough containing its village.
+    # This makes the inter-borough boundary a hard line.
+    nwab_geom = nwab.union_all()
+    ns_geom   = ns.union_all() if not ns.empty else None
+
     centroids = man_g.copy()
     centroids["_cx"] = centroids.geometry.apply(
         lambda g: float(g.x if isinstance(g, Point) else g.centroid.x))
@@ -388,7 +394,19 @@ def plot_fig_voronoi_service_districts(
         lambda g: float(g.y if isinstance(g, Point) else g.centroid.y))
 
     pts = centroids[["_cx", "_cy"]].values
-    clipped_polys = _voronoi_polygons_clipped(pts, borough_geom)
+    raw_polys = _voronoi_polygons_clipped(pts, borough_geom)
+
+    def _home_borough(cx: float, cy: float):
+        """Return the borough geometry the village centroid falls in."""
+        pt = Point(cx, cy)
+        if ns_geom is not None and ns_geom.contains(pt):
+            return ns_geom
+        return nwab_geom
+
+    clipped_polys = [
+        poly.intersection(_home_borough(float(row["_cx"]), float(row["_cy"])))
+        for poly, (_, row) in zip(raw_polys, centroids.iterrows())
+    ]
     centroids["zone_geom"] = clipped_polys
 
     zones_gdf = gpd.GeoDataFrame(centroids, geometry="zone_geom",
