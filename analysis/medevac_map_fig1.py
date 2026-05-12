@@ -453,12 +453,23 @@ def plot_fig_voronoi_service_districts(
         cdp.plot(ax=ax, color="#444444", edgecolor="white",
                  linewidth=0.5, alpha=0.75, zorder=6)
 
-    # ── Village labels at CDP / facility centroid ─────────────────────────────
+    # ── Village labels offset from CDP with leader line ───────────────────────
+    # Per-village label offset (dx, dy) in EPSG:3338 metres from the village
+    # centroid. Default is straight up; override below for crowded villages.
+    _LABEL_OFFSETS: dict[str, tuple[float, float]] = {
+        "Kobuk":     ( 40_000,  10_000),
+        "Shungnak":  (-40_000,  10_000),
+        "Ambler":    (  5_000,  30_000),
+        "Noorvik":   ( 30_000,  10_000),
+        "Selawik":   (  5_000, -30_000),
+        "Kotzebue":  (-40_000, -20_000),
+    }
+    _DEFAULT_OFFSET = (0, 28_000)
+
     fs_village = 9
     for _, row in zones_gdf.iterrows():
         name = str(row["NAME"])
-        # Label at facility centroid (actual village location), not zone centre
-        lx, ly = float(row["_cx"]), float(row["_cy"])
+        vx, vy = float(row["_cx"]), float(row["_cy"])
 
         nleg = int(row["medevac_count"])
         rate = float(row["rate_per_1k"])
@@ -469,13 +480,21 @@ def plot_fig_voronoi_service_districts(
         else:
             lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
 
+        dx, dy = _LABEL_OFFSETS.get(name, _DEFAULT_OFFSET)
         fw = "bold" if is_kotzebue else "normal"
-        ax.text(lx, ly, lbl,
-                ha="center", va="center",
-                fontsize=fs_village, fontweight=fw,
-                bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
-                          edgecolor="0.55", alpha=0.88, linewidth=0.4),
-                zorder=11)
+
+        ax.annotate(
+            lbl,
+            xy=(vx, vy),
+            xytext=(vx + dx, vy + dy),
+            ha="center", va="center",
+            fontsize=fs_village, fontweight=fw,
+            bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
+                      edgecolor="0.55", alpha=0.92, linewidth=0.4),
+            arrowprops=dict(arrowstyle="-", color="0.4",
+                            lw=0.7, shrinkA=4, shrinkB=4),
+            zorder=11,
+        )
 
     ax.set_xlim(bx0, bx1)
     ax.set_ylim(by0, by1)
