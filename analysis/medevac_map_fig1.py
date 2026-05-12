@@ -446,10 +446,17 @@ def plot_fig_voronoi_service_districts(
     nwab.boundary.plot(ax=ax, edgecolor="black", linewidth=1.0)
 
     # ── Village labels ────────────────────────────────────────────────────────
+    # Use the zone polygon's representative_point() so every label sits inside
+    # its own zone, even for narrow or irregular shapes.
     fs_village = 9
     for _, row in zones_gdf.iterrows():
         name = str(row["NAME"])
-        cx, cy = float(row["_cx"]), float(row["_cy"])
+        zone = row["zone_geom"]
+        if zone is None or zone.is_empty:
+            continue
+        rp = zone.representative_point()
+        lx, ly = float(rp.x), float(rp.y)
+
         nleg = int(row["medevac_count"])
         rate = float(row["rate_per_1k"])
 
@@ -460,15 +467,8 @@ def plot_fig_voronoi_service_districts(
             lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
 
         fw = "bold" if is_kotzebue else "normal"
-
-        # Shungnak label shifted right to avoid overlap
-        if name == "Shungnak":
-            ha, offset_x = "left", 30_000
-        else:
-            ha, offset_x = "center", 0
-
-        ax.text(cx + offset_x, cy, lbl,
-                ha=ha, va="center",
+        ax.text(lx, ly, lbl,
+                ha="center", va="center",
                 fontsize=fs_village, fontweight=fw,
                 bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
                           edgecolor="0.55", alpha=0.85, linewidth=0.4),
