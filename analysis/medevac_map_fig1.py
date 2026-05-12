@@ -452,12 +452,23 @@ def plot_fig_voronoi_service_districts(
         cx, cy = float(row["_cx"]), float(row["_cy"])
         nleg = int(row["medevac_count"])
         rate = float(row["rate_per_1k"])
-        lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
 
-        # Kotzebue is the hub — label in bold
-        fw = "bold" if name.lower() == "kotzebue" else "normal"
-        ax.text(cx, cy, lbl,
-                ha="center", va="center",
+        is_kotzebue = name.lower() == "kotzebue"
+        if is_kotzebue:
+            lbl = "Maniilaq Health\nCenter (Kotzebue)"
+        else:
+            lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
+
+        fw = "bold" if is_kotzebue else "normal"
+
+        # Shungnak label shifted right to avoid overlap
+        if name == "Shungnak":
+            ha, offset_x = "left", 30_000
+        else:
+            ha, offset_x = "center", 0
+
+        ax.text(cx + offset_x, cy, lbl,
+                ha=ha, va="center",
                 fontsize=fs_village, fontweight=fw,
                 bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
                           edgecolor="0.55", alpha=0.85, linewidth=0.4),
