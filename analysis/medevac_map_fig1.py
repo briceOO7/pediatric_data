@@ -445,17 +445,20 @@ def plot_fig_voronoi_service_districts(
     # Borough outline on top
     nwab.boundary.plot(ax=ax, edgecolor="black", linewidth=1.0)
 
-    # ── Village labels ────────────────────────────────────────────────────────
-    # Use the zone polygon's representative_point() so every label sits inside
-    # its own zone, even for narrow or irregular shapes.
+    # ── CDP polygons overlaid as dark grey village footprints ────────────────
+    if PLACES_SHP.is_file():
+        cdp_all = gpd.read_file(PLACES_SHP).to_crs(epsg=3338)
+        all_village_names = set(village_names) | {"Kotzebue"}
+        cdp = cdp_all[cdp_all["NAME"].isin(all_village_names)].copy()
+        cdp.plot(ax=ax, color="#444444", edgecolor="white",
+                 linewidth=0.5, alpha=0.75, zorder=6)
+
+    # ── Village labels at CDP / facility centroid ─────────────────────────────
     fs_village = 9
     for _, row in zones_gdf.iterrows():
         name = str(row["NAME"])
-        zone = row["zone_geom"]
-        if zone is None or zone.is_empty:
-            continue
-        rp = zone.representative_point()
-        lx, ly = float(rp.x), float(rp.y)
+        # Label at facility centroid (actual village location), not zone centre
+        lx, ly = float(row["_cx"]), float(row["_cy"])
 
         nleg = int(row["medevac_count"])
         rate = float(row["rate_per_1k"])
@@ -471,8 +474,8 @@ def plot_fig_voronoi_service_districts(
                 ha="center", va="center",
                 fontsize=fs_village, fontweight=fw,
                 bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
-                          edgecolor="0.55", alpha=0.85, linewidth=0.4),
-                zorder=10)
+                          edgecolor="0.55", alpha=0.88, linewidth=0.4),
+                zorder=11)
 
     ax.set_xlim(bx0, bx1)
     ax.set_ylim(by0, by1)
