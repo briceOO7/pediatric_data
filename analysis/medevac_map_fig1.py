@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAP_DIR = ROOT / "mapping_data"
 FAC_SHP = MAP_DIR / "healthcare_facilities_safetynet" / "healthcare_facilities_safetynet.shp"
 BOROUGH_SHP = MAP_DIR / "Boroughs2020" / "Boroughs2020.shp"
+PLACES_SHP = MAP_DIR / "alaska2019" / "tl_2019_02_place.shp"
 # 2020 Census DHC: under-18 count per place (refresh: scripts/fetch_maniilaq_census_pediatric.py)
 POP_CSV = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
 VILLAGE_CODEBOOK_CSV = ROOT / "docs" / "village_name_codebook.csv"
@@ -459,6 +460,142 @@ def plot_fig_voronoi_service_districts(
 
     ax.set_title(
         "Figure 3. Approximate medevac service districts — pediatric utilization by village",
+        fontsize=15, pad=8)
+
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.03)
+    return fig
+
+
+def plot_fig_cdp_choropleth(
+    journeys: pd.DataFrame,
+    village_names: set[str] | None,
+    *,
+    infer: bool = False,
+    figsize: tuple[float, float] | None = None,
+) -> plt.Figure:
+    """
+    Choropleth map using Census Designated Place (CDP) polygon boundaries.
+
+    CDP polygons are small (~village footprint only, <1% of borough area) but
+    show the actual surveyed extent of each community.  Each polygon is colored
+    by utilization rate (village→MHC legs per 1,000 pediatric residents).
+    """
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    if not PLACES_SHP.is_file() or not BOROUGH_SHP.is_file():
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5, "Missing shapefiles under mapping_data/.",
+                ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    if infer:
+        village_names = set(_census_village_names_excl_hub())
+    elif not village_names:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5, "village_names required when infer=False.",
+                ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    counts = _village_to_mhc_leg_counts(journeys, village_names, infer=infer)
+
+    # ── Load data ─────────────────────────────────────────────────────────────
+    pop = pd.read_csv(POP_CSV)
+    all_names = set(village_names) | {"Kotzebue"}
+
+    places = gpd.read_file(PLACES_SHP).to_crs(epsg=3338)
+    villages = places[places["NAME"].isin(all_names)].copy()
+    villages = villages.merge(pop, on="NAME", how="left")
+    villages["medevac_count"] = villages["NAME"].map(
+        lambda n: int(counts.get(n, 0)))
+    villages["pediatric_pop"] = villages["pediatric_pop"].fillna(
+        float(villages["pediatric_pop"].median())).clip(lower=1)
+    villages["rate_per_1k"] = (
+        villages["medevac_count"] / villages["pediatric_pop"]) * 1_000.0
+
+    bor = gpd.read_file(BOROUGH_SHP)
+    bor_ak = bor[bor["STATE"] == "02"].to_crs(epsg=3338)
+    nwab = bor_ak[bor_ak["NAME"].str.contains(
+        "Northwest Arctic", case=False, na=False)]
+    ns = bor_ak[bor_ak["NAME"].str.contains(
+        "North Slope", case=False, na=False)]
+
+    # ── Colour scale (same as other maps) ────────────────────────────────────
+    gs_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "reds_med", plt.get_cmap("Reds")(np.linspace(0.15, 1.0, 256)))
+    colorbar_max = max(80.0,
+                       float(villages["rate_per_1k"].quantile(0.95)) + 5)
+    rate_norm = mcolors.Normalize(vmin=0, vmax=colorbar_max)
+
+    # ── Map extent — reuse existing bounds helper via facility layer ──────────
+    fac = gpd.read_file(FAC_SHP)
+    man_full = fac[fac["ManagingOr"] == "Maniilaq Association"].copy()
+    man_full = man_full.rename(columns={"CommunityN": "NAME"})
+    man_full["NAME"] = man_full["NAME"].astype(str).str.strip()
+    man_full_g = gpd.GeoDataFrame(
+        man_full, geometry="geometry", crs=fac.crs).to_crs(epsg=3338)
+    bx0, bx1, by0, by1 = _map_bounds_manuscript(man_full_g)
+
+    if figsize is None:
+        _dw = max(bx1 - bx0, 1.0)
+        _dh = max(by1 - by0, 1.0)
+        _h = 9.2
+        _w_map = _h * (_dw / _dh)
+        _w_cbar = max(0.9, min(1.45, 0.06 * _w_map + 0.85))
+        figsize = (_w_map + _w_cbar, _h + 0.95)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Grey background boroughs
+    bor_ak.plot(ax=ax, color="lightgrey", edgecolor="black",
+                alpha=0.25, linewidth=0.3)
+    nwab.plot(ax=ax, color="gainsboro", edgecolor="black", linewidth=0.5)
+    if not ns.empty:
+        ns.plot(ax=ax, color="gainsboro", edgecolor="black", linewidth=0.5)
+
+    # CDP polygons colored by rate
+    for _, row in villages.iterrows():
+        rate = float(row["rate_per_1k"])
+        col = gs_cmap(rate_norm(np.clip(rate, 0, colorbar_max)))
+        gpd.GeoDataFrame(geometry=[row.geometry], crs="EPSG:3338").plot(
+            ax=ax, color=col, edgecolor="white", linewidth=0.8, alpha=0.92)
+
+    # Village name labels at centroid
+    fs_village = 8
+    for _, row in villages.iterrows():
+        name = str(row["NAME"])
+        g = row.geometry
+        cx = float(g.centroid.x)
+        cy = float(g.centroid.y)
+        nleg = int(row["medevac_count"])
+        rate = float(row["rate_per_1k"])
+        lbl = f"{name}\nn={nleg} ({rate:.0f}/1k)"
+        fw = "bold" if name.lower() == "kotzebue" else "normal"
+        ax.annotate(lbl, xy=(cx, cy),
+                    xytext=(0, 6), textcoords="offset points",
+                    ha="center", va="bottom",
+                    fontsize=fs_village, fontweight=fw,
+                    bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
+                              edgecolor="0.55", alpha=0.88, linewidth=0.4),
+                    zorder=10)
+
+    ax.set_xlim(bx0, bx1)
+    ax.set_ylim(by0, by1)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    sm = plt.cm.ScalarMappable(cmap=gs_cmap, norm=rate_norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.72, pad=0.015, aspect=22)
+    cbar.set_label(
+        "Medevac legs to MHC per 1,000 residents under 18 (2020 Census)",
+        fontsize=12)
+    cbar.ax.tick_params(labelsize=10)
+
+    ax.set_title(
+        "Figure 3c. Pediatric medevac utilization — Census Designated Place boundaries",
         fontsize=15, pad=8)
 
     fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.03)

@@ -2290,6 +2290,16 @@ def plot_fig1_medevac_activation_map(df: pd.DataFrame) -> plt.Figure:
     return plot_fig1_medevac_map(j, vnames, infer=infer)
 
 
+def plot_fig_cdp_choropleth(df: pd.DataFrame) -> plt.Figure:
+    """Choropleth map using actual Census Designated Place (CDP) polygon boundaries."""
+    from medevac_map_fig1 import plot_fig_cdp_choropleth as _plot
+
+    j = df.drop_duplicates(subset=["journey_id"])
+    infer = village_origin_mode() == "infer"
+    vnames = None if infer else set(maniilaq_village_names())
+    return _plot(j, vnames, infer=infer)
+
+
 def plot_fig_voronoi_service_districts(df: pd.DataFrame) -> plt.Figure:
     """
     Choropleth map: NW Arctic Borough divided into Voronoi service zones per
