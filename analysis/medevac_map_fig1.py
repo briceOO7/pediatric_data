@@ -372,21 +372,19 @@ def plot_fig_voronoi_service_districts(
         ax.set_axis_off()
         return fig
 
-    borough_geom = nwab.union_all()
+    # Include North Slope Borough so Point Hope (a Maniilaq facility located
+    # in NSB) gets a real Voronoi zone rather than clipping to nothing.
+    ns = bor_ak[bor_ak["NAME"].str.contains(
+        "North Slope", case=False, na=False)]
+    clip_boroughs = pd.concat([nwab, ns]) if not ns.empty else nwab
+    borough_geom = clip_boroughs.union_all()
 
     # ── Voronoi zones clipped to borough ─────────────────────────────────────
-    # Keep only facilities whose centroid falls within (or very near) the
-    # Northwest Arctic Borough — e.g. Point Hope is a Maniilaq facility but
-    # sits in the North Slope Borough and would get a zero-area Voronoi zone.
-    nwab_buffered = borough_geom.buffer(50_000)  # 50 km tolerance
     centroids = man_g.copy()
     centroids["_cx"] = centroids.geometry.apply(
         lambda g: float(g.x if isinstance(g, Point) else g.centroid.x))
     centroids["_cy"] = centroids.geometry.apply(
         lambda g: float(g.y if isinstance(g, Point) else g.centroid.y))
-    centroids["_in_borough"] = centroids.apply(
-        lambda r: nwab_buffered.contains(Point(r["_cx"], r["_cy"])), axis=1)
-    centroids = centroids[centroids["_in_borough"]].copy()
 
     pts = centroids[["_cx", "_cy"]].values
     clipped_polys = _voronoi_polygons_clipped(pts, borough_geom)
