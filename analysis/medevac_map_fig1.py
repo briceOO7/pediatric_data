@@ -459,6 +459,7 @@ def plot_fig_voronoi_service_districts(
     _LABEL_OFFSETS: dict[str, tuple[float, float]] = {
         "Kobuk":     ( 40_000,  10_000),
         "Point Hope": ( 35_000,   0),
+        "Kivalina":   (      0, 10_000),
         "Shungnak":  (-11_000, -22_000),   # zone rep point — inside narrow zone
         "Ambler":    (  5_000,  30_000),
         "Noorvik":   (-12_000,  22_000),   # zone rep point — above Kiana
@@ -466,6 +467,7 @@ def plot_fig_voronoi_service_districts(
         "Kotzebue":  ( -8_000, -25_000),
     }
     _DEFAULT_OFFSET = (0, 28_000)
+    # Per-village overrides applied after _LABEL_OFFSETS lookup
 
     fs_village = 9
     for _, row in zones_gdf.iterrows():
