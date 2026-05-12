@@ -458,11 +458,12 @@ def plot_fig_voronoi_service_districts(
     # centroid. Default is straight up; override below for crowded villages.
     _LABEL_OFFSETS: dict[str, tuple[float, float]] = {
         "Kobuk":     ( 40_000,  10_000),
+        "Point Hope": ( 35_000,   0),
         "Shungnak":  (-11_000, -22_000),   # zone rep point — inside narrow zone
         "Ambler":    (  5_000,  30_000),
         "Noorvik":   (-12_000,  22_000),   # zone rep point — above Kiana
         "Selawik":   (  5_000, -30_000),
-        "Kotzebue":  ( 10_000, -25_000),
+        "Kotzebue":  ( -8_000, -25_000),
     }
     _DEFAULT_OFFSET = (0, 28_000)
 
