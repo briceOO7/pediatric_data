@@ -50,6 +50,7 @@ from medevac_summaries import (
     build_table3_by_year,
     build_timing_category_tables,
     build_table5_timing_minutes,
+    plot_fig6_medevacs_per_patient,
     plot_fig1_medevac_activation_map,
     plot_fig_voronoi_service_districts,
     plot_fig1a_monthly_by_village,
@@ -94,12 +95,28 @@ show_tbl(build_table1_village_characteristics(df))
 
 ---
 
+## Figure. Primary transports per patient
+
+Distribution of village → MHC transport legs per unique patient across the study period.
+
+```{python}
+#| label: fig-transports-per-patient
+#| fig-cap: "Number of primary (village → MHC) medevac transport legs per patient."
+#| fig-width: 7
+#| fig-height: 4
+_f = plot_fig6_medevacs_per_patient(df, village_to_mhc_only=True)
+display(_f)
+plt.close(_f)
+```
+
+---
+
 ## Table 2. Patient characteristics by age group
 
 One row per patient (earliest qualifying journey per MRN). Age groups: <1, 1–<5, 5–12,
-13–18 years. n (%) within each age group column. **NR\*** = field not yet present in
-`pediatric_patients.csv` — add `RaceDSC` or `AI_AN` (1 = AI/AN) and `PrimaryPayorNM`
-from the PHI extract to populate Race and Insurance rows.
+13–18 years. n (%) within each age group column. Primary transports per patient shown as
+ordered categorical (1, 2, 3+) across all journeys in the study period. **NR\*** = field
+not yet present in `pediatric_patients.csv`.
 
 ```{python}
 show_tbl(build_table2_patient_characteristics_by_age(df))

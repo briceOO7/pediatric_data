@@ -1021,6 +1021,23 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     first = j.sort_values("_sort_key").groupby("MRN", as_index=False).first()
 
+    # Count village→MHC legs per patient across ALL journeys (not just first).
+    leg_counts: dict[str, int] = {}
+    for _, row in j.iterrows():
+        mrn = row["MRN"]
+        for i in (1, 2, 3):
+            raw_frm = row.get(f"medevac{i}_from")
+            raw_to  = row.get(f"medevac{i}_to")
+            if pd.isna(raw_frm) or pd.isna(raw_to):
+                continue
+            frm, to = str(raw_frm).strip(), str(raw_to).strip()
+            if frm and to and is_village_medevac_origin(frm) and _is_mhc_cah_destination(to):
+                leg_counts[mrn] = leg_counts.get(mrn, 0) + 1
+    first["_n_primary"] = first["MRN"].map(leg_counts).fillna(0).astype(int)
+    first["_transport_cat"] = first["_n_primary"].map(
+        lambda n: "1" if n == 1 else ("2" if n == 2 else "3+")
+    )
+
     # Merge optional PHI columns only if not already carried in from load_data().
     phi_cols = [
         c for c in ("AI_AN", "RaceDSC", "PrimaryPayorNM", "GenderDSC")
@@ -1081,7 +1098,12 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
         else:
             ins = None
 
-        return {"N": N, "female": female, "race": race_val, "ins": ins}
+        # Primary transport count — ordered categorical
+        tc = sub["_transport_cat"].value_counts()
+        transport = {cat: int(tc.get(cat, 0)) for cat in ("1", "2", "3+")}
+
+        return {"N": N, "female": female, "race": race_val, "ins": ins,
+                "transport": transport}
 
     def _fmt_col(stats: dict) -> list[str]:
         N = stats["N"]
@@ -1095,6 +1117,10 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
                 rows_out.append(fmt_n_pct(stats["ins"][cat], N))
             else:
                 rows_out.append("NR*")
+        # Primary transports per patient
+        rows_out.append("")
+        for cat in ("1", "2", "3+"):
+            rows_out.append(fmt_n_pct(stats["transport"][cat], N))
         return rows_out
 
     metric_col = [
@@ -1102,7 +1128,12 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
         "Female Sex",
         "Race (AI/AN)",
         "Insurance Type:",
-    ] + [f"  {c}" for c in INSURANCE_CATS]
+    ] + [f"  {c}" for c in INSURANCE_CATS] + [
+        "Primary transports per patient, n (%):",
+        "  1 transport",
+        "  2 transports",
+        "  3+ transports",
+    ]
 
     result = {"Metric of Interest": metric_col}
     result["Overall"] = _fmt_col(_col_stats(first))
@@ -2822,178 +2853,212 @@ def plot_fig2b_annual_by_age(
 
 def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     """
-    Figure 4: Alluvial/Sankey diagram of medevac transport routes.
-    Layers: Origin Village → Transfer Location 1 → Transfer Location 2 → Transfer Location 3.
-    Uses all journeys (df_all), not the village→MHC filtered subset.
+    Figure 4: Sankey/alluvial diagram.
+    Columns (L→R): Village Clinics → MHC → ANMC → Final Outcome.
+
+    Node height is globally scaled (proportional to patient count relative to
+    all journeys), so each column visually shows how many patients reach that
+    stage.  Top-aligned: largest node at top within each column.
+    Skip flows (Village→ANMC direct, MHC→Outcome without going to ANMC) are
+    drawn as long bezier ribbons that pass behind intermediate columns.
     """
     import matplotlib.patches as mpatches
-    from matplotlib.patches import FancyArrowPatch
+    from matplotlib.path import Path as MplPath
     import numpy as np
 
     j = df_all.drop_duplicates(subset=["journey_id"]).copy()
+    N = len(j)
+    if N == 0:
+        fig, ax = plt.subplots(figsize=(13, 7))
+        ax.text(0.5, 0.5, "No journeys", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return fig
 
-    def _dest_label(code: str | float) -> str:
-        if pd.isna(code) or str(code).strip() == "":
-            return "No further transfer"
-        return expand_facility_label(str(code).strip())
+    # ── Classify each journey ──────────────────────────────────────────────────
+    def _is_anmc_dest(v: object) -> bool:
+        t = str(v or "").strip()
+        return t.startswith("Hub") or t.upper() in ("HUB_01",)
 
-    def _origin_label(row: pd.Series) -> str:
-        raw = str(row.get("facility_1_name", "") or row.get("medevac1_from", "") or "")
-        return raw.strip() if raw.strip() else "Unknown"
+    def _is_outside_dest(v: object) -> bool:
+        return "OUTSIDEHOSPITAL" in str(v or "").strip().upper().replace("_", "")
 
-    j["_v"]   = j.apply(_origin_label, axis=1)
-    j["_t1"]  = j["medevac1_to"].map(_dest_label)
-    j["_t2"]  = j.get("medevac2_to", pd.Series(dtype=str)).map(
-        lambda x: _dest_label(x) if pd.notna(x) else "No further transfer"
-    )
-    j["_t3"]  = j.get("medevac3_to", pd.Series(dtype=str)).map(
-        lambda x: _dest_label(x) if pd.notna(x) else "No further transfer"
-    )
+    for col in ("_via_mhc", "_via_anmc", "_via_outside"):
+        j[col] = False
 
-    # Build flow counts across layers
-    flows_01 = j.groupby(["_v", "_t1"]).size().reset_index(name="n")
-    flows_12 = j.groupby(["_t1", "_t2"]).size().reset_index(name="n")
-    flows_23 = j.groupby(["_t2", "_t3"]).size().reset_index(name="n")
+    for i in (1, 2, 3):
+        tc = f"medevac{i}_to"
+        if tc not in j.columns:
+            continue
+        valid = j[tc].notna() & (j[tc].astype(str).str.strip() != "")
+        j.loc[valid & j[tc].map(_is_mhc_cah_destination), "_via_mhc"]    = True
+        j.loc[valid & j[tc].map(_is_anmc_dest),           "_via_anmc"]   = True
+        j.loc[valid & j[tc].map(_is_outside_dest),        "_via_outside"] = True
 
-    # Node sets per layer
-    layer0 = sorted(j["_v"].unique(), key=lambda v: -j[j["_v"]==v].shape[0])
-    layer1 = sorted(j["_t1"].unique(), key=lambda v: -j[j["_t1"]==v].shape[0])
-    layer2 = sorted(j["_t2"].unique(), key=lambda v: -j[j["_t2"]==v].shape[0])
-    layer3 = sorted(j["_t3"].unique(), key=lambda v: -j[j["_t3"]==v].shape[0])
+    OUTCOME_LABELS = ["Discharged", "Admitted (ATHS)", "Admitted (Outside)", "Died"]
 
-    layers = [layer0, layer1, layer2, layer3]
-    layer_labels = ["Origin\nVillage", "Transfer\nLocation 1", "Transfer\nLocation 2", "Transfer\nLocation 3"]
-    all_flows = [flows_01, flows_12, flows_23]
-    flow_src = ["_v", "_t1", "_t2"]
-    flow_dst = ["_t1", "_t2", "_t3"]
+    def _outcome(row: pd.Series) -> str:
+        if pd.to_numeric(row.get("death_at_facility", 0), errors="coerce") == 1:
+            return "Died"
+        if row["_via_outside"]:
+            return "Admitted (Outside)"
+        ed    = pd.to_numeric(row.get("ed_discharge",         0), errors="coerce") == 1
+        short = pd.to_numeric(row.get("short_<36h_admission", 0), errors="coerce") == 1
+        if ed or short:
+            return "Discharged"
+        return "Admitted (ATHS)"
 
-    # Layout parameters
-    BAR_W   = 0.18
-    GAP     = 0.06
-    X_LOCS  = [0.0, 0.33, 0.66, 1.0]
-    palette = sns.color_palette("tab10", n_colors=max(len(layer0), 4))
-    node_colors: dict[str, str] = {}
-    for i, v in enumerate(layer0):
-        node_colors[v] = palette[i % len(palette)]
+    j["_outcome"] = j.apply(_outcome, axis=1)
 
-    def _node_positions(layer: list[str], flow_df: pd.DataFrame, src_col: str) -> dict[str, tuple[float, float]]:
-        totals = {n: flow_df[flow_df[src_col] == n]["n"].sum() for n in layer}
-        total_all = sum(totals.values()) or 1
-        pos: dict[str, tuple[float, float]] = {}
-        y = 1.0
-        for n in layer:
-            h = totals.get(n, 0) / total_all
-            pos[n] = (y, h)
-            y -= h + GAP
-        return pos
+    # ── Flow counts ────────────────────────────────────────────────────────────
+    mhc_mask      = j["_via_mhc"]
+    anmc_mask     = j["_via_anmc"]
+    outside_mask  = j["_via_outside"]
 
-    # Compute positions for each layer
-    pos0 = _node_positions(layer0, flows_01, "_v")
-    pos1 = _node_positions(layer1, flows_12, "_t1")
-    pos2 = _node_positions(layer2, flows_23, "_t2")
-    # Layer 3 sizes from layer 2 flows
-    l3_totals = {n: flows_23[flows_23["_t3"] == n]["n"].sum() for n in layer3}
-    total_l3 = sum(l3_totals.values()) or 1
-    pos3: dict[str, tuple[float, float]] = {}
+    n_via_mhc        = int(mhc_mask.sum())
+    n_via_anmc       = int(anmc_mask.sum())
+    f_v_mhc          = n_via_mhc
+    f_v_anmc_direct  = int((~mhc_mask & anmc_mask).sum())
+    f_v_other        = int((~mhc_mask & ~anmc_mask & ~outside_mask).sum())
+    f_mhc_anmc       = int((mhc_mask & anmc_mask).sum())
+    f_mhc_only       = int((mhc_mask & ~anmc_mask & ~outside_mask).sum())
+
+    # Outcomes split by sub-path
+    mhc_only_oc  = j[mhc_mask  & ~anmc_mask & ~outside_mask]["_outcome"].value_counts()
+    anmc_oc      = j[anmc_mask]["_outcome"].value_counts()
+    other_oc     = j[~mhc_mask & ~anmc_mask & ~outside_mask]["_outcome"].value_counts()
+    total_oc     = {o: int((j["_outcome"] == o).sum()) for o in OUTCOME_LABELS}
+
+    # ── Colors ────────────────────────────────────────────────────────────────
+    NODE_CLR = {
+        "Village\nClinics":    "#4472C4",
+        "Maniilaq\nHealth Center": "#70AD47",
+        "ANMC":                "#ED7D31",
+        "Discharged":          "#70AD47",
+        "Admitted (ATHS)":     "#4472C4",
+        "Admitted (Outside)":  "#FFC000",
+        "Died":                "#C00000",
+    }
+
+    # ── Layout ────────────────────────────────────────────────────────────────
+    X_COL  = [0.09, 0.35, 0.61, 0.88]   # column x centres
+    BAR_W  = 0.09
+    OUT_GAP = 0.025                      # gap between outcome nodes
+    COL_LABELS = ["Village\nClinics", "Maniilaq\nHealth\nCenter", "ANMC", "Final\nOutcome"]
+
+    # Node positions: (x_centre, y_top, height)  — globally scaled to N
+    def _h(n: int) -> float:
+        return n / N
+
+    node_pos: dict[str, tuple[float, float, float]] = {}
+    node_pos["Village\nClinics"]       = (X_COL[0], 1.0,              _h(N))
+    node_pos["Maniilaq\nHealth Center"] = (X_COL[1], 1.0,              _h(n_via_mhc))
+    node_pos["ANMC"]                   = (X_COL[2], 1.0,              _h(n_via_anmc))
+
+    outcomes_sorted = sorted(OUTCOME_LABELS, key=lambda o: -total_oc.get(o, 0))
     y3 = 1.0
-    for n in layer3:
-        h = l3_totals.get(n, 0) / total_l3
-        pos3[n] = (y3, h)
-        y3 -= h + GAP
+    for o in outcomes_sorted:
+        h = _h(total_oc.get(o, 0))
+        node_pos[o] = (X_COL[3], y3, h)
+        y3 -= h + OUT_GAP
 
-    all_pos = [pos0, pos1, pos2, pos3]
-
+    # ── Figure ────────────────────────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(13, 7))
-    ax.set_xlim(-0.1, 1.15)
-    ax.set_ylim(-0.15, 1.1)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(-0.1, 1.18)
     ax.axis("off")
 
-    def _bar_color(node: str, layer_idx: int) -> str:
-        return node_colors.get(node, "#aaaaaa")
-
-    # Draw nodes
-    for li, (x_loc, layer) in enumerate(zip(X_LOCS, layers)):
-        pos = all_pos[li]
-        for node in layer:
-            if node not in pos:
-                continue
-            y_top, h = pos[node]
-            color = _bar_color(node, li)
-            rect = mpatches.FancyBboxPatch(
-                (x_loc - BAR_W / 2, y_top - h),
-                BAR_W, h,
-                boxstyle="square,pad=0",
-                facecolor=color, edgecolor="white", linewidth=0.6, alpha=0.88,
-            )
-            ax.add_patch(rect)
-            # Node label
-            label = node.replace(" Health Center", "\nHealth Center").replace("No further", "No further\n")
-            ax.text(
-                x_loc + BAR_W / 2 + 0.01, y_top - h / 2,
-                label, va="center", ha="left", fontsize=7,
-                color="#333333",
-            )
-
-    # Draw flows between layers as bezier curves
-    def _draw_flow(ax, x0, x1, y0_top, y0_h, y1_top, y1_h, color, alpha=0.35):
-        from matplotlib.path import Path
-        import matplotlib.patches as mpatches
-        y0_bot = y0_top - y0_h
-        y1_bot = y1_top - y1_h
+    # ── Draw bezier ribbon (S-curve) ──────────────────────────────────────────
+    def _ribbon(x0r: float, x1l: float,
+                y0t: float, y0b: float,
+                y1t: float, y1b: float,
+                color: str, alpha: float = 0.38, zorder: int = 2) -> None:
+        cx = (x0r + x1l) / 2
         verts = [
-            (x0, y0_top), (x0 + (x1-x0)*0.5, y0_top),
-            (x0 + (x1-x0)*0.5, y1_top), (x1, y1_top),
-            (x1, y1_bot), (x0 + (x1-x0)*0.5, y1_bot),
-            (x0 + (x1-x0)*0.5, y0_bot), (x0, y0_bot),
-            (x0, y0_top),
+            (x0r, y0t), (cx, y0t), (cx, y1t), (x1l, y1t),
+            (x1l, y1b), (cx, y1b), (cx, y0b), (x0r, y0b),
+            (x0r, y0t),
         ]
-        codes = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4,
-                 Path.LINETO, Path.CURVE4, Path.CURVE4, Path.CURVE4,
-                 Path.CLOSEPOLY]
-        path = Path(verts, codes)
-        patch = mpatches.PathPatch(path, facecolor=color, edgecolor="none", alpha=alpha)
+        codes = [
+            MplPath.MOVETO,
+            MplPath.CURVE4, MplPath.CURVE4, MplPath.CURVE4,
+            MplPath.LINETO,
+            MplPath.CURVE4, MplPath.CURVE4, MplPath.CURVE4,
+            MplPath.CLOSEPOLY,
+        ]
+        patch = mpatches.PathPatch(
+            MplPath(verts, codes),
+            facecolor=color, edgecolor="none", alpha=alpha, zorder=zorder,
+        )
         ax.add_patch(patch)
 
-    # Track used portion of each destination node for stacking flows
-    for fi, (flows, src_col, dst_col) in enumerate(zip(all_flows, flow_src, flow_dst)):
-        x0 = X_LOCS[fi] + BAR_W / 2
-        x1 = X_LOCS[fi + 1] - BAR_W / 2
-        pos_src = all_pos[fi]
-        pos_dst = all_pos[fi + 1]
-        # Track consumed height in destination nodes
-        dst_consumed: dict[str, float] = {n: 0.0 for n in all_pos[fi+1]}
-        src_consumed: dict[str, float] = {n: 0.0 for n in all_pos[fi]}
-        total_flow = flows["n"].sum() or 1
+    # ── Flow stacking tracker ─────────────────────────────────────────────────
+    src_used: dict[str, float] = {k: 0.0 for k in node_pos}
+    dst_used: dict[str, float] = {k: 0.0 for k in node_pos}
 
-        for _, row in flows.sort_values("n", ascending=False).iterrows():
-            s, d, n = row[src_col], row[dst_col], row["n"]
-            if s not in pos_src or d not in pos_dst:
-                continue
-            frac = n / total_flow
-            sy_top, sh = pos_src[s]
-            dy_top, dh = pos_dst[d]
-            sy0 = sy_top - src_consumed.get(s, 0)
-            sy1 = sy0 - sh * frac / (sum(flows[flows[src_col]==s]["n"]) / total_flow or 1)
-            dy0 = dy_top - dst_consumed.get(d, 0)
-            dy1 = dy0 - dh * frac / (sum(flows[flows[dst_col]==d]["n"]) / total_flow or 1)
-            color = _bar_color(s, fi)
-            _draw_flow(ax, x0, x1,
-                       (sy0 + sy1) / 2, abs(sy1 - sy0),
-                       (dy0 + dy1) / 2, abs(dy1 - dy0),
-                       color)
-            src_consumed[s] = src_consumed.get(s, 0) + sh * frac / (sum(flows[flows[src_col]==s]["n"]) / total_flow or 1)
-            dst_consumed[d] = dst_consumed.get(d, 0) + dh * frac / (sum(flows[flows[dst_col]==d]["n"]) / total_flow or 1)
+    def _flow(src: str, dst: str, n: int, alpha: float = 0.38) -> None:
+        if n <= 0 or src not in node_pos or dst not in node_pos:
+            return
+        fh = _h(n)
+        xsc, ys_top, _ = node_pos[src]
+        xdc, yd_top, _ = node_pos[dst]
+        y0t = ys_top - src_used[src]
+        y0b = y0t - fh
+        y1t = yd_top - dst_used[dst]
+        y1b = y1t - fh
+        src_used[src] += fh
+        dst_used[dst] += fh
+        _ribbon(xsc + BAR_W / 2, xdc - BAR_W / 2,
+                y0t, y0b, y1t, y1b,
+                color=NODE_CLR.get(src, "#888888"), alpha=alpha)
 
-    # Layer headers
-    for x_loc, label in zip(X_LOCS, layer_labels):
-        ax.text(x_loc, 1.07, label, ha="center", va="bottom", fontsize=9,
-                fontweight="bold", color="#333333")
+    # Draw flows largest-first so smaller ones sit on top visually
+    # Village → MHC (primary transfers)
+    _flow("Village\nClinics", "Maniilaq\nHealth Center", f_v_mhc)
+    # Village → ANMC direct (skip MHC)
+    _flow("Village\nClinics", "ANMC", f_v_anmc_direct)
+    # MHC → ANMC (secondary transfers)
+    _flow("Maniilaq\nHealth Center", "ANMC", f_mhc_anmc)
+    # MHC-only → outcomes (skip ANMC)
+    for o in outcomes_sorted:
+        _flow("Maniilaq\nHealth Center", o, int(mhc_only_oc.get(o, 0)))
+    # ANMC → outcomes
+    for o in outcomes_sorted:
+        _flow("ANMC", o, int(anmc_oc.get(o, 0)))
+    # Village direct → outcomes (rare, no MHC/ANMC/outside)
+    for o in outcomes_sorted:
+        _flow("Village\nClinics", o, int(other_oc.get(o, 0)))
+
+    # ── Draw nodes (on top of flows) ──────────────────────────────────────────
+    for name, (xc, ytop, h) in node_pos.items():
+        if h <= 0:
+            continue
+        color = NODE_CLR.get(name, "#888888")
+        ax.add_patch(mpatches.FancyBboxPatch(
+            (xc - BAR_W / 2, ytop - h), BAR_W, h,
+            boxstyle="square,pad=0",
+            facecolor=color, edgecolor="white", linewidth=0.8,
+            alpha=0.95, zorder=5,
+        ))
+        n_label = {
+            "Village\nClinics":        N,
+            "Maniilaq\nHealth Center": n_via_mhc,
+            "ANMC":                    n_via_anmc,
+        }.get(name, total_oc.get(name, 0))
+        label_text = f"{name}\nn = {n_label}"
+        ax.text(xc, ytop - h / 2, label_text,
+                ha="center", va="center", fontsize=8,
+                fontweight="bold", color="white", zorder=6)
+
+    # ── Column headers ────────────────────────────────────────────────────────
+    for x, lbl in zip(X_COL, COL_LABELS):
+        ax.text(x, 1.10, lbl, ha="center", va="bottom",
+                fontsize=10, fontweight="bold", color="#333333")
 
     ax.set_title(
-        f"Pediatric Medevac Transport Routes (n = {len(j)} journeys)",
-        fontsize=12, fontweight="bold", pad=14,
+        f"Figure 4. Pediatric Medevac Transport Routes and Outcomes  (n = {N} journeys)",
+        fontsize=12, pad=8,
     )
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.04)
     return fig
 
 
