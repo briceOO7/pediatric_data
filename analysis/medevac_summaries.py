@@ -2867,40 +2867,51 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     import numpy as np
 
     j = df_all.drop_duplicates(subset=["journey_id"]).copy()
+
+    # ── Keep only journeys that originate at a village (primary legs) ─────────
+    j = j[j.apply(lambda r: is_village_medevac_origin(
+        str(r.get("facility_1_name") or r.get("medevac1_from") or "")
+    ), axis=1)].copy()
+
     N = len(j)
     if N == 0:
         fig, ax = plt.subplots(figsize=(13, 7))
-        ax.text(0.5, 0.5, "No journeys", ha="center", va="center", transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No village-origin journeys found.", ha="center", va="center",
+                transform=ax.transAxes)
         ax.axis("off")
         return fig
 
-    # ── Classify each journey ──────────────────────────────────────────────────
+    # ── Classify destination of the PRIMARY leg only ──────────────────────────
     def _is_anmc_dest(v: object) -> bool:
         t = str(v or "").strip()
-        return t.startswith("Hub") or t.upper() in ("HUB_01",)
+        return t.startswith("Hub") or t.upper() == "HUB_01"
 
     def _is_outside_dest(v: object) -> bool:
         return "OUTSIDEHOSPITAL" in str(v or "").strip().upper().replace("_", "")
 
-    for col in ("_via_mhc", "_via_anmc", "_via_outside"):
-        j[col] = False
+    def _primary_dest(row: pd.Series) -> str:
+        """Destination of the first medevac leg."""
+        raw = row.get("medevac1_to")
+        if pd.isna(raw) or not str(raw).strip():
+            return "Other"
+        if _is_mhc_cah_destination(raw):
+            return "MHC"
+        if _is_anmc_dest(raw):
+            return "ANMC"
+        return "Other"
 
-    for i in (1, 2, 3):
-        tc = f"medevac{i}_to"
-        if tc not in j.columns:
-            continue
-        valid = j[tc].notna() & (j[tc].astype(str).str.strip() != "")
-        j.loc[valid & j[tc].map(_is_mhc_cah_destination), "_via_mhc"]    = True
-        j.loc[valid & j[tc].map(_is_anmc_dest),           "_via_anmc"]   = True
-        j.loc[valid & j[tc].map(_is_outside_dest),        "_via_outside"] = True
+    j["_pdest"] = j.apply(_primary_dest, axis=1)
 
+    # ── Outcome classification ────────────────────────────────────────────────
     OUTCOME_LABELS = ["Discharged", "Admitted (ATHS)", "Admitted (Outside)", "Died"]
 
     def _outcome(row: pd.Series) -> str:
         if pd.to_numeric(row.get("death_at_facility", 0), errors="coerce") == 1:
             return "Died"
-        if row["_via_outside"]:
-            return "Admitted (Outside)"
+        # Any leg lands at an outside hospital → admitted outside
+        for i in (1, 2, 3):
+            if _is_outside_dest(row.get(f"medevac{i}_to", "")):
+                return "Admitted (Outside)"
         ed    = pd.to_numeric(row.get("ed_discharge",         0), errors="coerce") == 1
         short = pd.to_numeric(row.get("short_<36h_admission", 0), errors="coerce") == 1
         if ed or short:
@@ -2909,30 +2920,25 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
 
     j["_outcome"] = j.apply(_outcome, axis=1)
 
-    # ── Flow counts ────────────────────────────────────────────────────────────
-    mhc_mask      = j["_via_mhc"]
-    anmc_mask     = j["_via_anmc"]
-    outside_mask  = j["_via_outside"]
+    # ── Node sizes ────────────────────────────────────────────────────────────
+    dest_counts = j["_pdest"].value_counts()
+    n_mhc   = int(dest_counts.get("MHC",   0))
+    n_anmc  = int(dest_counts.get("ANMC",  0))
+    n_other = int(dest_counts.get("Other", 0))
 
-    n_via_mhc        = int(mhc_mask.sum())
-    n_via_anmc       = int(anmc_mask.sum())
-    f_v_mhc          = n_via_mhc
-    f_v_anmc_direct  = int((~mhc_mask & anmc_mask).sum())
-    f_v_other        = int((~mhc_mask & ~anmc_mask & ~outside_mask).sum())
-    f_mhc_anmc       = int((mhc_mask & anmc_mask).sum())
-    f_mhc_only       = int((mhc_mask & ~anmc_mask & ~outside_mask).sum())
+    total_oc = {o: int((j["_outcome"] == o).sum()) for o in OUTCOME_LABELS}
 
-    # Outcomes split by sub-path
-    mhc_only_oc  = j[mhc_mask  & ~anmc_mask & ~outside_mask]["_outcome"].value_counts()
-    anmc_oc      = j[anmc_mask]["_outcome"].value_counts()
-    other_oc     = j[~mhc_mask & ~anmc_mask & ~outside_mask]["_outcome"].value_counts()
-    total_oc     = {o: int((j["_outcome"] == o).sum()) for o in OUTCOME_LABELS}
+    # Outcomes split by primary destination
+    dest_oc: dict[str, pd.Series] = {}
+    for d in ("MHC", "ANMC", "Other"):
+        dest_oc[d] = j[j["_pdest"] == d]["_outcome"].value_counts()
 
     # ── Colors ────────────────────────────────────────────────────────────────
     NODE_CLR = {
         "Village\nClinics":    "#4472C4",
-        "Maniilaq\nHealth Center": "#70AD47",
+        "MHC":                 "#70AD47",
         "ANMC":                "#ED7D31",
+        "Other":               "#7F7F7F",
         "Discharged":          "#70AD47",
         "Admitted (ATHS)":     "#4472C4",
         "Admitted (Outside)":  "#FFC000",
@@ -2940,38 +2946,48 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     }
 
     # ── Layout ────────────────────────────────────────────────────────────────
-    X_COL  = [0.09, 0.35, 0.61, 0.88]   # column x centres
-    BAR_W  = 0.09
-    OUT_GAP = 0.025                      # gap between outcome nodes
-    COL_LABELS = ["Village\nClinics", "Maniilaq\nHealth\nCenter", "ANMC", "Final\nOutcome"]
+    X_COL   = [0.10, 0.42, 0.78]
+    BAR_W   = 0.09
+    NODE_GAP = 0.03
+    COL_LABELS = ["Village\nClinics", "Primary\nDestination", "Final\nOutcome"]
 
-    # Node positions: (x_centre, y_top, height)  — globally scaled to N
     def _h(n: int) -> float:
         return n / N
 
+    # Col 0: Village (full height)
     node_pos: dict[str, tuple[float, float, float]] = {}
-    node_pos["Village\nClinics"]       = (X_COL[0], 1.0,              _h(N))
-    node_pos["Maniilaq\nHealth Center"] = (X_COL[1], 1.0,              _h(n_via_mhc))
-    node_pos["ANMC"]                   = (X_COL[2], 1.0,              _h(n_via_anmc))
+    node_pos["Village\nClinics"] = (X_COL[0], 1.0, 1.0)
 
+    # Col 1: destinations sorted by count, top-aligned
+    dest_order = sorted(("MHC", "ANMC", "Other"),
+                        key=lambda d: -dest_counts.get(d, 0))
+    y1 = 1.0
+    for d in dest_order:
+        h = _h(dest_counts.get(d, 0))
+        if h > 0:
+            node_pos[d] = (X_COL[1], y1, h)
+            y1 -= h + NODE_GAP
+
+    # Col 2: outcomes sorted by count, top-aligned
     outcomes_sorted = sorted(OUTCOME_LABELS, key=lambda o: -total_oc.get(o, 0))
-    y3 = 1.0
+    y2 = 1.0
     for o in outcomes_sorted:
         h = _h(total_oc.get(o, 0))
-        node_pos[o] = (X_COL[3], y3, h)
-        y3 -= h + OUT_GAP
+        if h > 0:
+            node_pos[o] = (X_COL[2], y2, h)
+            y2 -= h + NODE_GAP
 
     # ── Figure ────────────────────────────────────────────────────────────────
-    fig, ax = plt.subplots(figsize=(13, 7))
+    fig, ax = plt.subplots(figsize=(12, 7))
     ax.set_xlim(0, 1)
     ax.set_ylim(-0.1, 1.18)
     ax.axis("off")
 
-    # ── Draw bezier ribbon (S-curve) ──────────────────────────────────────────
+    # ── Bezier ribbon helper ──────────────────────────────────────────────────
     def _ribbon(x0r: float, x1l: float,
                 y0t: float, y0b: float,
                 y1t: float, y1b: float,
-                color: str, alpha: float = 0.38, zorder: int = 2) -> None:
+                color: str, alpha: float = 0.40) -> None:
         cx = (x0r + x1l) / 2
         verts = [
             (x0r, y0t), (cx, y0t), (cx, y1t), (x1l, y1t),
@@ -2985,53 +3001,46 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
             MplPath.CURVE4, MplPath.CURVE4, MplPath.CURVE4,
             MplPath.CLOSEPOLY,
         ]
-        patch = mpatches.PathPatch(
+        ax.add_patch(mpatches.PathPatch(
             MplPath(verts, codes),
-            facecolor=color, edgecolor="none", alpha=alpha, zorder=zorder,
-        )
-        ax.add_patch(patch)
+            facecolor=color, edgecolor="none", alpha=alpha, zorder=2,
+        ))
 
-    # ── Flow stacking tracker ─────────────────────────────────────────────────
+    # ── Flow stacking ─────────────────────────────────────────────────────────
     src_used: dict[str, float] = {k: 0.0 for k in node_pos}
     dst_used: dict[str, float] = {k: 0.0 for k in node_pos}
 
-    def _flow(src: str, dst: str, n: int, alpha: float = 0.38) -> None:
+    def _flow(src: str, dst: str, n: int) -> None:
         if n <= 0 or src not in node_pos or dst not in node_pos:
             return
         fh = _h(n)
         xsc, ys_top, _ = node_pos[src]
         xdc, yd_top, _ = node_pos[dst]
-        y0t = ys_top - src_used[src]
-        y0b = y0t - fh
-        y1t = yd_top - dst_used[dst]
-        y1b = y1t - fh
-        src_used[src] += fh
-        dst_used[dst] += fh
+        y0t = ys_top - src_used[src];  y0b = y0t - fh
+        y1t = yd_top - dst_used[dst];  y1b = y1t - fh
+        src_used[src] += fh;  dst_used[dst] += fh
         _ribbon(xsc + BAR_W / 2, xdc - BAR_W / 2,
                 y0t, y0b, y1t, y1b,
-                color=NODE_CLR.get(src, "#888888"), alpha=alpha)
+                color=NODE_CLR.get(src, "#888888"))
 
-    # Draw flows largest-first so smaller ones sit on top visually
-    # Village → MHC (primary transfers)
-    _flow("Village\nClinics", "Maniilaq\nHealth Center", f_v_mhc)
-    # Village → ANMC direct (skip MHC)
-    _flow("Village\nClinics", "ANMC", f_v_anmc_direct)
-    # MHC → ANMC (secondary transfers)
-    _flow("Maniilaq\nHealth Center", "ANMC", f_mhc_anmc)
-    # MHC-only → outcomes (skip ANMC)
-    for o in outcomes_sorted:
-        _flow("Maniilaq\nHealth Center", o, int(mhc_only_oc.get(o, 0)))
-    # ANMC → outcomes
-    for o in outcomes_sorted:
-        _flow("ANMC", o, int(anmc_oc.get(o, 0)))
-    # Village direct → outcomes (rare, no MHC/ANMC/outside)
-    for o in outcomes_sorted:
-        _flow("Village\nClinics", o, int(other_oc.get(o, 0)))
+    # Village → primary destinations (sorted largest first)
+    for d in dest_order:
+        _flow("Village\nClinics", d, int(dest_counts.get(d, 0)))
 
-    # ── Draw nodes (on top of flows) ──────────────────────────────────────────
+    # Each destination → outcomes
+    for d in dest_order:
+        for o in outcomes_sorted:
+            _flow(d, o, int(dest_oc[d].get(o, 0)))
+
+    # ── Draw nodes ────────────────────────────────────────────────────────────
+    node_n = {
+        "Village\nClinics": N,
+        "MHC":   n_mhc,
+        "ANMC":  n_anmc,
+        "Other": n_other,
+        **{o: total_oc[o] for o in OUTCOME_LABELS},
+    }
     for name, (xc, ytop, h) in node_pos.items():
-        if h <= 0:
-            continue
         color = NODE_CLR.get(name, "#888888")
         ax.add_patch(mpatches.FancyBboxPatch(
             (xc - BAR_W / 2, ytop - h), BAR_W, h,
@@ -3039,13 +3048,8 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
             facecolor=color, edgecolor="white", linewidth=0.8,
             alpha=0.95, zorder=5,
         ))
-        n_label = {
-            "Village\nClinics":        N,
-            "Maniilaq\nHealth Center": n_via_mhc,
-            "ANMC":                    n_via_anmc,
-        }.get(name, total_oc.get(name, 0))
-        label_text = f"{name}\nn = {n_label}"
-        ax.text(xc, ytop - h / 2, label_text,
+        ax.text(xc, ytop - h / 2,
+                f"{name}\nn = {node_n.get(name, 0)}",
                 ha="center", va="center", fontsize=8,
                 fontweight="bold", color="white", zorder=6)
 
@@ -3055,7 +3059,8 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
                 fontsize=10, fontweight="bold", color="#333333")
 
     ax.set_title(
-        f"Figure 4. Pediatric Medevac Transport Routes and Outcomes  (n = {N} journeys)",
+        f"Figure 4. Pediatric Medevac — Primary Transport Routes and Outcomes"
+        f"  (n = {N} village-origin journeys)",
         fontsize=12, pad=8,
     )
     fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.04)
