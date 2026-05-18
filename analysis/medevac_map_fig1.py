@@ -453,6 +453,30 @@ def plot_fig_voronoi_service_districts(
         cdp.plot(ax=ax, color="#444444", edgecolor="white",
                  linewidth=0.5, alpha=0.75, zorder=6)
 
+    # ── Facility icons ────────────────────────────────────────────────────────
+    # Hospital (Kotzebue / MHC): large red filled-cross marker ('P').
+    # Village clinics: small white circle with dark border.
+    _HOSP_COLOR   = "#C8102E"   # red cross — universal hospital symbol
+    _CLINIC_COLOR = "white"
+    _CLINIC_EDGE  = "#1a1a1a"
+
+    for _, row in zones_gdf.iterrows():
+        name = str(row["NAME"])
+        cx, cy = float(row["_cx"]), float(row["_cy"])
+        is_hosp = name.lower() == "kotzebue"
+        if is_hosp:
+            # outer white halo so the cross stands out against the map
+            ax.scatter([cx], [cy], marker="P", s=480,
+                       c="white", edgecolors="white",
+                       linewidths=0, zorder=13)
+            ax.scatter([cx], [cy], marker="P", s=320,
+                       c=_HOSP_COLOR, edgecolors="white",
+                       linewidths=1.5, zorder=14)
+        else:
+            ax.scatter([cx], [cy], marker="o", s=55,
+                       c=_CLINIC_COLOR, edgecolors=_CLINIC_EDGE,
+                       linewidths=1.4, zorder=12)
+
     # ── Village labels offset from CDP with leader line ───────────────────────
     # Per-village label offset (dx, dy) in EPSG:3338 metres from the village
     # centroid. Default is straight up; override below for crowded villages.
@@ -503,6 +527,19 @@ def plot_fig_voronoi_service_districts(
     ax.set_ylim(by0, by1)
     ax.set_aspect("equal")
     ax.axis("off")
+
+    # ── Icon legend ───────────────────────────────────────────────────────────
+    from matplotlib.lines import Line2D
+    icon_legend = [
+        Line2D([0], [0], marker="P", color="w",
+               markerfacecolor=_HOSP_COLOR, markeredgecolor="white",
+               markersize=13, label="Hospital (Maniilaq Health Center)"),
+        Line2D([0], [0], marker="o", color="w",
+               markerfacecolor="white", markeredgecolor=_CLINIC_EDGE,
+               markeredgewidth=1.4, markersize=8, label="Village clinic"),
+    ]
+    ax.legend(handles=icon_legend, loc="lower left", fontsize=10,
+              framealpha=0.92, edgecolor="0.6", handletextpad=0.6)
 
     sm = plt.cm.ScalarMappable(cmap=gs_cmap, norm=rate_norm)
     sm.set_array([])
