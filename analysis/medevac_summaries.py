@@ -2626,6 +2626,38 @@ def _age_bucket_label(age: float) -> str | None:
     return None
 
 
+# Canonical display names for outside (non-ATHS) receiving facilities.
+# Keys are substrings (case-insensitive) found in the raw medevac_to value.
+# The first matching entry wins.  Add new entries here as new facilities appear.
+_OUTSIDE_FACILITY_NAMES: list[tuple[str, str]] = [
+    ("providence",           "Providence"),
+    ("alaska regional",      "Alaska Regional"),
+    ("alaska reg",           "Alaska Regional"),
+    ("arh",                  "Alaska Regional"),
+    ("university of washington", "UW Med Ctr"),
+    ("uw medical",           "UW Med Ctr"),
+    ("uwmc",                 "UW Med Ctr"),
+    ("harborview",           "Harborview"),
+    ("seattle children",     "Seattle Children's"),
+    ("seattle childrens",    "Seattle Children's"),
+    ("ucsf",                 "UCSF"),
+    ("mayo",                 "Mayo Clinic"),
+    ("stanford",             "Stanford"),
+    ("nationwide children",  "Nationwide Children's"),
+    ("outside",              "Outside Facility"),   # catch-all coded values
+]
+
+
+def _outside_facility_label(raw: object) -> str:
+    """Return a clean display name for an outside (non-ATHS) facility."""
+    t = str(raw or "").strip()
+    tl = t.lower()
+    for key, label in _OUTSIDE_FACILITY_NAMES:
+        if key in tl:
+            return label
+    return t   # fall back to the raw value if no match
+
+
 _VILLAGE_PALETTE = [
     "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
     "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf","#aec7e8",
@@ -2896,7 +2928,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
             return "MHC"
         if _is_anmc(v):
             return "ANMC"
-        return str(v).strip()   # outside facility name as-is
+        return _outside_facility_label(v)
 
     # ── Collect journey-level flows ───────────────────────────────────────────
     flow_rows: list[dict] = []
