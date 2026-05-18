@@ -285,16 +285,18 @@ plt.close(_f)
 
 ---
 
-## Figure 4. Sankey diagram of transport routes
+## Figure 4. Medevac routing — village to MHC and ANMC
 
-All journeys (not filtered to village→MHC). Flows: Origin Village → Transfer Location 1
-(usually Maniilaq Health Center) → Transfer Location 2 → Transfer Location 3.
+Network flow diagram showing the primary medevac leg from each village to
+Maniilaq Health Center (MHC) and ANMC. Node size (circle) and line
+thickness are proportional to the number of transfers. Grey arrow (if present)
+represents MHC → ANMC secondary transfers.
 
 ```{python}
 #| label: fig-sankey
-#| fig-cap: "Medevac transport routes: village → MHC → tertiary centers. Width of flows proportional to number of journeys."
-#| fig-width: 13
-#| fig-height: 7
+#| fig-cap: "Pediatric medevac routing by village of origin. Circle size and line width are proportional to transfer volume. Green node = Maniilaq Health Center; orange node = ANMC."
+#| fig-width: 12
+#| fig-height: 8
 #| out-width: 100%
 _f = plot_fig4_sankey_transport_routes(_df_all)
 display(_f)
