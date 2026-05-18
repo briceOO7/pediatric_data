@@ -2855,13 +2855,19 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     """
     Figure 4: Network flow diagram — village-level medevac routing.
 
-    Left column   : individual village nodes (sized by total outbound legs).
-    Center node   : Maniilaq Health Center (MHC).
-    Right node    : ANMC.
+    Layout
+    ------
+    Left   : Village nodes (one per village, sized by total outbound legs,
+             sorted top-to-bottom by volume).
+    Center : Maniilaq Health Center (MHC) node.
+    Right  : ANMC node (top) + one node per distinct outside facility (below).
 
-    Curved lines connect each village to its destinations; line width is
-    proportional to transfer count. Color follows the village palette used
-    in the bar charts. MHC→ANMC secondary transfers drawn in neutral grey.
+    Flows drawn as bezier curves, line width ∝ transfer count, coloured by
+    originating village.  MHC → right-column secondary transfers are drawn
+    in neutral dark grey.
+
+    ANMC detection covers both PHI encoded values ("Hub_01", values that
+    start with "Hub") and the synthetic/plain-text label "ANMC".
     """
     import matplotlib.patches as mpatches
     from matplotlib.path import Path as MplPath
@@ -2869,203 +2875,263 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
 
     j = df_all.drop_duplicates(subset=["journey_id"]).copy()
     if j.empty:
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(14, 9))
         ax.text(0.5, 0.5, "No journey data.", ha="center", va="center",
                 transform=ax.transAxes)
         ax.axis("off")
         return fig
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
-    def _is_anmc_dest(v: object) -> bool:
+    # ── Destination classifiers ───────────────────────────────────────────────
+    def _is_anmc(v: object) -> bool:
         t = str(v or "").strip()
-        return t.startswith("Hub") or t.upper() == "HUB_01"
+        tl = t.lower()
+        return (t.startswith("Hub") or t.upper() in ("HUB_01", "ANMC")
+                or "alaska native" in tl and "medical" in tl)
 
-    def _village_name(row: pd.Series) -> str:
-        raw = str(row.get("facility_1_name") or row.get("medevac1_from") or "").strip()
-        return raw if raw else "Unknown"
+    def _dest_label(v: object) -> str:
+        """Return canonical destination label for a medevac_to value."""
+        if pd.isna(v) or not str(v).strip():
+            return ""
+        if _is_mhc_cah_destination(v):
+            return "MHC"
+        if _is_anmc(v):
+            return "ANMC"
+        return str(v).strip()   # outside facility name as-is
 
-    # ── Count flows per village ───────────────────────────────────────────────
-    village_col = "facility_1_name"
-    rows_out: list[dict] = []
+    # ── Collect journey-level flows ───────────────────────────────────────────
+    flow_rows: list[dict] = []
     for _, r in j.iterrows():
-        v = _village_name(r)
-        if not is_village_medevac_origin(v):
+        vname = str(r.get("facility_1_name") or r.get("medevac1_from") or "").strip()
+        if not vname or not is_village_medevac_origin(vname):
             continue
-        t1 = r.get("medevac1_to", "")
-        t2 = r.get("medevac2_to", "")
-        t3 = r.get("medevac3_to", "")
-        to_mhc  = 1 if _is_mhc_cah_destination(t1) else 0
-        to_anmc = 1 if _is_anmc_dest(t1) else 0
-        # Secondary: did this journey include an MHC→ANMC leg?
-        sec_mhc_anmc = 1 if (
-            _is_mhc_cah_destination(t1) and _is_anmc_dest(t2)
-        ) or (
-            _is_mhc_cah_destination(t2) and _is_anmc_dest(t3)
-        ) else 0
-        rows_out.append({
-            "village": v,
-            "to_mhc":      to_mhc,
-            "to_anmc":     to_anmc,
-            "sec_mhc_anmc": sec_mhc_anmc,
+        legs = [_dest_label(r.get(f"medevac{i}_to")) for i in (1, 2, 3)]
+        legs = [l for l in legs if l]   # drop blanks
+
+        # Primary leg (first leg from the village)
+        prim = legs[0] if legs else ""
+        # Secondary legs that originate at MHC (subsequent legs when leg 1 = MHC)
+        sec_from_mhc: list[str] = []
+        if legs and legs[0] == "MHC" and len(legs) > 1:
+            sec_from_mhc = legs[1:]
+
+        flow_rows.append({
+            "village": vname,
+            "primary": prim,
+            "sec_from_mhc": sec_from_mhc,
         })
 
-    fdf = pd.DataFrame(rows_out)
-    if fdf.empty:
-        fig, ax = plt.subplots(figsize=(12, 8))
+    if not flow_rows:
+        fig, ax = plt.subplots(figsize=(14, 9))
         ax.text(0.5, 0.5, "No village-origin legs found.", ha="center", va="center",
                 transform=ax.transAxes)
         ax.axis("off")
         return fig
 
-    vsummary = (
-        fdf.groupby("village")[["to_mhc", "to_anmc", "sec_mhc_anmc"]]
-        .sum()
-        .sort_values("to_mhc", ascending=False)
-    )
-    villages = vsummary.index.tolist()
-    n_secondary = int(fdf["sec_mhc_anmc"].sum())
+    # ── Aggregate counts ──────────────────────────────────────────────────────
+    from collections import Counter
 
-    # ── Village colour palette ────────────────────────────────────────────────
+    # village → primary destination counts
+    prim_counts: Counter = Counter()      # (village, dest) → n
+    sec_counts:  Counter = Counter()      # dest → n  (MHC-originated secondary legs)
+    village_total: Counter = Counter()
+
+    for fr in flow_rows:
+        v, prim = fr["village"], fr["primary"]
+        if prim:
+            prim_counts[(v, prim)] += 1
+            village_total[v] += 1
+        for s in fr["sec_from_mhc"]:
+            sec_counts[s] += 1
+
+    # All right-column destination nodes (sorted: ANMC first, then alphabetical)
+    # Exclude "MHC" — it lives in the center node, not the right column.
+    all_right_dests = sorted(
+        ({d for _, d in prim_counts} | set(sec_counts.keys())) - {"MHC"},
+        key=lambda d: (0 if d == "ANMC" else 1, d),
+    )
+
+    villages = sorted(village_total, key=lambda v: -village_total[v])
+
+    # ── Colour palettes ───────────────────────────────────────────────────────
     vcolor: dict[str, str] = {
         v: _VILLAGE_PALETTE[i % len(_VILLAGE_PALETTE)]
         for i, v in enumerate(villages)
     }
+    right_colors = {
+        "ANMC": "#ED7D31",
+        "MHC":  "#70AD47",
+    }
+    outside_palette = ["#4472C4", "#9467BD", "#8C564B", "#E377C2",
+                       "#17BECF", "#BCBD22", "#7F7F7F"]
+    for i, d in enumerate(d for d in all_right_dests if d not in right_colors):
+        right_colors[d] = outside_palette[i % len(outside_palette)]
 
-    # ── Node positions (data coords 0-1) ─────────────────────────────────────
-    # Villages: left column, stacked top-to-bottom, equal spacing
-    X_V   = 0.12   # village column x
-    X_MHC = 0.55   # MHC x
-    X_ANC = 0.88   # ANMC x
-    Y_MHC = 0.72   # MHC y centre
-    Y_ANC = 0.38   # ANMC y centre
+    # ── Layout constants ──────────────────────────────────────────────────────
+    X_V   = 0.13    # village column x-centre
+    X_MHC = 0.48    # MHC node x-centre
+    X_R   = 0.73    # right column dot x-centre (ANMC + outside)
+    X_R_LBL = 0.76  # label starts here (to the right of dot)
 
+    # Village y positions
     nv = len(villages)
-    y_top, y_bot = 0.92, 0.08
-    v_ys = {v: y_top - i * (y_top - y_bot) / max(nv - 1, 1)
+    yv_top, yv_bot = 0.93, 0.07
+    v_ys = {v: yv_top - i * (yv_top - yv_bot) / max(nv - 1, 1)
             for i, v in enumerate(villages)}
 
-    # Node radii (in data units)
-    max_count = int(vsummary["to_mhc"].max()) or 1
-    n_total_mhc  = int(vsummary["to_mhc"].sum())
-    n_total_anmc = int(vsummary["to_anmc"].sum())
+    # Right-column nodes: evenly spaced, top to bottom
+    nr = len(all_right_dests)
+    yr_top, yr_bot = 0.88, 0.20
+    r_ys = {d: yr_top - i * (yr_top - yr_bot) / max(nr - 1, 1)
+            for i, d in enumerate(all_right_dests)}
+    Y_MHC = float(np.mean([yr_top, yr_bot]))   # MHC centres vertically
 
+    # Node radii
+    all_n = [village_total[v] for v in villages]
+    max_vn = max(all_n) if all_n else 1
     MHC_R  = 0.055
-    ANC_R  = 0.040
-    V_R_MAX = 0.018
-    V_R_MIN = 0.007
+    V_R_MAX, V_R_MIN = 0.020, 0.008
 
-    def _v_radius(n: int) -> float:
-        frac = n / max_count
-        return V_R_MIN + (V_R_MAX - V_R_MIN) * frac ** 0.5
+    def _vr(n: int) -> float:
+        return V_R_MIN + (V_R_MAX - V_R_MIN) * (n / max_vn) ** 0.5
+
+    n_right: Counter = Counter()
+    for (_, d), n in prim_counts.items():
+        if d != "MHC":
+            n_right[d] += n
+    for d, n in sec_counts.items():
+        if d != "MHC":
+            n_right[d] += n
+
+    all_right_max = max(n_right.values()) if n_right else 1
+    R_R_MAX, R_R_MIN = 0.032, 0.014   # dot radius for right-column nodes
+
+    def _rr(n: int) -> float:
+        return R_R_MIN + (R_R_MAX - R_R_MIN) * (n / all_right_max) ** 0.5
+
+    # Line widths
+    max_flow = max(prim_counts.values()) if prim_counts else 1
+    LW_MIN, LW_MAX = 0.6, 9.0
+
+    def _lw(n: int) -> float:
+        return LW_MIN + (LW_MAX - LW_MIN) * (n / max_flow) ** 0.5 if n > 0 else 0.0
 
     # ── Figure ────────────────────────────────────────────────────────────────
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(15, 9))
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.set_aspect("equal")
     ax.axis("off")
 
-    # ── Bezier curve helper ───────────────────────────────────────────────────
+    # ── Bezier curve ──────────────────────────────────────────────────────────
     def _curve(x0: float, y0: float, x1: float, y1: float,
-               lw: float, color, alpha: float = 0.75,
+               lw: float, color, alpha: float = 0.72,
                bend: float = 0.0, zorder: int = 2) -> None:
-        """Draw a cubic bezier line from (x0,y0) to (x1,y1)."""
+        if lw <= 0:
+            return
         cx = (x0 + x1) / 2 + bend
-        cy = (y0 + y1) / 2
         verts = [(x0, y0), (cx, y0), (cx, y1), (x1, y1)]
         codes = [MplPath.MOVETO, MplPath.CURVE4,
                  MplPath.CURVE4, MplPath.CURVE4]
         ax.add_patch(mpatches.PathPatch(
             MplPath(verts, codes),
-            facecolor="none",
-            edgecolor=color, linewidth=lw, alpha=alpha, zorder=zorder,
+            facecolor="none", edgecolor=color,
+            linewidth=lw, alpha=alpha, zorder=zorder,
         ))
 
-    # Scale line width: 1 transfer → lw_min, max transfers → lw_max
-    lw_min, lw_max = 0.8, 8.0
-
-    def _lw(n: int) -> float:
-        if n <= 0:
-            return 0.0
-        frac = n / max_count
-        return lw_min + (lw_max - lw_min) * frac ** 0.5
-
-    # ── Draw village → MHC and village → ANMC lines ──────────────────────────
-    for v in villages:
+    # ── Draw village → primary destination lines ──────────────────────────────
+    for (v, dest), n in sorted(prim_counts.items(),
+                                key=lambda x: -x[1]):   # thick first
         vy = v_ys[v]
         col = vcolor[v]
-        n_mhc_v  = int(vsummary.loc[v, "to_mhc"])
-        n_anmc_v = int(vsummary.loc[v, "to_anmc"])
-        if n_mhc_v > 0:
-            _curve(X_V + _v_radius(n_mhc_v + n_anmc_v), vy,
-                   X_MHC - MHC_R, Y_MHC,
-                   lw=_lw(n_mhc_v), color=col, alpha=0.70)
-        if n_anmc_v > 0:
-            _curve(X_V + _v_radius(n_mhc_v + n_anmc_v), vy,
-                   X_ANC - ANC_R, Y_ANC,
-                   lw=_lw(n_anmc_v), color=col, alpha=0.70, bend=-0.05)
+        vr = _vr(village_total[v])
+        if dest == "MHC":
+            _curve(X_V + vr, vy, X_MHC - MHC_R, Y_MHC,
+                   lw=_lw(n), color=col)
+        elif dest in r_ys:
+            ry = r_ys[dest]
+            rr = _rr(n_right.get(dest, 1))
+            _curve(X_V + vr, vy, X_R - rr, ry,
+                   lw=_lw(n), color=col, bend=0.04)
 
-    # ── MHC → ANMC secondary transfers ───────────────────────────────────────
-    if n_secondary > 0:
-        _curve(X_MHC + MHC_R, Y_MHC, X_ANC - ANC_R, Y_ANC,
-               lw=_lw(n_secondary), color="#555555", alpha=0.60, zorder=3)
-        ax.annotate(
-            f"Secondary\nn = {n_secondary}",
-            xy=((X_MHC + ANC_R + X_ANC - ANC_R) / 2, (Y_MHC + Y_ANC) / 2),
-            fontsize=7, ha="center", va="center", color="#444444",
-            bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
-                      edgecolor="0.7", alpha=0.85, linewidth=0.4),
-            zorder=8,
-        )
+    # ── Draw MHC → secondary destination lines (grey) ────────────────────────
+    for dest, n in sec_counts.items():
+        if dest == "MHC" or dest not in r_ys:
+            continue
+        ry = r_ys[dest]
+        rr = _rr(n_right.get(dest, 1))
+        _curve(X_MHC + MHC_R, Y_MHC, X_R - rr, ry,
+               lw=_lw(n), color="#555555", alpha=0.55, zorder=3)
+        # label the secondary arrow
+        mx = (X_MHC + MHC_R + X_R - rr) / 2
+        my = (Y_MHC + ry) / 2 + 0.03
+        ax.text(mx, my, f"2° n={n}", fontsize=6.5, ha="center",
+                va="center", color="#555555",
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                          edgecolor="0.75", linewidth=0.4, alpha=0.85))
 
-    # ── Draw MHC node ─────────────────────────────────────────────────────────
+    # ── MHC node ──────────────────────────────────────────────────────────────
+    n_mhc_total = sum(n for (_, d), n in prim_counts.items() if d == "MHC")
     ax.add_patch(plt.Circle((X_MHC, Y_MHC), MHC_R,
                              facecolor="#70AD47", edgecolor="white",
                              linewidth=1.5, zorder=5))
-    ax.text(X_MHC, Y_MHC + 0.005,
-            f"Maniilaq\nHealth Center\nn = {n_total_mhc}",
+    ax.text(X_MHC, Y_MHC,
+            f"Maniilaq\nHealth Center\nn = {n_mhc_total}",
             ha="center", va="center", fontsize=8,
             fontweight="bold", color="white", zorder=6)
 
-    # ── Draw ANMC node ────────────────────────────────────────────────────────
-    ax.add_patch(plt.Circle((X_ANC, Y_ANC), ANC_R,
-                             facecolor="#ED7D31", edgecolor="white",
-                             linewidth=1.5, zorder=5))
-    ax.text(X_ANC, Y_ANC,
-            f"ANMC\nn = {n_total_anmc}",
-            ha="center", va="center", fontsize=8,
-            fontweight="bold", color="white", zorder=6)
+    # ── Right-column nodes (dot + right-side label) ───────────────────────────
+    for d in all_right_dests:
+        ry = r_ys[d]
+        rr = _rr(n_right.get(d, 1))
+        col = right_colors.get(d, "#7F7F7F")
+        ax.add_patch(plt.Circle((X_R, ry), rr,
+                                 facecolor=col, edgecolor="white",
+                                 linewidth=1.5, zorder=5))
+        ax.text(X_R_LBL, ry,
+                f"{d}\nn = {n_right.get(d, 0)}",
+                ha="left", va="center", fontsize=8,
+                fontweight="bold", color=col, zorder=6)
 
-    # ── Draw village nodes ────────────────────────────────────────────────────
+    # ── Village nodes ─────────────────────────────────────────────────────────
     for v in villages:
         vy = v_ys[v]
-        n_v = int(vsummary.loc[v, "to_mhc"]) + int(vsummary.loc[v, "to_anmc"])
-        r = _v_radius(n_v)
+        n_v = village_total[v]
+        r = _vr(n_v)
         col = vcolor[v]
         ax.add_patch(plt.Circle((X_V, vy), r,
                                  facecolor=col, edgecolor="white",
                                  linewidth=0.8, zorder=5))
-        ax.text(X_V - r - 0.012, vy, v,
+        ax.text(X_V - r - 0.010, vy,
+                f"{v}  {n_v}",
                 ha="right", va="center", fontsize=8, color="#333333", zorder=6)
-        ax.text(X_V + r + 0.008, vy, str(n_v),
-                ha="left", va="center", fontsize=7, color="#666666", zorder=6)
+
+    # ── Column headers ────────────────────────────────────────────────────────
+    for xc, lbl in [(X_V, "Village Clinics"),
+                    (X_MHC, "Maniilaq\nHealth Center"),
+                    ((X_R + X_R_LBL + 0.10) / 2, "Receiving Facilities")]:
+        ax.text(xc, 0.97, lbl, ha="center", va="top",
+                fontsize=9, fontweight="bold", color="#333333")
 
     # ── Legend ────────────────────────────────────────────────────────────────
     from matplotlib.lines import Line2D
-    legend_ns = [1, max(1, max_count // 2), max_count]
+    legend_ns = sorted({1, max_flow // 2, max_flow} - {0})
     handles = [
-        Line2D([0], [0], color="0.4", lw=_lw(n), label=f"n = {n} transfers")
+        Line2D([0], [0], color="0.35", lw=_lw(n), label=f"n = {n}")
         for n in legend_ns if n > 0
     ]
-    ax.legend(handles=handles, loc="lower right", fontsize=8,
+    handles += [
+        Line2D([0], [0], color="#555555", lw=2.0, linestyle="--",
+               label="MHC → facility\n(secondary)"),
+    ]
+    ax.legend(handles=handles, loc="lower center", fontsize=7.5,
               title="Transfer volume", title_fontsize=8,
-              framealpha=0.9, handlelength=4)
+              framealpha=0.92, handlelength=4, ncol=len(handles))
 
+    total_journeys = sum(village_total.values())
     ax.set_title(
-        "Figure 4. Pediatric Medevac Routes — Village to MHC and ANMC",
-        fontsize=12, pad=10,
+        f"Figure 4. Pediatric Medevac Routes by Village  (n = {total_journeys} journeys)",
+        fontsize=12, pad=12,
     )
-    fig.subplots_adjust(left=0.15, right=0.97, top=0.93, bottom=0.04)
+    fig.subplots_adjust(left=0.16, right=0.97, top=0.94, bottom=0.03)
     return fig
 
 
