@@ -50,6 +50,7 @@ from medevac_summaries import (
     build_table3_by_year,
     build_timing_category_tables,
     build_table5_timing_minutes,
+    build_table_primary_transports_per_patient,
     plot_fig6_medevacs_per_patient,
     plot_fig1_medevac_activation_map,
     plot_fig_voronoi_service_districts,
@@ -95,18 +96,20 @@ show_tbl(build_table1_village_characteristics(df))
 
 ---
 
-## Figure. Primary transports per patient
+## Table. Primary transports per patient
 
 Distribution of village → MHC transport legs per unique patient across the study period.
 
 ```{python}
-#| label: fig-transports-per-patient
-#| fig-cap: "Number of primary (village → MHC) medevac transport legs per patient."
-#| fig-width: 7
-#| fig-height: 4
-_f = plot_fig6_medevacs_per_patient(df, village_to_mhc_only=True)
-display(_f)
-plt.close(_f)
+#| label: tbl-transports-per-patient
+from medevac_summaries import build_table_primary_transports_per_patient
+display(
+    build_table_primary_transports_per_patient(df)
+    .style
+    .hide(axis="index")
+    .set_caption("Primary (village → MHC) medevac legs per unique patient.")
+    .set_table_styles([{"selector": "th", "props": [("text-align", "left")]}])
+)
 ```
 
 ---

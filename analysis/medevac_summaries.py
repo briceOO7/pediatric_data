@@ -2344,6 +2344,57 @@ def plot_fig_voronoi_service_districts(df: pd.DataFrame) -> plt.Figure:
     return _plot(j, vnames, infer=infer)
 
 
+def build_table_primary_transports_per_patient(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table: distribution of village → MHC primary transport legs per unique patient.
+
+    Returns a DataFrame with columns:
+        Primary transports | n patients | % of patients
+    Categories: 1, 2, 3+
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    leg_counts: dict[object, int] = {}
+    for mrn, sub in j.groupby("MRN", dropna=False):
+        n_legs = 0
+        for _, r in sub.iterrows():
+            for i in (1, 2, 3):
+                fc, tc = f"medevac{i}_from", f"medevac{i}_to"
+                if fc not in r.index or tc not in r.index:
+                    continue
+                if pd.isna(r[fc]) or pd.isna(r[tc]) or not str(r[fc]).strip():
+                    continue
+                a, b = str(r[fc]).strip(), str(r[tc]).strip()
+                if is_village_medevac_origin(a) and _is_mhc_cah_destination(b):
+                    n_legs += 1
+        if n_legs > 0:
+            leg_counts[mrn] = n_legs
+
+    if not leg_counts:
+        return pd.DataFrame(
+            columns=["Primary transports (village → MHC)", "n patients", "% of patients"]
+        )
+
+    counts = pd.Series(leg_counts)
+    cats = counts.map(lambda n: "1" if n == 1 else ("2" if n == 2 else "3+"))
+    total = len(counts)
+
+    rows = []
+    for cat in ("1", "2", "3+"):
+        n = int((cats == cat).sum())
+        rows.append({
+            "Primary transports (village → MHC)": cat,
+            "n patients": n,
+            "% of patients": f"{100 * n / total:.1f}%" if total else "—",
+        })
+    rows.append({
+        "Primary transports (village → MHC)": "Total",
+        "n patients": total,
+        "% of patients": "100.0%",
+    })
+
+    return pd.DataFrame(rows)
+
+
 def plot_fig6_medevacs_per_patient(
     df: pd.DataFrame,
     start_year: int | None = None,
