@@ -1223,6 +1223,15 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             return "—"
         med = s.median()
         q1, q3 = s.quantile(0.25), s.quantile(0.75)
+        lo, hi = s.min(), s.max()
+        return f"{med:.0f} ({q1:.0f}–{q3:.0f}); {lo:.0f}–{hi:.0f}"
+
+    def _med_iqr(series: pd.Series) -> str:
+        s = pd.to_numeric(series, errors="coerce").dropna()
+        if len(s) == 0:
+            return "—"
+        med = s.median()
+        q1, q3 = s.quantile(0.25), s.quantile(0.75)
         return f"{med:.0f} ({q1:.0f}–{q3:.0f})"
 
     def _stats(sub: pd.DataFrame, village_name: str | None, pop: int | None) -> list[str]:
@@ -1230,9 +1239,6 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         n_patients = int(sub["MRN"].nunique())
         mean_yr    = f"{n_journeys / study_years:.1f}"
         dist       = f"{dist_map[village_name]:.0f}" if village_name and village_name in dist_map else "—"
-
-        # Flight time (air transport minutes, 100 % coverage)
-        ft_str = _med_iqr_range(sub.get("flight_time_min", pd.Series(dtype=float)))
 
         # Timing interval 1: village clinic arrival → medevac activation
         v_to_act = _med_iqr_range(sub.get("time_to_activate_min", pd.Series(dtype=float)))
@@ -1254,7 +1260,6 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             str(n_patients),
             mean_yr,
             dist,
-            ft_str,
             v_to_act,
             act_to_arr,
             total_str,
@@ -1266,10 +1271,9 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total patients",
         "Mean journeys per year",
         "Distance to Kotzebue (miles)",
-        "Flight time to Kotzebue, min — Median (IQR)",
-        "Village clinic arrival → activation, min — Median (IQR)",
-        "Activation → MHC arrival, min — Median (IQR)",
-        "Total air ambulance time (arrival → MHC), min — Median (IQR)",
+        "Village clinic arrival → activation, min — Median (IQR); Range",
+        "Activation → MHC arrival, min — Median (IQR); Range",
+        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
