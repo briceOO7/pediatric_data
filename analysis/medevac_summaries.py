@@ -1530,13 +1530,13 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         _valid_act = _valid_tta & _valid_ata
         n_act = int(_valid_act.sum())
 
-        # Interval 1: decision-making time (activation subset, n= shown)
-        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta[_valid_act])
-        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_act) if n_act else "—"
+        # Interval 1: decision-making time (activation subset, no n= annotation)
+        v_to_act_str, _ = _med_iqr_range_n(_tta[_valid_act])
+        v_to_act = v_to_act_str if v_to_act_str != "—" else "—"
 
-        # Interval 2: response and transfer time (activation subset, n= shown)
-        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata[_valid_act])
-        act_to_arr = _fmt_n(act_to_arr_str, act_to_arr_n, n_act) if n_act else "—"
+        # Interval 2: response and transfer time (activation subset, no n= annotation)
+        act_to_arr_str, _ = _med_iqr_range_n(_ata[_valid_act])
+        act_to_arr = act_to_arr_str if act_to_arr_str != "—" else "—"
 
         util = f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
         return [
@@ -1560,8 +1560,8 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
         "Air Ambulance Activation",
         "  Patients with activation information (n=)",
-        "  Air ambulance decision-making time, min — Median (IQR); Range [n of activation patients]",
-        "  Air ambulance response and transfer time, min — Median (IQR); Rangeᵃ [n of activation patients]",
+        "  Air ambulance decision-making time, min — Median (IQR); Range",
+        "  Air ambulance response and transfer time, min — Median (IQR); Rangeᵃ",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
