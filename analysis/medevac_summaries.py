@@ -1245,6 +1245,46 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     )
 
 
+def export_missing_destination_datetime(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Pull journeys where destination_datetime is missing (MHC arrival timestamp
+    not recorded) for hand review.  Saved to outputs/review/missing_destination_datetime.csv.
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    orig = pd.to_datetime(j["origin_datetime"], errors="coerce")
+    dest = pd.to_datetime(j["destination_datetime"], errors="coerce")
+
+    missing = j[orig.isna() | dest.isna()].copy()
+
+    review_cols = [
+        "journey_id", "MRN",
+        "facility_1_name",
+        "journey_start_date", "journey_end_date",
+        "origin_datetime", "origin_datetime_imputed", "origin_imputed",
+        "destination_datetime", "destination_imputed",
+        "medevac1_date", "medevac1_dts", "medevac1_dts_source",
+        "medevac1_from", "medevac1_to",
+        "medevac1_from_encounter", "medevac1_to_encounter",
+        "medevac2_date", "medevac2_dts", "medevac2_dts_source",
+        "medevac2_from", "medevac2_to",
+        "journey_duration_hours", "journey_end_reason",
+        "num_medevacs", "journey_pattern",
+        "missing_origin", "missing_destination",
+    ]
+
+    missing["missing_origin"]      = orig[missing.index].isna()
+    missing["missing_destination"] = dest[missing.index].isna()
+
+    out_cols = [c for c in review_cols if c in missing.columns]
+    out = missing[out_cols].reset_index(drop=True)
+
+    out_path = ROOT / "outputs" / "review" / "missing_destination_datetime.csv"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(out_path, index=False)
+    print(f"[export] {len(out)} journeys written to {out_path}")
+    return out
+
+
 def build_timing_overview_text(df: pd.DataFrame) -> str:
     """
     Return a narrative paragraph describing timing data availability and QC
