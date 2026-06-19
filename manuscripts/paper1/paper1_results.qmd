@@ -41,6 +41,7 @@ from medevac_summaries import (
     is_village_medevac_origin,
     _is_mhc_cah_destination,
     build_table1_village_characteristics,
+    build_timing_overview_text,
     build_table2_patient_characteristics_by_age,
     build_table_primary_transports_per_patient,
     build_table3a_primary_routes,
@@ -138,7 +139,18 @@ transports per patient.
 
 ```{python}
 #| label: tbl-t1
-#| tbl-cap: "Medevac characteristics by village. Flight time = activation-to-arrival minutes. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+#| tbl-cap: "Medevac characteristics by village. ᵃActivation → MHC arrival excludes observations below the per-village round-trip flight-time floor (2 × median one-way flight time). See Timing Overview above for full exclusion counts. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+```
+
+::: {.callout-note collapse="true" title="Timing Overview"}
+```{python}
+from IPython.display import Markdown
+Markdown(build_timing_overview_text(df))
+```
+:::
+
+```{python}
+#| label: tbl-t1-table
 show_tbl(build_table1_village_characteristics(df))
 ```
 

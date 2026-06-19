@@ -1146,6 +1146,153 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
     return out
 
 
+def _compute_timing_qc(df: pd.DataFrame) -> dict:
+    """
+    Compute timing quality-control statistics for the village→MHC cohort.
+
+    Returns a dict with:
+      floors           : {village_name: floor_minutes}  (2 × median one-way flight)
+      n_total          : total unique journeys
+      --- activate_to_arrive_min (interval 2) ---
+      n_ata_raw        : journeys with non-null activate_to_arrive_min
+      n_ata_direction  : excluded because destination_datetime < origin_datetime
+      n_ata_below_floor: excluded because value < per-village flight-time floor
+      n_ata_final      : usable after exclusions
+      --- time_to_activate_min (interval 1) ---
+      n_tta_raw        : journeys with non-null time_to_activate_min
+      n_tta_neg        : excluded because value < 0 (impossible)
+      n_tta_final      : usable after exclusions
+      --- total travel time (interval 3) ---
+      n_total_raw      : journeys with both origin & destination datetimes
+      n_total_direction: excluded because destination < origin
+      n_total_final    : usable after exclusions
+    """
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    vcol = "facility_1_name"
+
+    # ── Per-village floor: 2 × median one-way flight time ─────────────────────
+    ft_raw = pd.to_numeric(j.get("flight_time_min", pd.Series(dtype=float)), errors="coerce")
+    j["_ft"] = ft_raw
+    floors: dict[str, float] = {}
+    if ft_raw.notna().any() and vcol in j.columns:
+        floors = (
+            j[j[vcol].notna()]
+            .groupby(vcol)["_ft"]
+            .apply(lambda x: x.dropna().median() * 2.0)
+            .dropna()
+            .to_dict()
+        )
+
+    # ── activate_to_arrive_min (interval 2) ───────────────────────────────────
+    ata = pd.to_numeric(j.get("activate_to_arrive_min", pd.Series(dtype=float, index=j.index)),
+                        errors="coerce")
+    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
+    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
+
+    # Direction check: any journey where destination precedes origin
+    bad_dir_mask = dest.notna() & orig.notna() & (dest < orig)
+    n_ata_direction = int(bad_dir_mask.sum())
+
+    # Below-floor check (per village, only applied where ata is non-null)
+    below_floor_mask = pd.Series(False, index=j.index)
+    if floors and vcol in j.columns:
+        for v, floor in floors.items():
+            v_mask = (j[vcol] == v) & ata.notna() & ~bad_dir_mask
+            below_floor_mask |= v_mask & (ata < floor)
+    n_ata_below_floor = int(below_floor_mask.sum())
+
+    n_ata_raw   = int(ata.notna().sum())
+    n_ata_final = int((ata.notna() & ~bad_dir_mask & ~below_floor_mask).sum())
+
+    # ── time_to_activate_min (interval 1) ─────────────────────────────────────
+    tta = pd.to_numeric(j.get("time_to_activate_min", pd.Series(dtype=float, index=j.index)),
+                        errors="coerce")
+    n_tta_raw   = int(tta.notna().sum())
+    n_tta_neg   = int((tta < 0).sum())
+    n_tta_final = int((tta >= 0).sum())
+
+    # ── Total travel (interval 3): origin_datetime → destination_datetime ─────
+    total_min = (dest - orig).dt.total_seconds() / 60
+    n_total_raw       = int((orig.notna() & dest.notna()).sum())
+    n_total_direction = int(bad_dir_mask.sum())
+    n_total_final     = int((total_min > 0).sum())
+
+    return dict(
+        floors=floors,
+        n_total=len(j),
+        n_ata_raw=n_ata_raw,
+        n_ata_direction=n_ata_direction,
+        n_ata_below_floor=n_ata_below_floor,
+        n_ata_final=n_ata_final,
+        n_tta_raw=n_tta_raw,
+        n_tta_neg=n_tta_neg,
+        n_tta_final=n_tta_final,
+        n_total_raw=n_total_raw,
+        n_total_direction=n_total_direction,
+        n_total_final=n_total_final,
+    )
+
+
+def build_timing_overview_text(df: pd.DataFrame) -> str:
+    """
+    Return a narrative paragraph describing timing data availability and QC
+    for use as a 'Timing Overview' block before Table 1 in the manuscript.
+    """
+    qc = _compute_timing_qc(df)
+    N = qc["n_total"]
+
+    def _pct(n, d=N):
+        return f"{n/d*100:.1f}%" if d else "—"
+
+    lines = [
+        f"**Timing data availability and quality.** "
+        f"Of {N} primary medevac journeys included in this analysis, timing data "
+        f"were available across three intervals with varying completeness.",
+
+        f"*Interval 1 — Village clinic arrival to medevac activation* "
+        f"({qc['n_tta_raw']} of {N} journeys, {_pct(qc['n_tta_raw'])}): "
+        f"This interval requires a documented authorization or activation record. "
+        + (
+            f"{qc['n_tta_neg']} observation(s) with a negative value were excluded as impossible, "
+            f"yielding {qc['n_tta_final']} valid measurements."
+            if qc["n_tta_neg"] > 0
+            else f"No observations with impossible (negative) values were identified; "
+                 f"all {qc['n_tta_final']} recorded values were used."
+        ),
+
+        f"*Interval 2 — Medevac activation to MHC arrival* "
+        f"({qc['n_ata_raw']} of {N} journeys, {_pct(qc['n_ata_raw'])}): "
+        f"The minimum plausible duration for this interval equals the round-trip "
+        f"flight time between Kotzebue and the originating village (2 × per-village "
+        f"median one-way flight time). "
+        + (
+            f"{qc['n_ata_direction']} observation(s) were excluded because the recorded "
+            f"destination datetime preceded the origin datetime (impossible temporal direction). "
+            if qc["n_ata_direction"] > 0
+            else ""
+        )
+        + (
+            f"{qc['n_ata_below_floor']} observation(s) fell below the per-village round-trip "
+            f"flight-time floor and were excluded as likely data-entry or timestamp errors. "
+            if qc["n_ata_below_floor"] > 0
+            else "No observations fell below the round-trip flight-time floor. "
+        )
+        + f"After these exclusions, {qc['n_ata_final']} valid measurements were used.",
+
+        f"*Interval 3 — Total air-ambulance time (village clinic arrival to MHC arrival)* "
+        f"({qc['n_total_raw']} of {N} journeys, {_pct(qc['n_total_raw'])}): "
+        f"Derived directly from encounter start and end timestamps. "
+        + (
+            f"{qc['n_total_direction']} observation(s) were excluded due to impossible "
+            f"temporal direction (destination before origin), "
+            if qc["n_total_direction"] > 0
+            else "No observations had an impossible temporal direction; "
+        )
+        + f"yielding {qc['n_total_final']} valid measurements.",
+    ]
+    return "\n\n".join(lines)
+
+
 def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     """
     Paper 1, Table 1: Medevac characteristics by village of origin.
@@ -1155,12 +1302,12 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
       2. Number of patients
       3. Mean flights per year
       4. Distance to Kotzebue (miles, straight-line)
-      5. Flight time to Kotzebue — Median (IQR); Range
-      6. Village clinic arrival → activation — Median (IQR); Range
+      5. Village clinic arrival → activation — Median (IQR); Range  [n=X]
          (requires auth record; lower N)
-      7. Activation → MHC arrival — Median (IQR); Range
-      8. Total air ambulance time (village arrival → MHC) — Median (IQR); Range
-      9. Utilization rate per 1,000 pediatric residents (2020 Census)
+      6. Activation → MHC arrival — Median (IQR); Range  [n=X]
+         (floor = 2 × per-village median one-way flight time)
+      7. Total air ambulance time (village arrival → MHC) — Median (IQR); Range  [n=X]
+      8. Utilization rate per 1,000 pediatric residents (2020 Census)
 
     Columns = Overall | each village sorted by total journeys descending.
     """
@@ -1204,57 +1351,100 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             pass  # shapefile unavailable — distances shown as "—"
 
+    # ── Timing QC: floors, exclusion masks ────────────────────────────────────
+    qc = _compute_timing_qc(df)
+    floors = qc["floors"]          # {village: floor_minutes}
+
     # ── Study period ──────────────────────────────────────────────────────────
     j = df.drop_duplicates(subset=["journey_id"]).copy()
     village_col = "facility_1_name"
     yr_col = "journey_start_year"
-    if yr_col in j.columns and not j[yr_col].isna().all():
-        yr = pd.to_numeric(j[yr_col], errors="coerce").dropna()
-        # Use distinct calendar years present in the data (capped to study window)
-        yr_study = yr[yr.between(2020, 2024)]
-        study_years = max(1.0, float(yr_study.nunique() if not yr_study.empty else yr.nunique()))
-    else:
-        study_years = 1.0
+    # Derive year from origin_datetime if the pipeline column isn't present
+    if yr_col not in j.columns or j[yr_col].isna().all():
+        j[yr_col] = pd.to_datetime(j.get("origin_datetime"), errors="coerce").dt.year
+    yr = pd.to_numeric(j[yr_col], errors="coerce").dropna()
+    study_years = max(1.0, float(yr.nunique()))
+
+    # Build journey-level exclusion masks (aligned to j.index)
+    _ata_all = pd.to_numeric(j.get("activate_to_arrive_min",
+                                    pd.Series(dtype=float, index=j.index)), errors="coerce")
+    _orig_all = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
+    _dest_all = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
+    _bad_dir  = _dest_all.notna() & _orig_all.notna() & (_dest_all < _orig_all)
+    _below_floor = pd.Series(False, index=j.index)
+    if floors and village_col in j.columns:
+        for _v, _flr in floors.items():
+            _vm = (j[village_col] == _v) & _ata_all.notna() & ~_bad_dir
+            _below_floor |= _vm & (_ata_all < _flr)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
-    def _med_iqr_range(series: pd.Series) -> str:
+    def _med_iqr_range_n(series: pd.Series) -> tuple[str, int]:
+        """Return (formatted string, n) for a series after dropping NaN."""
         s = pd.to_numeric(series, errors="coerce").dropna()
-        if len(s) == 0:
-            return "—"
+        n = len(s)
+        if n == 0:
+            return "—", 0
         med = s.median()
         q1, q3 = s.quantile(0.25), s.quantile(0.75)
         lo, hi = s.min(), s.max()
-        return f"{med:.0f} ({q1:.0f}–{q3:.0f}); {lo:.0f}–{hi:.0f}"
+        return f"{med:.0f} ({q1:.0f}–{q3:.0f}); {lo:.0f}–{hi:.0f}", n
 
-    def _med_iqr(series: pd.Series) -> str:
-        s = pd.to_numeric(series, errors="coerce").dropna()
-        if len(s) == 0:
+    def _fmt_n(val_str: str, n: int, total: int) -> str:
+        """Append [n=X of Y] to a cell value string."""
+        if val_str == "—":
             return "—"
-        med = s.median()
-        q1, q3 = s.quantile(0.25), s.quantile(0.75)
-        return f"{med:.0f} ({q1:.0f}–{q3:.0f})"
+        return f"{val_str} [n={n} of {total}]"
 
     def _stats(sub: pd.DataFrame, village_name: str | None, pop: int | None) -> list[str]:
         n_journeys = len(sub)
         n_patients = int(sub["MRN"].nunique())
-        mean_yr    = f"{n_journeys / study_years:.1f}"
-        dist       = f"{dist_map[village_name]:.0f}" if village_name and village_name in dist_map else "—"
 
-        # Timing interval 1: village clinic arrival → medevac activation
-        v_to_act = _med_iqr_range(sub.get("time_to_activate_min", pd.Series(dtype=float)))
+        # Mean (SD) journeys per year — SD across individual calendar years
+        if yr_col in sub.columns:
+            _yr_series = pd.to_numeric(sub[yr_col], errors="coerce").dropna().astype(int)
+            if not _yr_series.empty:
+                _yr_counts = _yr_series.value_counts()
+                _y0 = int(pd.to_numeric(j[yr_col], errors="coerce").dropna().min())
+                _y1 = int(pd.to_numeric(j[yr_col], errors="coerce").dropna().max())
+                _annual = pd.Series({y: _yr_counts.get(y, 0) for y in range(_y0, _y1 + 1)})
+                _mean = _annual.mean()
+                _sd   = _annual.std(ddof=1) if len(_annual) > 1 else 0.0
+                mean_yr = f"{_mean:.1f} ({_sd:.1f})"
+            else:
+                mean_yr = "—"
+        else:
+            mean_yr = f"{n_journeys / study_years:.1f}"
 
-        # Timing interval 2: activation → MHC arrival
-        act_to_arr = _med_iqr_range(sub.get("activate_to_arrive_min", pd.Series(dtype=float)))
+        dist = f"{dist_map[village_name]:.0f}" if village_name and village_name in dist_map else "—"
 
-        # Timing interval 3: total village arrival → MHC arrival (origin_datetime → destination_datetime)
-        _orig = pd.to_datetime(sub.get("origin_datetime"), errors="coerce")
-        _dest = pd.to_datetime(sub.get("destination_datetime"), errors="coerce")
-        total_min = (_dest - _orig).dt.total_seconds() / 60
-        total_str = _med_iqr_range(total_min)
+        # ── Interval 1: village clinic arrival → medevac activation ────────
+        # Exclude negative values only
+        _tta = pd.to_numeric(sub.get("time_to_activate_min", pd.Series(dtype=float)),
+                             errors="coerce")
+        _tta_valid = _tta[_tta >= 0]
+        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta_valid)
+        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_journeys)
 
-        util = (
-            f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
-        )
+        # ── Interval 2: activation → MHC arrival ───────────────────────────
+        # Exclude bad-direction journeys and those below the per-village floor
+        _excl = _bad_dir.reindex(sub.index, fill_value=False) | \
+                _below_floor.reindex(sub.index, fill_value=False)
+        _ata = _ata_all.reindex(sub.index)
+        _ata_valid = _ata[~_excl]
+        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata_valid)
+        act_to_arr = _fmt_n(act_to_arr_str, act_to_arr_n, n_journeys)
+
+        # ── Interval 3: total village arrival → MHC arrival ────────────────
+        # Exclude bad-direction journeys
+        _orig = _orig_all.reindex(sub.index)
+        _dest = _dest_all.reindex(sub.index)
+        _total = (_dest - _orig).dt.total_seconds() / 60
+        _bad_sub = _bad_dir.reindex(sub.index, fill_value=False)
+        _total_valid = _total[~_bad_sub & (_total > 0)]
+        total_str, total_n = _med_iqr_range_n(_total_valid)
+        total_str = _fmt_n(total_str, total_n, n_journeys)
+
+        util = f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
         return [
             str(n_journeys),
             str(n_patients),
@@ -1269,11 +1459,11 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     metric_labels = [
         "Total journeys",
         "Total patients",
-        "Mean journeys per year",
+        "Mean journeys per year (SD)",
         "Distance to Kotzebue (miles)",
-        "Village clinic arrival → activation, min — Median (IQR); Range",
-        "Activation → MHC arrival, min — Median (IQR); Range",
-        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range",
+        "Village clinic arrival → activation, min — Median (IQR); Range [n of total]",
+        "Activation → MHC arrival, min — Median (IQR); Range [n of total]ᵃ",
+        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
