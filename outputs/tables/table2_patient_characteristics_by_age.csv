@@ -8,3 +8,7 @@ Insurance Type:,,,,,
   IHS,NR*,NR*,NR*,NR*,NR*
   Self-Pay,NR*,NR*,NR*,NR*,NR*
   Other,NR*,NR*,NR*,NR*,NR*
+"Primary transports per patient, n (%):",,,,,
+  1 transport,231 (89.2%),57 (90.5%),47 (92.2%),55 (87.3%),72 (87.8%)
+  2 transports,23 (8.9%),5 (7.9%),3 (5.9%),6 (9.5%),9 (11.0%)
+  3+ transports,5 (1.9%),1 (1.6%),1 (2.0%),2 (3.2%),1 (1.2%)
