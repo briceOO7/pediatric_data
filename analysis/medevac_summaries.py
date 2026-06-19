@@ -1150,82 +1150,143 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     """
     Paper 1, Table 1: Medevac characteristics by village of origin.
 
-    Rows  = metrics (flights, patients, mean/year, flight time stats,
-             destination, legs, utilization rate).
-    Columns = Overall | each village sorted by n desc.
+    Rows (metrics):
+      1. Total number of journeys
+      2. Number of patients
+      3. Mean flights per year
+      4. Distance to Kotzebue (miles, straight-line)
+      5. Flight time to Kotzebue — Median (IQR); Range
+      6. Village clinic arrival → activation — Median (IQR); Range
+         (requires auth record; lower N)
+      7. Activation → MHC arrival — Median (IQR); Range
+      8. Total air ambulance time (village arrival → MHC) — Median (IQR); Range
+      9. Utilization rate per 1,000 pediatric residents (2020 Census)
 
-    *df* should be the village→MHC journey cohort from filter_journeys_village_to_mhc().
-    Flight time uses ``flight_time_min`` (air transport minutes, 100 % coverage).
-    Utilization rate = journeys per 1,000 pediatric residents (2020 Census).
+    Columns = Overall | each village sorted by total journeys descending.
     """
+    from math import radians, cos, sin, asin, sqrt
+
     census_path = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
     census = pd.read_csv(census_path) if census_path.exists() else None
     census_map: dict[str, int] = (
-        dict(zip(census["NAME"], census["pediatric_pop"].astype(int))) if census is not None else {}
+        dict(zip(census["NAME"], census["pediatric_pop"].astype(int)))
+        if census is not None else {}
     )
 
-    village_col = "facility_1_name"
-    j = df.copy()
+    # ── Compute village → Kotzebue distances from shapefile ──────────────────
+    FAC_SHP = ROOT / "mapping_data" / "healthcare_facilities_safetynet" / \
+              "healthcare_facilities_safetynet.shp"
 
-    # Study period: min–max year in this cohort.
+    dist_map: dict[str, float] = {}
+    if FAC_SHP.is_file():
+        try:
+            import geopandas as gpd
+
+            def _hav_miles(lat1, lon1, lat2, lon2):
+                R = 3958.8
+                dlat = radians(lat2 - lat1); dlon = radians(lon2 - lon1)
+                a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+                return R * 2 * asin(sqrt(a))
+
+            _fac = gpd.read_file(FAC_SHP).to_crs(epsg=4326)
+            _man = _fac[_fac["ManagingOr"] == "Maniilaq Association"][
+                ["CommunityN", "geometry"]
+            ].drop_duplicates("CommunityN")
+            _kotz = _man[_man["CommunityN"].str.lower() == "kotzebue"]
+            if not _kotz.empty:
+                klon = float(_kotz.iloc[0].geometry.x)
+                klat = float(_kotz.iloc[0].geometry.y)
+                for _, row in _man.iterrows():
+                    vname = str(row["CommunityN"]).strip()
+                    vlon  = float(row.geometry.x)
+                    vlat  = float(row.geometry.y)
+                    dist_map[vname] = round(_hav_miles(klat, klon, vlat, vlon))
+        except Exception:
+            pass  # shapefile unavailable — distances shown as "—"
+
+    # ── Study period ──────────────────────────────────────────────────────────
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    village_col = "facility_1_name"
     yr_col = "journey_start_year"
     if yr_col in j.columns and not j[yr_col].isna().all():
         yr = pd.to_numeric(j[yr_col], errors="coerce").dropna()
-        study_years = max(1.0, float(yr.max() - yr.min() + 1))
+        # Use distinct calendar years present in the data (capped to study window)
+        yr_study = yr[yr.between(2020, 2024)]
+        study_years = max(1.0, float(yr_study.nunique() if not yr_study.empty else yr.nunique()))
     else:
         study_years = 1.0
 
-    def _fmt_ft(series: pd.Series) -> dict[str, str]:
-        ft = pd.to_numeric(series, errors="coerce").dropna()
-        if len(ft) == 0:
-            return {"mean_sd": "—", "median_iqr": "—", "min_max": "—"}
-        mean_sd = f"{ft.mean():.0f} ({ft.std(ddof=1):.0f})" if len(ft) >= 2 else f"{ft.mean():.0f} (—)"
-        med = ft.median()
-        q1, q3 = ft.quantile(0.25), ft.quantile(0.75)
-        median_iqr = f"{med:.0f} ({q1:.0f}–{q3:.0f})"
-        min_max = f"{ft.min():.0f}, {ft.max():.0f}"
-        return {"mean_sd": mean_sd, "median_iqr": median_iqr, "min_max": min_max}
+    # ── Helpers ───────────────────────────────────────────────────────────────
+    def _med_iqr_range(series: pd.Series) -> str:
+        s = pd.to_numeric(series, errors="coerce").dropna()
+        if len(s) == 0:
+            return "—"
+        med = s.median()
+        q1, q3 = s.quantile(0.25), s.quantile(0.75)
+        lo, hi = s.min(), s.max()
+        return f"{med:.0f} ({q1:.0f}–{q3:.0f}); {lo:.0f}–{hi:.0f}"
 
-    def _stats(sub: pd.DataFrame, pop: int | None) -> list[str]:
-        n_flights = len(sub)
+    def _stats(sub: pd.DataFrame, village_name: str | None, pop: int | None) -> list[str]:
+        n_journeys = len(sub)
         n_patients = int(sub["MRN"].nunique())
-        n_legs = int(sub["num_medevacs"].sum()) if "num_medevacs" in sub.columns else n_flights
-        mean_yr = f"{n_flights / study_years:.1f}"
-        ft = _fmt_ft(sub.get("activate_to_arrive_min", pd.Series([], dtype=float)))
+        mean_yr    = f"{n_journeys / study_years:.1f}"
+        dist       = f"{dist_map[village_name]:.0f}" if village_name and village_name in dist_map else "—"
+
+        # Flight time (air transport minutes, 100 % coverage)
+        ft_str = _med_iqr_range(sub.get("flight_time_min", pd.Series(dtype=float)))
+
+        # Timing interval 1: village clinic arrival → medevac activation
+        v_to_act = _med_iqr_range(sub.get("time_to_activate_min", pd.Series(dtype=float)))
+
+        # Timing interval 2: activation → MHC arrival
+        act_to_arr = _med_iqr_range(sub.get("activate_to_arrive_min", pd.Series(dtype=float)))
+
+        # Timing interval 3: total village arrival → MHC arrival (origin_datetime → destination_datetime)
+        _orig = pd.to_datetime(sub.get("origin_datetime"), errors="coerce")
+        _dest = pd.to_datetime(sub.get("destination_datetime"), errors="coerce")
+        total_min = (_dest - _orig).dt.total_seconds() / 60
+        total_str = _med_iqr_range(total_min)
+
         util = (
-            f"{n_flights / pop * 1_000:.1f}"
-            if pop and pop > 0
-            else "—"
+            f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
         )
         return [
-            str(n_flights),
+            str(n_journeys),
             str(n_patients),
             mean_yr,
-            ft["mean_sd"],
-            ft["median_iqr"],
-            ft["min_max"],
-            str(n_legs),
+            dist,
+            ft_str,
+            v_to_act,
+            act_to_arr,
+            total_str,
             util,
         ]
 
     metric_labels = [
-        "Total number of flights (journeys)",
-        "Total number of patients",
-        "Mean number of flights per year",
-        "Activation-to-arrival time, min — Mean (SD)",
-        "Activation-to-arrival time, min — Median (IQR)",
-        "Activation-to-arrival time, min — Min, Max",
-        "Total medevac legs",
+        "Total journeys",
+        "Total patients",
+        "Mean journeys per year",
+        "Distance to Kotzebue (miles)",
+        "Flight time to Kotzebue, min — Median (IQR); Range",
+        "Village clinic arrival → activation, min — Median (IQR); Range",
+        "Activation → MHC arrival, min — Median (IQR); Range",
+        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
-    villages = j[village_col].value_counts().index.tolist()
+    villages = (
+        j[j[village_col].apply(lambda x: is_village_medevac_origin(str(x or "")))]
+        [village_col].value_counts().index.tolist()
+    )
     overall_pop = sum(census_map.get(v, 0) for v in villages) or None
 
-    result = {"Metric of Interest": metric_labels, "Overall": _stats(j, overall_pop)}
+    result = {
+        "Metric": metric_labels,
+        "Overall": _stats(j, None, overall_pop),
+    }
     for v in villages:
         sub = j[j[village_col] == v]
-        result[v] = _stats(sub, census_map.get(v))
+        result[v] = _stats(sub, v, census_map.get(v))
 
     out = pd.DataFrame(result)
     out.to_csv(ROOT / "outputs" / "tables" / "table1_village_characteristics.csv", index=False)
