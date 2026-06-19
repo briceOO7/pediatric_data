@@ -1506,16 +1506,18 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         )
         n_act = int(_valid_act.sum())
 
-        # Interval 1: village arrival → activation  (activation subset, no n=)
-        v_to_act_str, _ = _med_iqr_range_n(_tta[_valid_act])
+        # Interval 1: village arrival → activation  (activation subset, n= shown)
+        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta[_valid_act])
+        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_act) if n_act else "—"
 
-        # Interval 2: activation → MHC arrival  (activation subset + floor, no n=)
+        # Interval 2: activation → MHC arrival  (activation subset + floor, n= shown)
         _ata = _ata_all.reindex(sub.index)
         _excl = (
             _bad_dir.reindex(sub.index, fill_value=False)
             | _below_floor.reindex(sub.index, fill_value=False)
         )
-        act_to_arr_str, _ = _med_iqr_range_n(_ata[_valid_act & ~_excl])
+        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata[_valid_act & ~_excl])
+        act_to_arr = _fmt_n(act_to_arr_str, act_to_arr_n, n_act) if n_act else "—"
 
         util = f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
         return [
@@ -1526,8 +1528,8 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             total_str,          # Total air ambulance time [moved up]
             "",                 # ── Air Ambulance Activation header ──
             str(n_act),         # Patients with activation information
-            v_to_act_str,       # Village arrival → activation
-            act_to_arr_str,     # Activation → MHC arrival
+            v_to_act,           # Village arrival → activation [n= of activation subset]
+            act_to_arr,         # Activation → MHC arrival    [n= of activation subset]
             util,               # Utilization rate
         ]
 
@@ -1539,8 +1541,8 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
         "Air Ambulance Activation",
         "  Patients with activation information (n=)",
-        "  Village clinic arrival → activation, min — Median (IQR); Range",
-        "  Activation → MHC arrival, min — Median (IQR); Rangeᵃ",
+        "  Village clinic arrival → activation, min — Median (IQR); Range [n of activation patients]",
+        "  Activation → MHC arrival, min — Median (IQR); Rangeᵃ [n of activation patients]",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
