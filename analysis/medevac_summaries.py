@@ -2164,38 +2164,62 @@ def build_timing_category_tables(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
 
 def build_table5_timing_minutes(df: pd.DataFrame, village_cah_only: bool = True) -> pd.DataFrame:
-    sub = df.copy()
-    if village_cah_only:
+    """
+    Table 5: Time intervals for village → MHC primary transports.
+
+    Three intervals reported:
+      1. Village clinic arrival → medevac activation
+         Source: time_to_activate_min (requires auth/decision record; lower N).
+      2. Medevac activation → MHC arrival
+         Source: activate_to_arrive_min.
+      3. Village clinic arrival → MHC arrival (total, no activation needed)
+         Source: destination_datetime − origin_datetime (highest N).
+
+    Columns: Interval | N | Median (IQR) | Mean
+    """
+    sub = df.drop_duplicates(subset=["journey_id"]).copy()
+    if village_cah_only and "origin_type" in sub.columns:
         sub = sub[sub["origin_type"] == "village_cah"]
-    cols = [
-        "medevac_minutes",
-        "destination_minutes",
-        "flight_time_minutes",
-        "time_to_activate_min",
-        "activate_to_arrive_min",
-    ]
-    rows = []
-    for c in cols:
-        if c not in sub.columns:
-            continue
-        s = pd.to_numeric(sub[c], errors="coerce").dropna()
+
+    def _stats(s: pd.Series) -> dict:
+        s = pd.to_numeric(s, errors="coerce").dropna()
         if len(s) == 0:
-            continue
-        rows.append(
-            {
-                "variable": c,
-                "n": len(s),
-                "median": s.median(),
-                "q25": s.quantile(0.25),
-                "q75": s.quantile(0.75),
-                "mean": s.mean(),
-            }
-        )
-    out = pd.DataFrame(rows)
-    if not out.empty:
-        for x in ["median", "q25", "q75", "mean"]:
-            out[x] = out[x].round(1)
-    return out
+            return None
+        return {
+            "N": len(s),
+            "Median (IQR)": (
+                f"{s.median():.0f} ({s.quantile(0.25):.0f}–{s.quantile(0.75):.0f})"
+            ),
+            "Mean": f"{s.mean():.0f}",
+        }
+
+    # Interval 1 — village arrival → activation (from auth records)
+    s1 = pd.to_numeric(sub.get("time_to_activate_min", pd.Series(dtype=float)),
+                       errors="coerce")
+
+    # Interval 2 — activation → MHC arrival (flight time)
+    s2 = pd.to_numeric(sub.get("activate_to_arrive_min", pd.Series(dtype=float)),
+                       errors="coerce")
+
+    # Interval 3 — village arrival → MHC arrival (direct, highest N)
+    _orig = pd.to_datetime(sub.get("origin_datetime"), errors="coerce")
+    _dest = pd.to_datetime(sub.get("destination_datetime"), errors="coerce")
+    s3 = (_dest - _orig).dt.total_seconds() / 60
+
+    interval_defs = [
+        ("Village clinic arrival → medevac activation (auth records; where available)", s1),
+        ("Medevac activation → MHC arrival (flight time)", s2),
+        ("Village clinic arrival → MHC arrival (total — origin + flight time)", s3),
+    ]
+
+    rows = []
+    for label, s in interval_defs:
+        st = _stats(s)
+        if st is None:
+            st = {"N": 0, "Median (IQR)": "—", "Mean": "—"}
+        rows.append({"Time interval (minutes)": label, **st})
+
+    return pd.DataFrame(rows)
 
 
 def build_table6_mortality(df: pd.DataFrame) -> pd.DataFrame | None:
