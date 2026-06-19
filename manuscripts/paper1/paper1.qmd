@@ -221,7 +221,8 @@ rate (village→MHC legs per 1,000 pediatric residents, 2020 Census).
 #| fig-align: center
 plt.ioff()
 plt.close("all")
-_vor_fig = plot_fig_voronoi_service_districts(_df_all)
+from medevac_map_fig1 import plot_fig_voronoi_service_districts as _vor_fn
+_vor_fig = _vor_fn(_df_all, village_names=None, infer=True)
 display(_vor_fig)
 plt.close(_vor_fig)
 ```

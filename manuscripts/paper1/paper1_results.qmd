@@ -1,0 +1,343 @@
+---
+title: "Pediatric Medevac Operations in a Remote Arctic Health System"
+subtitle: "Utilization, Timeliness, and Regional Variation — Results"
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Contents"
+    number-sections: true
+    theme: cosmo
+    df-print: paged
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+#| include: false
+import os
+import sys
+from pathlib import Path
+
+_proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
+_root = _proj if (_proj / "analysis").exists() else _proj.parents[1]
+sys.path.insert(0, str(_root / "analysis"))
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from IPython.display import Markdown, display
+
+from medevac_summaries import (
+    load_data,
+    count_village_to_mhc_legs,
+    filter_journeys_village_to_mhc,
+    is_village_medevac_origin,
+    _is_mhc_cah_destination,
+    build_table1_village_characteristics,
+    build_table2_patient_characteristics_by_age,
+    build_table_primary_transports_per_patient,
+    build_table3a_primary_routes,
+    build_table3b_secondary_routes,
+    build_table3_village_utilization,
+    build_table5_timing_minutes,
+    build_table2_1_vitals_missingness,
+    build_table3_pews_data_availability_by_age,
+    plot_fig1_medevac_activation_map,
+    plot_fig_voronoi_service_districts,
+    plot_fig1a_monthly_by_village,
+    plot_fig1b_monthly_by_age,
+    plot_fig2a_annual_by_village,
+    plot_fig2b_annual_by_age,
+    plot_fig4_sankey_transport_routes,
+)
+from medevac_map_fig1 import plot_fig_voronoi_service_districts as _vor_map
+
+plt.ioff()
+
+# ── Load data ─────────────────────────────────────────────────────────────────
+_df_all = load_data()
+df = filter_journeys_village_to_mhc(_df_all)
+
+_j = _df_all.drop_duplicates("journey_id")
+
+def show_tbl(d: pd.DataFrame, caption: str | None = None):
+    s = d.style.hide(axis="index")
+    if caption:
+        s = s.set_caption(caption)
+    return s
+
+# ── Inline narrative stats ─────────────────────────────────────────────────────
+N_JOURNEYS  = len(_j)
+N_PATIENTS  = int(_j["MRN"].nunique())
+_vmask      = _j["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
+N_VILLAGES  = int(_j.loc[_vmask, "facility_1_name"].nunique())
+
+# Route typology
+def _is_anmc_dest(v):
+    t = str(v or "").strip()
+    return t.startswith("Hub") or t.upper() in ("HUB_01", "ANMC")
+
+_n_primary = _n_direct = _n_secondary = 0
+for _, _r in _j.iterrows():
+    _t1 = _r.get("medevac1_to", "")
+    _t2 = _r.get("medevac2_to", "")
+    _f1 = str(_r.get("facility_1_name") or "")
+    if is_village_medevac_origin(_f1):
+        if _is_mhc_cah_destination(_t1):
+            _n_primary += 1
+        elif pd.notna(_t1) and str(_t1).strip():
+            _n_direct += 1
+    if _is_mhc_cah_destination(_t1) and pd.notna(_t2) and str(_t2).strip():
+        _n_secondary += 1
+
+# Utilization fold
+_ut = build_table3_village_utilization(df)
+_rate_col = "Utilization Rate per 1,000 Pediatric Residents"
+_rates = pd.to_numeric(_ut[_rate_col].astype(str).str.replace(",", ""), errors="coerce").dropna()
+UTIL_FOLD  = f"{_rates.max() / _rates.min():.1f}"
+UTIL_MAX_V = str(_ut.loc[_rates.idxmax(), "Village"])
+UTIL_MIN_V = str(_ut.loc[_rates.idxmin(), "Village"])
+
+# Temporal: peak year and lowest month (from annual bar chart data)
+_yr = pd.to_numeric(_j["journey_start_year"], errors="coerce")
+_yr_counts = _yr.value_counts().sort_index()
+
+_mo = pd.to_numeric(_j["journey_start_month"], errors="coerce")
+_MONTH_NAMES = {1:"January",2:"February",3:"March",4:"April",5:"May",6:"June",
+                7:"July",8:"August",9:"September",10:"October",11:"November",12:"December"}
+_mo_counts = _mo.value_counts()
+
+# Operational field completeness
+_op_cols = ["facility_1_name", "medevac1_to", "num_medevacs"]
+_op_complete = (_j[_op_cols].notna().all(axis=1)).mean()
+OP_COMPLETE_PCT = f"{100 * _op_complete:.0f}%"
+```
+
+## Results
+
+### Cohort Overview
+
+During the five-year study period (2020–2024), `{python} N_JOURNEYS` pediatric medevac
+journeys were identified, originating from `{python} N_VILLAGES` villages and involving
+`{python} N_PATIENTS` unique patients. [@tbl-t1] summarizes medevac characteristics by
+village, including total flights, unique patients, mean flights per year, flight time,
+number of legs, and per-village utilization rate. [@tbl-t2] summarizes patient
+characteristics by age group, including sex, race, insurance type, and primary
+transports per patient.
+
+```{python}
+#| label: tbl-t1
+#| tbl-cap: "Medevac characteristics by village. Flight time = activation-to-arrival minutes. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+show_tbl(build_table1_village_characteristics(df))
+```
+
+```{python}
+#| label: tbl-t1b
+#| tbl-cap: "Primary (village → MHC) medevac transport legs per unique patient."
+show_tbl(
+    build_table_primary_transports_per_patient(df),
+    caption="Primary transports per patient",
+)
+```
+
+```{python}
+#| label: tbl-t2
+#| tbl-cap: "Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column."
+show_tbl(build_table2_patient_characteristics_by_age(df))
+```
+
+---
+
+### Route Typology
+
+Transports were classified into three route types: **primary**, **secondary**, and
+**direct tertiary**. Primary transports are defined as any medevac leg originating
+from a village clinic (village → MHC). Primary transports accounted for the largest
+share (n = `{python} _n_primary`), reflecting MHC's role as a regional stabilization
+hub. A meaningful subset of pediatric transports bypassed MHC entirely as direct
+tertiary transports (n = `{python} _n_direct`). Secondary transfers (MHC → tertiary,
+predominantly ANMC) represented the escalation pathway for patients whose acuity
+exceeded MHC's capabilities (n = `{python} _n_secondary`). [@tbl-t3a] and
+[@tbl-t3b] detail the primary and secondary transfer cohorts.
+
+```{python}
+#| label: tbl-t3a
+#| tbl-cap: "Primary transfers: village-originating medevac legs. Percent denominator = all primary legs."
+show_tbl(build_table3a_primary_routes(_df_all))
+```
+
+```{python}
+#| label: tbl-t3b
+#| tbl-cap: "Secondary transfers: MHC-originating escalation legs. Percent denominator = all secondary legs."
+show_tbl(build_table3b_secondary_routes(_df_all))
+```
+
+---
+
+### Village-Level Utilization
+
+Village-level utilization rates varied substantially across the
+`{python} N_VILLAGES` communities of the Maniilaq service area. [@tbl-t4] reports
+per-village utilization. After accounting for pediatric population denominators,
+the highest-utilizing village (`{python} UTIL_MAX_V`) had approximately
+`{python} UTIL_FOLD`× the per-capita rate of the lowest-utilizing village
+(`{python} UTIL_MIN_V`). This variation persisted across age strata and was not
+explained by raw village size alone. The geographic pattern is shown in [@fig-map].
+
+```{python}
+#| label: tbl-t4
+#| tbl-cap: "Village-level pediatric medevac utilization. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+show_tbl(build_table3_village_utilization(df))
+```
+
+```{python}
+#| label: fig-map
+#| fig-cap: "Pediatric medevac service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = utilization rate per 1,000 pediatric residents under 18 (2020 Census). Hospital icon = Maniilaq Health Center; circle icons = village clinics."
+#| fig-width: 10
+#| fig-height: 7
+#| out-width: 100%
+#| fig-align: center
+plt.close("all")
+_vfig = _vor_map(_df_all, village_names=None, infer=True)
+display(_vfig)
+plt.close(_vfig)
+```
+
+---
+
+### Temporal Patterns
+
+```{python}
+#| include: false
+# Compute peak / trough stats for narrative
+_yr_filt = _yr[_yr.between(2020, 2024)]
+_yr_ct   = _yr_filt.value_counts().sort_index()
+_peak_yr = int(_yr_ct.idxmax())
+_peak_n  = int(_yr_ct.max())
+_low_mo  = int(_mo_counts.idxmin())
+_low_n   = int(_mo_counts.min())
+_high_mo = int(_mo_counts.idxmax())
+_high_n  = int(_mo_counts.max())
+```
+
+Annual pediatric medevac volume peaked in `{python} _peak_yr`
+(n = `{python} _peak_n`). The highest-volume month was
+`{python} _MONTH_NAMES[_high_mo]` (n = `{python} _high_n`) and the lowest
+was `{python} _MONTH_NAMES[_low_mo]` (n = `{python} _low_n`), consistent
+with spring break-up constraints on ice-runway operations. The 2022 surge
+was concentrated in respiratory presentations, consistent with the
+post-pandemic "tripledemic" of RSV, influenza, and SARS-CoV-2 affecting
+Arctic pediatric populations.
+
+[@fig-1a] and [@fig-1b] present monthly volume by village and by age group;
+[@fig-2a] and [@fig-2b] present annual volume by the same stratifications.
+
+```{python}
+#| label: fig-1a
+#| fig-cap: "Monthly pediatric medevac volume (2020–2024), stacked by village of origin."
+#| fig-width: 11
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig1a_monthly_by_village(df)
+display(_f); plt.close(_f)
+```
+
+```{python}
+#| label: fig-1b
+#| fig-cap: "Monthly pediatric medevac volume (2020–2024), stacked by age group."
+#| fig-width: 11
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig1b_monthly_by_age(df)
+display(_f); plt.close(_f)
+```
+
+```{python}
+#| label: fig-2a
+#| fig-cap: "Annual pediatric medevac volume (2020–2024), stacked by village of origin."
+#| fig-width: 8
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig2a_annual_by_village(df)
+display(_f); plt.close(_f)
+```
+
+```{python}
+#| label: fig-2b
+#| fig-cap: "Annual pediatric medevac volume (2020–2024), stacked by age group."
+#| fig-width: 8
+#| fig-height: 5
+#| out-width: 100%
+_f = plot_fig2b_annual_by_age(df)
+display(_f); plt.close(_f)
+```
+
+---
+
+### Timeliness
+
+Time intervals from initial contact to medevac activation, flight time to MHC,
+and MHC arrival to secondary transfer (where applicable) are reported in
+[@tbl-t5]. The median transport time reflects the operational tempo of fixed-wing
+medevac across a geographically dispersed Arctic region.
+
+```{python}
+#| label: tbl-t5
+#| tbl-cap: "Time intervals (minutes), village → MHC primary transports. IQR = interquartile range."
+show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
+```
+
+---
+
+### Flow Through the System
+
+[@fig-flow] visualizes the full transport network, with line width proportional
+to volume. Most pediatric transports follow the canonical village → MHC pathway,
+with a subset escalating to ANMC or outside facilities. The diagram makes visible
+the smaller-volume direct-to-tertiary patterns that would be lost in a purely
+tabular summary.
+
+```{python}
+#| label: fig-flow
+#| fig-cap: "Pediatric medevac routing by village of origin. Line width proportional to transfer volume. Green node = Maniilaq Health Center; orange node = ANMC; blue/purple nodes = outside facilities. Grey curves = MHC → facility secondary transfers."
+#| fig-width: 14
+#| fig-height: 9
+#| out-width: 100%
+_f = plot_fig4_sankey_transport_routes(_df_all)
+display(_f); plt.close(_f)
+```
+
+---
+
+### Data Completeness
+
+Operational fields (origin, destination, number of medevac legs) were complete
+in `{python} OP_COMPLETE_PCT` of records. Clinical handoff fields — including
+pre-flight vital signs and data needed to compute a PEWS-like severity score —
+were missing in a substantial minority of records, with patterns varying by
+originating village and by time of day. These gaps are operationally meaningful
+because they constrain retrospective outcomes research and prospective
+applications such as machine-learning–assisted triage.
+
+[@tbl-vitals] reports patient-level completeness for each vital sign. [@tbl-pews]
+reports the proportion of patients with sufficient data to compute a
+pediatric early warning score (PEWS) proxy, stratified by age group.
+
+```{python}
+#| label: tbl-vitals
+#| tbl-cap: "Vital sign completeness: proportion of cohort patients missing each pre-transport vital sign at the village clinic visit."
+show_tbl(build_table2_1_vitals_missingness(df))
+```
+
+```{python}
+#| label: tbl-pews
+#| tbl-cap: "PEWS-proxy data availability by age group: proportion of patients with sufficient vital sign data to compute a pediatric early warning score."
+show_tbl(build_table3_pews_data_availability_by_age(df))
+```
