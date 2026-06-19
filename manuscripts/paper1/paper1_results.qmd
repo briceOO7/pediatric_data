@@ -74,12 +74,16 @@ def show_tbl(d: pd.DataFrame, caption: str | None = None):
     return s
 
 # ── Inline narrative stats ─────────────────────────────────────────────────────
-N_JOURNEYS  = len(_j)
-N_PATIENTS  = int(_j["MRN"].nunique())
-_vmask      = _j["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
-N_VILLAGES  = int(_j.loc[_vmask, "facility_1_name"].nunique())
+# Use df (village→MHC primary transports) to match Table 1 denominators
+_j_primary = df.drop_duplicates("journey_id")
 
-# Route typology
+N_JOURNEYS  = len(_j_primary)
+N_PATIENTS  = int(_j_primary["MRN"].nunique())
+_vmask      = _j_primary["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
+N_VILLAGES  = int(_j_primary.loc[_vmask, "facility_1_name"].nunique())
+
+# Route typology counts — iterate over all journeys (all route types)
+_j = _df_all.drop_duplicates("journey_id")
 def _is_anmc_dest(v):
     t = str(v or "").strip()
     return t.startswith("Hub") or t.upper() in ("HUB_01", "ANMC")
@@ -105,18 +109,18 @@ UTIL_FOLD  = f"{_rates.max() / _rates.min():.1f}"
 UTIL_MAX_V = str(_ut.loc[_rates.idxmax(), "Village"])
 UTIL_MIN_V = str(_ut.loc[_rates.idxmin(), "Village"])
 
-# Temporal: peak year and lowest month (from annual bar chart data)
-_yr = pd.to_numeric(_j["journey_start_year"], errors="coerce")
+# Temporal: peak year and lowest month — use primary cohort
+_yr = pd.to_numeric(_j_primary["journey_start_year"], errors="coerce")
 _yr_counts = _yr.value_counts().sort_index()
 
-_mo = pd.to_numeric(_j["journey_start_month"], errors="coerce")
+_mo = pd.to_numeric(_j_primary["journey_start_month"], errors="coerce")
 _MONTH_NAMES = {1:"January",2:"February",3:"March",4:"April",5:"May",6:"June",
                 7:"July",8:"August",9:"September",10:"October",11:"November",12:"December"}
 _mo_counts = _mo.value_counts()
 
 # Operational field completeness
 _op_cols = ["facility_1_name", "medevac1_to", "num_medevacs"]
-_op_complete = (_j[_op_cols].notna().all(axis=1)).mean()
+_op_complete = (_j_primary[_op_cols].notna().all(axis=1)).mean()
 OP_COMPLETE_PCT = f"{100 * _op_complete:.0f}%"
 ```
 
