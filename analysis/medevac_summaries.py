@@ -1426,43 +1426,53 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
 
         dist = f"{dist_map[village_name]:.0f}" if village_name and village_name in dist_map else "—"
 
-        # ── Interval 1: village clinic arrival → medevac activation ────────
-        # Exclude negative values only
-        _tta = pd.to_numeric(sub.get("time_to_activate_min", pd.Series(dtype=float)),
-                             errors="coerce")
-        _tta_valid = _tta[_tta >= 0]
-        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta_valid)
-        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_journeys)
-
-        # ── Interval 2: activation → MHC arrival ───────────────────────────
-        # Exclude bad-direction journeys and those below the per-village floor
-        _excl = _bad_dir.reindex(sub.index, fill_value=False) | \
-                _below_floor.reindex(sub.index, fill_value=False)
-        _ata = _ata_all.reindex(sub.index)
-        _ata_valid = _ata[~_excl]
-        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata_valid)
-        act_to_arr = _fmt_n(act_to_arr_str, act_to_arr_n, n_journeys)
-
         # ── Interval 3: total village arrival → MHC arrival ────────────────
-        # Exclude bad-direction journeys
+        # (shown immediately after Distance)
         _orig = _orig_all.reindex(sub.index)
         _dest = _dest_all.reindex(sub.index)
-        _total = (_dest - _orig).dt.total_seconds() / 60
+        _total_min = (_dest - _orig).dt.total_seconds() / 60
         _bad_sub = _bad_dir.reindex(sub.index, fill_value=False)
-        _total_valid = _total[~_bad_sub & (_total > 0)]
+        _total_valid = _total_min[~_bad_sub & (_total_min > 0)]
         total_str, total_n = _med_iqr_range_n(_total_valid)
         total_str = _fmt_n(total_str, total_n, n_journeys)
 
+        # ── Valid activation subset ─────────────────────────────────────────
+        # Requires: time_to_activate_min non-null, >= 0, and the activation
+        # timestamp falls before MHC arrival (i.e., <= total travel time).
+        _tta = pd.to_numeric(
+            sub.get("time_to_activate_min", pd.Series(dtype=float, index=sub.index)),
+            errors="coerce",
+        ).reindex(sub.index)
+        _valid_act = (
+            _tta.notna()
+            & (_tta >= 0)
+            & (_tta <= _total_min.fillna(float("inf")))
+        )
+        n_act = int(_valid_act.sum())
+
+        # Interval 1: village arrival → activation  (activation subset, no n=)
+        v_to_act_str, _ = _med_iqr_range_n(_tta[_valid_act])
+
+        # Interval 2: activation → MHC arrival  (activation subset + floor, no n=)
+        _ata = _ata_all.reindex(sub.index)
+        _excl = (
+            _bad_dir.reindex(sub.index, fill_value=False)
+            | _below_floor.reindex(sub.index, fill_value=False)
+        )
+        act_to_arr_str, _ = _med_iqr_range_n(_ata[_valid_act & ~_excl])
+
         util = f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
         return [
-            str(n_journeys),
-            str(n_patients),
-            mean_yr,
-            dist,
-            v_to_act,
-            act_to_arr,
-            total_str,
-            util,
+            str(n_journeys),    # Total journeys
+            str(n_patients),    # Total patients
+            mean_yr,            # Mean journeys per year (SD)
+            dist,               # Distance to Kotzebue
+            total_str,          # Total air ambulance time [moved up]
+            "",                 # ── Air Ambulance Activation header ──
+            str(n_act),         # Patients with activation information
+            v_to_act_str,       # Village arrival → activation
+            act_to_arr_str,     # Activation → MHC arrival
+            util,               # Utilization rate
         ]
 
     metric_labels = [
@@ -1470,9 +1480,11 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total patients",
         "Mean journeys per year (SD)",
         "Distance to Kotzebue (miles)",
-        "Village clinic arrival → activation, min — Median (IQR); Range [n of total]",
-        "Activation → MHC arrival, min — Median (IQR); Range [n of total]ᵃ",
         "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
+        "Air Ambulance Activation",
+        "  Patients with activation information (n=)",
+        "  Village clinic arrival → activation, min — Median (IQR); Range",
+        "  Activation → MHC arrival, min — Median (IQR); Rangeᵃ",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
