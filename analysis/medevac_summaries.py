@@ -1217,6 +1217,14 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     n_tta_neg   = int((tta < 0).sum())
     n_tta_final = int((tta >= 0).sum())
 
+    # Journeys with COMPLETE activation timing (both intervals valid)
+    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
+    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
+    total_min_all = (dest - orig).dt.total_seconds() / 60
+    valid_tta = tta.notna() & (tta >= 0) & (tta <= total_min_all.fillna(float("inf")))
+    valid_ata = ata.notna() & ~bad_dir_mask & ~below_floor_mask
+    n_activation_complete = int((valid_tta & valid_ata).sum())
+
     # ── Total travel (interval 3): origin_datetime → destination_datetime ─────
     total_min = (dest - orig).dt.total_seconds() / 60
     n_miss_origin = int(orig.isna().sum())
@@ -1236,6 +1244,7 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
         n_tta_raw=n_tta_raw,
         n_tta_neg=n_tta_neg,
         n_tta_final=n_tta_final,
+        n_activation_complete=n_activation_complete,
         n_total_raw=n_total_raw,
         n_total_direction=n_total_direction,
         n_total_final=n_total_final,
@@ -1301,7 +1310,7 @@ def build_timing_overview_text(df: pd.DataFrame) -> str:
         f"Of {N} primary medevac journeys included in this analysis, timing data "
         f"were available across three intervals with varying completeness.",
 
-        f"*Interval 1 — Village clinic arrival to medevac activation* "
+        f"*Interval 1 — Air ambulance decision-making time (village clinic arrival to activation)* "
         f"({qc['n_tta_raw']} of {N} journeys, {_pct(qc['n_tta_raw'])}): "
         f"This interval requires a documented authorization or activation record. "
         + (
@@ -1310,7 +1319,11 @@ def build_timing_overview_text(df: pd.DataFrame) -> str:
             if qc["n_tta_neg"] > 0
             else f"No observations with impossible (negative) values were identified; "
                  f"all {qc['n_tta_final']} recorded values were used."
-        ),
+        )
+        + f" Of these, {qc['n_activation_complete']} journeys also have a valid "
+          f"response-and-transfer time, giving a complete-activation-timing cohort of "
+          f"{qc['n_activation_complete']} ({_pct(qc['n_activation_complete'])}). "
+          f"Only this subset is used for both activation sub-interval rows in Table 1.",
 
         f"*Interval 2 — Medevac activation to MHC arrival* "
         f"({qc['n_ata_raw']} of {N} journeys, {_pct(qc['n_ata_raw'])}): "
@@ -1493,30 +1506,36 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         total_str = _fmt_n(total_str, total_n, n_journeys)
 
         # ── Valid activation subset ─────────────────────────────────────────
-        # Requires: time_to_activate_min non-null, >= 0, and the activation
-        # timestamp falls before MHC arrival (i.e., <= total travel time).
+        # Requires ALL of:
+        #   1. time_to_activate_min non-null, >= 0, falls before MHC arrival
+        #   2. activate_to_arrive_min non-null AND above the per-village floor
+        # Both intervals must be valid so the header n= equals both sub-rows.
         _tta = pd.to_numeric(
             sub.get("time_to_activate_min", pd.Series(dtype=float, index=sub.index)),
             errors="coerce",
         ).reindex(sub.index)
-        _valid_act = (
+        _valid_tta = (
             _tta.notna()
             & (_tta >= 0)
             & (_tta <= _total_min.fillna(float("inf")))
         )
-        n_act = int(_valid_act.sum())
 
-        # Interval 1: village arrival → activation  (activation subset, n= shown)
-        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta[_valid_act])
-        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_act) if n_act else "—"
-
-        # Interval 2: activation → MHC arrival  (activation subset + floor, n= shown)
         _ata = _ata_all.reindex(sub.index)
         _excl = (
             _bad_dir.reindex(sub.index, fill_value=False)
             | _below_floor.reindex(sub.index, fill_value=False)
         )
-        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata[_valid_act & ~_excl])
+        _valid_ata = _ata.notna() & ~_excl
+
+        _valid_act = _valid_tta & _valid_ata
+        n_act = int(_valid_act.sum())
+
+        # Interval 1: decision-making time (activation subset, n= shown)
+        v_to_act_str, v_to_act_n = _med_iqr_range_n(_tta[_valid_act])
+        v_to_act = _fmt_n(v_to_act_str, v_to_act_n, n_act) if n_act else "—"
+
+        # Interval 2: response and transfer time (activation subset, n= shown)
+        act_to_arr_str, act_to_arr_n = _med_iqr_range_n(_ata[_valid_act])
         act_to_arr = _fmt_n(act_to_arr_str, act_to_arr_n, n_act) if n_act else "—"
 
         util = f"{n_journeys / pop * 1_000:.1f}" if pop and pop > 0 else "—"
