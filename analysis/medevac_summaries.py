@@ -1170,15 +1170,15 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     j = df.drop_duplicates(subset=["journey_id"]).copy()
     vcol = "facility_1_name"
 
-    # ── Per-journey floor: 2 × actual one-way flight_time_min ────────────────
-    # flight_time_min is validated real data, so we use the row's own value
-    # rather than a village-level aggregate.
+    # ── Per-village floor from reference flight times ─────────────────────────
+    # flight_time_min is sourced from a reference CSV (typical flight times by
+    # village), NOT measured from individual medevac encounters.  It is used
+    # ONLY here to define an impossibility floor for activate_to_arrive_min.
+    # Floor = 2 × per-village median reference flight time
+    #   (plane must fly TO the village and then back with the patient).
     ft = pd.to_numeric(j.get("flight_time_min", pd.Series(dtype=float, index=j.index)),
                        errors="coerce")
     j["_ft"] = ft
-    per_journey_floor = ft * 2.0          # series aligned to j.index
-
-    # Also expose per-village median floor for the narrative text
     floors: dict[str, float] = {}
     if ft.notna().any() and vcol in j.columns:
         floors = (
@@ -1199,13 +1199,12 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     bad_dir_mask = dest.notna() & orig.notna() & (dest < orig)
     n_ata_direction = int(bad_dir_mask.sum())
 
-    # Below-floor check: use each journey's own 2 × flight_time_min
-    below_floor_mask = (
-        ata.notna()
-        & per_journey_floor.notna()
-        & ~bad_dir_mask
-        & (ata < per_journey_floor)
-    )
+    # Below-floor check: per-village reference floor
+    below_floor_mask = pd.Series(False, index=j.index)
+    if floors and vcol in j.columns:
+        for v, floor in floors.items():
+            v_mask = (j[vcol] == v) & ata.notna() & ~bad_dir_mask
+            below_floor_mask |= v_mask & (ata < floor)
     n_ata_below_floor = int(below_floor_mask.sum())
 
     n_ata_raw   = int(ata.notna().sum())
@@ -1269,21 +1268,22 @@ def build_timing_overview_text(df: pd.DataFrame) -> str:
 
         f"*Interval 2 — Medevac activation to MHC arrival* "
         f"({qc['n_ata_raw']} of {N} journeys, {_pct(qc['n_ata_raw'])}): "
-        f"Because flight_time_min is a validated one-way flight time for each journey, "
-        f"the minimum plausible activation-to-arrival duration is 2 × that journey's "
-        f"flight time (round-trip: plane flies from Kotzebue to the village, then back). "
+        f"An impossibility floor was applied using reference flight times (typical "
+        f"one-way flight durations by village, not drawn from the medevac encounter "
+        f"data). Any activation-to-arrival value shorter than twice the per-village "
+        f"reference flight time (the minimum round-trip duration: Kotzebue → village "
+        f"→ Kotzebue) was considered a likely timestamp or data-entry error. "
         + (
-            f"{qc['n_ata_direction']} observation(s) were excluded because the recorded "
-            f"destination datetime preceded the origin datetime (impossible temporal direction). "
+            f"{qc['n_ata_direction']} observation(s) were also excluded because the "
+            f"destination datetime preceded the origin datetime. "
             if qc["n_ata_direction"] > 0
             else ""
         )
         + (
-            f"{qc['n_ata_below_floor']} observation(s) fell below this per-journey round-trip "
-            f"floor (activate_to_arrive_min < 2 × flight_time_min) and were excluded as "
-            f"likely data-entry or timestamp errors. "
+            f"{qc['n_ata_below_floor']} observation(s) fell below this per-village "
+            f"round-trip floor and were excluded. "
             if qc["n_ata_below_floor"] > 0
-            else "No observations fell below the per-journey round-trip flight-time floor. "
+            else "No observations fell below the round-trip reference floor. "
         )
         + f"After these exclusions, {qc['n_ata_final']} valid measurements were used.",
 
@@ -1376,18 +1376,15 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     # Build journey-level exclusion masks (aligned to j.index)
     _ata_all  = pd.to_numeric(j.get("activate_to_arrive_min",
                                      pd.Series(dtype=float, index=j.index)), errors="coerce")
-    _ft_all   = pd.to_numeric(j.get("flight_time_min",
-                                     pd.Series(dtype=float, index=j.index)), errors="coerce")
     _orig_all = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
     _dest_all = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
     _bad_dir  = _dest_all.notna() & _orig_all.notna() & (_dest_all < _orig_all)
-    # Per-journey floor: each journey's own 2 × flight_time_min
-    _below_floor = (
-        _ata_all.notna()
-        & _ft_all.notna()
-        & ~_bad_dir
-        & (_ata_all < _ft_all * 2.0)
-    )
+    # Per-village floor from reference flight times (same logic as _compute_timing_qc)
+    _below_floor = pd.Series(False, index=j.index)
+    if floors and village_col in j.columns:
+        for _v, _flr in floors.items():
+            _vm = (j[village_col] == _v) & _ata_all.notna() & ~_bad_dir
+            _below_floor |= _vm & (_ata_all < _flr)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _med_iqr_range_n(series: pd.Series) -> tuple[str, int]:
