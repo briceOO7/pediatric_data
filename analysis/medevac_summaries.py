@@ -1559,7 +1559,7 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Distance to Kotzebue (miles)",
         "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
         "Air Ambulance Activation",
-        "  Patients with activation information (n=)",
+        "  Journeys with complete timing data (n=)",
         "  Air ambulance decision-making time, min — Median (IQR); Range",
         "  Air ambulance response and transfer time, min — Median (IQR); Rangeᵃ",
         "Utilization rate per 1,000 pediatric residents",
