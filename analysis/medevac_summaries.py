@@ -1541,8 +1541,8 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
         "Air Ambulance Activation",
         "  Patients with activation information (n=)",
-        "  Village clinic arrival → activation, min — Median (IQR); Range [n of activation patients]",
-        "  Activation → MHC arrival, min — Median (IQR); Rangeᵃ [n of activation patients]",
+        "  Air ambulance decision-making time, min — Median (IQR); Range [n of activation patients]",
+        "  Air ambulance response and transfer time, min — Median (IQR); Rangeᵃ [n of activation patients]",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
