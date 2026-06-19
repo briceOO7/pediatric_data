@@ -1219,6 +1219,9 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
 
     # ── Total travel (interval 3): origin_datetime → destination_datetime ─────
     total_min = (dest - orig).dt.total_seconds() / 60
+    n_miss_origin = int(orig.isna().sum())
+    n_miss_dest   = int(dest.isna().sum())
+    n_miss_either = int((orig.isna() | dest.isna()).sum())
     n_total_raw       = int((orig.notna() & dest.notna()).sum())
     n_total_direction = int(bad_dir_mask.sum())
     n_total_final     = int((total_min > 0).sum())
@@ -1236,6 +1239,9 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
         n_total_raw=n_total_raw,
         n_total_direction=n_total_direction,
         n_total_final=n_total_final,
+        n_miss_origin=n_miss_origin,
+        n_miss_dest=n_miss_dest,
+        n_miss_either=n_miss_either,
     )
 
 
@@ -1289,12 +1295,22 @@ def build_timing_overview_text(df: pd.DataFrame) -> str:
 
         f"*Interval 3 — Total air-ambulance time (village clinic arrival to MHC arrival)* "
         f"({qc['n_total_raw']} of {N} journeys, {_pct(qc['n_total_raw'])}): "
-        f"Derived directly from encounter start and end timestamps. "
+        f"Derived directly from encounter start (origin_datetime) and end (destination_datetime) timestamps. "
         + (
-            f"{qc['n_total_direction']} observation(s) were excluded due to impossible "
-            f"temporal direction (destination before origin), "
+            f"{qc['n_miss_either']} journey(s) are missing at least one timestamp and cannot "
+            f"be included in this interval ("
+            + (f"{qc['n_miss_origin']} missing origin_datetime" if qc["n_miss_origin"] else "")
+            + (" and " if qc["n_miss_origin"] and qc["n_miss_dest"] else "")
+            + (f"{qc['n_miss_dest']} missing destination_datetime" if qc["n_miss_dest"] else "")
+            + "); this is a data completeness issue in the source records. "
+            if qc["n_miss_either"] > 0
+            else "All journeys have both timestamps recorded. "
+        )
+        + (
+            f"{qc['n_total_direction']} observation(s) were additionally excluded due to "
+            f"impossible temporal direction (destination before origin), "
             if qc["n_total_direction"] > 0
-            else "No observations had an impossible temporal direction; "
+            else ""
         )
         + f"yielding {qc['n_total_final']} valid measurements.",
     ]
