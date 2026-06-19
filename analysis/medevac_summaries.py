@@ -1223,8 +1223,7 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             return "—"
         med = s.median()
         q1, q3 = s.quantile(0.25), s.quantile(0.75)
-        lo, hi = s.min(), s.max()
-        return f"{med:.0f} ({q1:.0f}–{q3:.0f}); {lo:.0f}–{hi:.0f}"
+        return f"{med:.0f} ({q1:.0f}–{q3:.0f})"
 
     def _stats(sub: pd.DataFrame, village_name: str | None, pop: int | None) -> list[str]:
         n_journeys = len(sub)
@@ -1267,10 +1266,10 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total patients",
         "Mean journeys per year",
         "Distance to Kotzebue (miles)",
-        "Flight time to Kotzebue, min — Median (IQR); Range",
-        "Village clinic arrival → activation, min — Median (IQR); Range",
-        "Activation → MHC arrival, min — Median (IQR); Range",
-        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range",
+        "Flight time to Kotzebue, min — Median (IQR)",
+        "Village clinic arrival → activation, min — Median (IQR)",
+        "Activation → MHC arrival, min — Median (IQR)",
+        "Total air ambulance time (arrival → MHC), min — Median (IQR)",
         "Utilization rate per 1,000 pediatric residents",
     ]
 
