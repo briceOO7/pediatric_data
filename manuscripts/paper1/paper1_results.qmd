@@ -137,11 +137,6 @@ number of legs, and per-village utilization rate. [@tbl-t2] summarizes patient
 characteristics by age group, including sex, race, insurance type, and primary
 transports per patient.
 
-```{python}
-#| label: tbl-t1
-#| tbl-cap: "Medevac characteristics by village. ᵃActivation → MHC arrival excludes observations below the per-village round-trip flight-time floor (2 × median one-way flight time). See Timing Overview above for full exclusion counts. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
-```
-
 ::: {.callout-note collapse="true" title="Timing Overview"}
 ```{python}
 from IPython.display import Markdown
@@ -150,7 +145,8 @@ Markdown(build_timing_overview_text(df))
 :::
 
 ```{python}
-#| label: tbl-t1-table
+#| label: tbl-t1
+#| tbl-cap: "Medevac characteristics by village. ᵃActivation → MHC arrival excludes observations below the per-village round-trip flight-time floor (2 × median one-way flight time). See Timing Overview above for full exclusion counts. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
 show_tbl(build_table1_village_characteristics(df))
 ```
 
