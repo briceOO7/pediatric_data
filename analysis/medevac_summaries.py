@@ -1143,17 +1143,15 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     base = pd.DataFrame(result)
 
-    # ── Append CEDIS Chief Complaints section ────────────────────────────────
-    cc = _chief_complaint_per_journey(df)
-    valid_cc = cc[
-        cc["cedis_complaint"].notna()
-        & (cc["cedis_complaint"].astype(str).str.strip() != "")
-        & cc["cedis_code"].notna()
-        & (cc["cedis_code"].astype(str).str.strip() != "")
-    ].copy()
+    # ── Append CEDIS Chief Complaints section (using cc_definitive) ──────────
+    # cc_definitive = first non-'Follow-up visit' / non-'Unknown' CC in the
+    # full journey sequence; journeys with only those → "Undefined".
+    cc = _definitive_cc_per_journey(df)
+    # Exclude "Undefined" from the ranked list (but keep in denominator)
+    valid_cc = cc[cc["cc_definitive"] != "Undefined"].copy()
 
     top10 = (
-        valid_cc.groupby("cedis_complaint", dropna=False)
+        valid_cc.groupby("cc_definitive", dropna=False)
         .size()
         .sort_values(ascending=False)
         .head(10)
@@ -1162,16 +1160,16 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
     # Header row
-    cc_rows = [["Chief Complaints (CEDIS):"] + [""] * (len(col_order) - 1)]
-    # Denoms: overall = all journeys, per-bucket = journeys in that bucket
+    cc_rows = [["Chief Complaints (CEDIS, definitive):"] + [""] * (len(col_order) - 1)]
+    # Denoms: total journeys in cohort (including Undefined)
     bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
     n_overall_cc = len(cc)
     for complaint in top10:
-        n_ov = int((valid_cc["cedis_complaint"] == complaint).sum())
+        n_ov = int((valid_cc["cc_definitive"] == complaint).sum())
         row_vals = [f"  {complaint}", fmt_n_pct(n_ov, n_overall_cc)]
         for _, bk in AGE_GROUPS:
             sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
-            n_bk = int((sub_cc["cedis_complaint"] == complaint).sum())
+            n_bk = int((sub_cc["cc_definitive"] == complaint).sum())
             row_vals.append(fmt_n_pct(n_bk, bucket_totals[bk]))
         cc_rows.append(row_vals)
 
@@ -2309,6 +2307,62 @@ def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame
         )
     out = pd.DataFrame(out_rows)
     return out.sort_values(["expanded_cc_fu", "journey_id", "cc_sequence"], ascending=[False, True, True]).reset_index(drop=True)
+
+
+_SKIP_CC = frozenset({"follow-up visit", "unknown"})
+
+
+def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    One row per cohort journey: age bucket + cc_definitive.
+
+    cc_definitive = first non-'Follow-up visit' / non-'Unknown' CEDIS complaint
+    found by scanning slots in this order across the full journey:
+      village_cedis_complaint_1..19
+      mhc_ed_cedis_complaint_1..8
+      mhc_inpatient_cedis_complaint_1..5
+      anmc_ed_cedis_complaint_1..2
+
+    If every slot is empty, follow-up, or unknown → "Undefined".
+    """
+    base = df.drop_duplicates("journey_id")[["journey_id", "age_at_medevac"]].copy()
+    base["age_years"]   = pd.to_numeric(base["age_at_medevac"], errors="coerce")
+    base["age_bucket"]  = base["age_years"].map(_age_bucket_key)
+    base["cc_definitive"] = "Undefined"
+
+    if not CHIEF_COMPLAINTS_WIDE.is_file():
+        return base
+
+    cc = pd.read_csv(CHIEF_COMPLAINTS_WIDE, low_memory=False)
+    cc["journey_id"] = cc["journey_id"].astype(str).str.strip()
+    jids = set(base["journey_id"].astype(str).str.strip())
+    sub = cc[cc["journey_id"].isin(jids)].drop_duplicates("journey_id").copy()
+    if sub.empty:
+        return base
+
+    # Ordered list of complaint columns to scan across locations
+    _SEARCH_ORDER = (
+        [f"village_cedis_complaint_{i}"        for i in range(1, 20)] +
+        [f"mhc_ed_cedis_complaint_{i}"         for i in range(1, 9)]  +
+        [f"mhc_inpatient_cedis_complaint_{i}"  for i in range(1, 6)]  +
+        [f"anmc_ed_cedis_complaint_{i}"        for i in range(1, 3)]
+    )
+    avail_cols = [c for c in _SEARCH_ORDER if c in sub.columns]
+
+    def _first_definitive(row: pd.Series) -> str:
+        for col in avail_cols:
+            val = row[col]
+            if pd.isna(val):
+                continue
+            s = str(val).strip()
+            if s and s.lower() not in _SKIP_CC:
+                return s
+        return "Undefined"
+
+    definitive = sub[avail_cols].apply(_first_definitive, axis=1)
+    m = dict(zip(sub["journey_id"].astype(str), definitive))
+    base["cc_definitive"] = base["journey_id"].astype(str).str.strip().map(m).fillna("Undefined")
+    return base
 
 
 def _chief_complaint_per_journey(df: pd.DataFrame) -> pd.DataFrame:
