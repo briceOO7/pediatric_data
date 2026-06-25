@@ -1141,7 +1141,42 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
         sub = first[first["_age_grp"] == bucket]
         result[label] = _fmt_col(_col_stats(sub))
 
-    out = pd.DataFrame(result)
+    base = pd.DataFrame(result)
+
+    # ── Append CEDIS Chief Complaints section ────────────────────────────────
+    cc = _chief_complaint_per_journey(df)
+    valid_cc = cc[
+        cc["cedis_complaint"].notna()
+        & (cc["cedis_complaint"].astype(str).str.strip() != "")
+        & cc["cedis_code"].notna()
+        & (cc["cedis_code"].astype(str).str.strip() != "")
+    ].copy()
+
+    top10 = (
+        valid_cc.groupby("cedis_complaint", dropna=False)
+        .size()
+        .sort_values(ascending=False)
+        .head(10)
+        .index.tolist()
+    )
+
+    col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
+    # Header row
+    cc_rows = [["Chief Complaints (CEDIS):"] + [""] * (len(col_order) - 1)]
+    # Denoms: overall = all journeys, per-bucket = journeys in that bucket
+    bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
+    n_overall_cc = len(cc)
+    for complaint in top10:
+        n_ov = int((valid_cc["cedis_complaint"] == complaint).sum())
+        row_vals = [f"  {complaint}", fmt_n_pct(n_ov, n_overall_cc)]
+        for _, bk in AGE_GROUPS:
+            sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
+            n_bk = int((sub_cc["cedis_complaint"] == complaint).sum())
+            row_vals.append(fmt_n_pct(n_bk, bucket_totals[bk]))
+        cc_rows.append(row_vals)
+
+    cc_df = pd.DataFrame(cc_rows, columns=col_order)
+    out = pd.concat([base, cc_df], ignore_index=True)
     out.to_csv(ROOT / "outputs" / "tables" / "table2_patient_characteristics_by_age.csv", index=False)
     return out
 

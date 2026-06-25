@@ -43,7 +43,6 @@ from medevac_summaries import (
     build_table1_village_characteristics,
     build_timing_overview_text,
     build_table2_patient_characteristics_by_age,
-    build_table3_cedis_chief_complaints,
     build_table3a_primary_routes,
     build_table3b_secondary_routes,
     build_table3_village_utilization,
@@ -133,10 +132,8 @@ During the five-year study period (2020–2024), `{python} N_JOURNEYS` pediatric
 journeys were identified, originating from `{python} N_VILLAGES` villages and involving
 `{python} N_PATIENTS` unique patients. [@tbl-t1] summarizes medevac characteristics by
 village, including total journeys, unique patients, mean journeys per year, distance,
-air ambulance timing, and per-village utilization rate. [@tbl-t2] summarizes patient
-characteristics by age group, including sex, race, insurance type, and primary
-transports per patient. [@tbl-t3] reports the top CEDIS chief complaints overall and
-by age group.
+air ambulance timing, and per-village utilization rate. [@tbl-t2] summarizes patient characteristics by age group, including sex, race,
+insurance type, primary transports per patient, and top CEDIS chief complaints.
 
 ::: {.callout-note collapse="true" title="Timing Overview"}
 ```{python}
@@ -153,14 +150,8 @@ show_tbl(build_table1_village_characteristics(df))
 
 ```{python}
 #| label: tbl-t2
-#| tbl-cap: "Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column."
+#| tbl-cap: "Patient characteristics by age group, including top 10 CEDIS chief complaints. One row per patient (earliest qualifying journey) for demographic rows; chief complaint denominator = all village→MHC primary journeys. n (%) within each age-group column."
 show_tbl(build_table2_patient_characteristics_by_age(df))
-```
-
-```{python}
-#| label: tbl-t3
-#| tbl-cap: "Top 10 CEDIS chief complaints by age group. n (%) = count (proportion of all journeys in that age group). Denominator = all village→MHC primary journeys with a recorded CEDIS complaint."
-show_tbl(build_table3_cedis_chief_complaints(df))
 ```
 
 ---
@@ -174,17 +165,17 @@ share (n = `{python} _n_primary`), reflecting MHC's role as a regional stabiliza
 hub. A meaningful subset of pediatric transports bypassed MHC entirely as direct
 tertiary transports (n = `{python} _n_direct`). Secondary transfers (MHC → tertiary,
 predominantly ANMC) represented the escalation pathway for patients whose acuity
-exceeded MHC's capabilities (n = `{python} _n_secondary`). [@tbl-t4a] and
-[@tbl-t4b] detail the primary and secondary transfer cohorts.
+exceeded MHC's capabilities (n = `{python} _n_secondary`). [@tbl-t3a] and
+[@tbl-t3b] detail the primary and secondary transfer cohorts.
 
 ```{python}
-#| label: tbl-t4a
+#| label: tbl-t3a
 #| tbl-cap: "Primary transfers: village-originating medevac legs. Percent denominator = all primary legs."
 show_tbl(build_table3a_primary_routes(_df_all))
 ```
 
 ```{python}
-#| label: tbl-t4b
+#| label: tbl-t3b
 #| tbl-cap: "Secondary transfers: MHC-originating escalation legs. Percent denominator = all secondary legs."
 show_tbl(build_table3b_secondary_routes(_df_all))
 ```
@@ -194,7 +185,7 @@ show_tbl(build_table3b_secondary_routes(_df_all))
 ### Village-Level Utilization
 
 Village-level utilization rates varied substantially across the
-`{python} N_VILLAGES` communities of the Maniilaq service area. [@tbl-t5] reports
+`{python} N_VILLAGES` communities of the Maniilaq service area. [@tbl-t4] reports
 per-village utilization. After accounting for pediatric population denominators,
 the highest-utilizing village (`{python} UTIL_MAX_V`) had approximately
 `{python} UTIL_FOLD`× the per-capita rate of the lowest-utilizing village
@@ -202,7 +193,7 @@ the highest-utilizing village (`{python} UTIL_MAX_V`) had approximately
 explained by raw village size alone. The geographic pattern is shown in [@fig-map].
 
 ```{python}
-#| label: tbl-t5
+#| label: tbl-t4
 #| tbl-cap: "Village-level pediatric medevac utilization. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
 show_tbl(build_table3_village_utilization(df))
 ```
@@ -295,11 +286,11 @@ display(_f); plt.close(_f)
 
 Time intervals from initial contact to medevac activation, flight time to MHC,
 and MHC arrival to secondary transfer (where applicable) are reported in
-[@tbl-t6]. The median transport time reflects the operational tempo of fixed-wing
+[@tbl-t5]. The median transport time reflects the operational tempo of fixed-wing
 medevac across a geographically dispersed Arctic region.
 
 ```{python}
-#| label: tbl-t6
+#| label: tbl-t5
 #| tbl-cap: "Time intervals (minutes), village → MHC primary transports. IQR = interquartile range."
 show_tbl(build_table5_timing_minutes(df, village_cah_only=True))
 ```
