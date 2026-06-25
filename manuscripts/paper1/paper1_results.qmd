@@ -80,15 +80,14 @@ _j_primary = df.drop_duplicates("journey_id")
 N_JOURNEYS  = len(_j_primary)
 N_PATIENTS  = int(_j_primary["MRN"].nunique())
 
-# Raw totals across all journey types (before village→MHC filter)
+# Village-originating journeys (all destinations, before MHC-only filter)
 _j_all_dedup = _df_all.drop_duplicates("journey_id")
-N_TOTAL_ENCOUNTERS = int(_j_all_dedup["journey_id"].nunique())
-N_TOTAL_PATIENTS   = int(_j_all_dedup["MRN"].nunique())
-N_TOTAL_LEGS = sum(
-    int(_j_all_dedup[f"medevac{i}_id"].notna().sum())
-    for i in (1, 2, 3)
-    if f"medevac{i}_id" in _j_all_dedup.columns
+_village_mask = _j_all_dedup["facility_1_name"].apply(
+    lambda x: is_village_medevac_origin(str(x or ""))
 )
+_j_village = _j_all_dedup[_village_mask]
+N_VILLAGE_JOURNEYS = int(_j_village["journey_id"].nunique())
+N_VILLAGE_PATIENTS = int(_j_village["MRN"].nunique())
 _vmask      = _j_primary["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
 N_VILLAGES  = int(_j_primary.loc[_vmask, "facility_1_name"].nunique())
 
@@ -138,13 +137,12 @@ OP_COMPLETE_PCT = f"{100 * _op_complete:.0f}%"
 
 ### Cohort Overview
 
-During the five-year study period (2020–2024), `{python} N_TOTAL_LEGS` pediatric
-medevac flights were recorded, comprising `{python} N_TOTAL_ENCOUNTERS` unique patient
-encounters involving `{python} N_TOTAL_PATIENTS` unique patients. Of these,
-`{python} N_JOURNEYS` journeys originated from a village clinic with a primary
-destination of Maniilaq Health Center (MHC), spanning `{python} N_VILLAGES` villages
-and involving `{python} N_PATIENTS` unique patients. This village-to-MHC cohort forms
-the basis of the analyses below. [@tbl-t1] summarizes medevac characteristics by
+During the five-year study period (2020–2024), `{python} N_VILLAGE_JOURNEYS` pediatric
+medevac flights originated from a village clinic, involving `{python} N_VILLAGE_PATIENTS`
+unique patients. Of these, `{python} N_JOURNEYS` journeys had a primary destination of
+Maniilaq Health Center (MHC), spanning `{python} N_VILLAGES` villages and involving
+`{python} N_PATIENTS` unique patients. This village-to-MHC cohort forms the basis of
+the analyses below. [@tbl-t1] summarizes medevac characteristics by
 village, including total journeys, unique patients, mean journeys per year, distance,
 air ambulance timing, and per-village utilization rate. [@tbl-t2] summarizes patient
 characteristics by age group, including sex, race, insurance type, primary transports
