@@ -1,21 +1,21 @@
 Metric,"Primary only
-(n=0)","Secondary
-(n=298)","Direct tertiary
+(n=248)","Secondary
+(n=50)","Direct tertiary
 (n=11)",p
-"Age, years — Median (IQR)",—,6.5 (1.1–14.6),12.5 (3.6–15.1),0.536
-"Age group, n (%)",,,,—
-  <1 year,—,23.2% (69),18.2% (2),
-  1 to <5 years,—,19.1% (57),9.1% (1),
-  5–12 years,—,25.5% (76),36.4% (4),
-  13–18 years,—,32.2% (96),36.4% (4),
-"Chief Complaint (CEDIS), n (%)",,,,—
-  Trauma/Injury,—,17.1% (51),18.2% (2),
-  Gastrointestinal,—,15.1% (45),18.2% (2),
-  Respiratory,—,10.4% (31),9.1% (1),
-  Fever,—,6.0% (18),0.0% (0),
-  Direct referral for consultation,—,4.7% (14),9.1% (1),
-"  Pregnancy issues, >20 weeks",—,4.0% (12),0.0% (0),
-  Depression/suicidal/deliberate self-harm,—,3.7% (11),0.0% (0),
-  Overdose ingestion,—,3.0% (9),0.0% (0),
-  Seizure,—,3.0% (9),0.0% (0),
-  General weakness,—,2.3% (7),0.0% (0),
+"Age, years — Median (IQR)",6.1 (1.2–14.8),7.5 (1.2–14.2),12.5 (3.6–15.1),0.742
+"Age group, n (%)",,,,0.939
+  <1 year,23.4% (58),22.0% (11),18.2% (2),
+  1 to <5 years,19.8% (49),16.0% (8),9.1% (1),
+  5–12 years,25.0% (62),28.0% (14),36.4% (4),
+  13–18 years,31.9% (79),34.0% (17),36.4% (4),
+"Chief Complaint (CEDIS), n (%)",,,,0.899
+  Trauma/Injury,16.5% (41),20.0% (10),18.2% (2),
+  Gastrointestinal,14.1% (35),20.0% (10),18.2% (2),
+  Respiratory,9.7% (24),14.0% (7),9.1% (1),
+  Fever,6.5% (16),4.0% (2),0.0% (0),
+  Direct referral for consultation,5.2% (13),2.0% (1),9.1% (1),
+"  Pregnancy issues, >20 weeks",4.0% (10),4.0% (2),0.0% (0),
+  Depression/suicidal/deliberate self-harm,4.4% (11),0.0% (0),0.0% (0),
+  Overdose ingestion,3.6% (9),0.0% (0),0.0% (0),
+  Seizure,2.8% (7),4.0% (2),0.0% (0),
+  General weakness,2.4% (6),2.0% (1),0.0% (0),

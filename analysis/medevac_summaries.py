@@ -2574,8 +2574,10 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
     #   Secondary    : loc1=village, loc2=MHC, loc3=non-null (ANMC/outside)
     #   Direct tertiary: loc1=village, loc2≠MHC
     def _route_from_facilities(row: pd.Series) -> str:
-        loc2 = str(row.get("facility_2_name") or "").strip()
-        loc3 = str(row.get("facility_3_name") or "").strip()
+        loc2_raw = row.get("facility_2_name")
+        loc3_raw = row.get("facility_3_name")
+        loc2 = "" if pd.isna(loc2_raw) else str(loc2_raw).strip()
+        loc3 = "" if pd.isna(loc3_raw) else str(loc3_raw).strip()
         if _is_mhc_cah_destination(loc2):
             return "Secondary" if loc3 else "Primary only"
         return "Direct tertiary"
