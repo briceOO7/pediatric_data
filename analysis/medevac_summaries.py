@@ -1502,8 +1502,7 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         _total_min = (_dest - _orig).dt.total_seconds() / 60
         _bad_sub = _bad_dir.reindex(sub.index, fill_value=False)
         _total_valid = _total_min[~_bad_sub & (_total_min > 0)]
-        total_str, total_n = _med_iqr_range_n(_total_valid)
-        total_str = _fmt_n(total_str, total_n, n_journeys)
+        total_str, _ = _med_iqr_range_n(_total_valid)
 
         # ── Valid activation subset ─────────────────────────────────────────
         # Requires ALL of:
@@ -1529,6 +1528,7 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
 
         _valid_act = _valid_tta & _valid_ata
         n_act = int(_valid_act.sum())
+        pct_act = f"{n_act / n_journeys * 100:.1f}% (n={n_act})" if n_journeys else "—"
 
         # Interval 1: decision-making time (activation subset, no n= annotation)
         v_to_act_str, _ = _med_iqr_range_n(_tta[_valid_act])
@@ -1544,9 +1544,9 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             str(n_patients),    # Total patients
             mean_yr,            # Mean journeys per year (SD)
             dist,               # Distance to Kotzebue
-            total_str,          # Total air ambulance time [moved up]
+            total_str,          # Total air ambulance time
             "",                 # ── Air Ambulance Activation header ──
-            str(n_act),         # Patients with activation information
+            pct_act,            # % with complete timing data (n=)
             v_to_act,           # Village arrival → activation [n= of activation subset]
             act_to_arr,         # Activation → MHC arrival    [n= of activation subset]
             util,               # Utilization rate
@@ -1557,9 +1557,9 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         "Total patients",
         "Mean journeys per year (SD)",
         "Distance to Kotzebue (miles)",
-        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range [n of total]",
+        "Total air ambulance time (arrival → MHC), min — Median (IQR); Range",
         "Air Ambulance Activation",
-        "  Journeys with complete timing data (n=)",
+        "  % with complete timing data (n)",
         "  Air ambulance decision-making time, min — Median (IQR); Range",
         "  Air ambulance response and transfer time, min — Median (IQR); Rangeᵃ",
         "Utilization rate per 1,000 pediatric residents",
