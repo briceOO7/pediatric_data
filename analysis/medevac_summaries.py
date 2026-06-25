@@ -2374,8 +2374,68 @@ def _top10_chief_complaints(cc_df: pd.DataFrame, denominator_journeys: int) -> p
     return pd.DataFrame(rows)
 
 
+def build_table3_cedis_chief_complaints(
+    df: pd.DataFrame,
+    top_n: int = 15,
+) -> pd.DataFrame:
+    """
+    Table 3: Top-N CEDIS chief complaints by age group (wide format).
+
+    Rows = top_n complaints ranked by overall frequency.
+    Columns = Chief Complaint | Overall | <1 year | 1 to <5 years | 5–12 years | 13–18 years
+    Each cell = n (%) where % is out of that column's journey total.
+
+    Saved to outputs/tables/table3_cedis_chief_complaints.csv.
+    """
+    _BUCKETS = [
+        ("Overall",        None),
+        ("<1 year",        "b0"),
+        ("1 to <5 years",  "b1"),
+        ("5–12 years",     "b2"),
+        ("13–18 years",    "b3"),
+    ]
+
+    cc = _chief_complaint_per_journey(df)
+    valid = cc[
+        cc["cedis_complaint"].notna()
+        & (cc["cedis_complaint"].astype(str).str.strip() != "")
+        & cc["cedis_code"].notna()
+        & (cc["cedis_code"].astype(str).str.strip() != "")
+    ].copy()
+
+    # Determine top_n complaints by overall frequency
+    top_complaints = (
+        valid.groupby("cedis_complaint", dropna=False)
+        .size()
+        .sort_values(ascending=False)
+        .head(top_n)
+        .index.tolist()
+    )
+
+    def _cell(sub: pd.DataFrame, complaint: str, denom: int) -> str:
+        n = int((sub["cedis_complaint"] == complaint).sum())
+        if denom == 0:
+            return "—"
+        return fmt_n_pct(n, denom)
+
+    rows = []
+    for complaint in top_complaints:
+        row = {"Chief Complaint (CEDIS)": complaint}
+        for col_label, bucket in _BUCKETS:
+            sub = valid if bucket is None else valid[valid["age_bucket"] == bucket]
+            denom = len(cc) if bucket is None else int((cc["age_bucket"] == bucket).sum())
+            row[col_label] = _cell(sub, complaint, denom)
+        rows.append(row)
+
+    out = pd.DataFrame(rows)
+    out.to_csv(
+        ROOT / "outputs" / "tables" / "table3_cedis_chief_complaints.csv", index=False
+    )
+    return out
+
+
 def build_table3_chief_complaints_overall(df: pd.DataFrame) -> pd.DataFrame:
-    """Table 3: top 10 village CEDIS chief complaints across village→MHC journeys."""
+    """Top 10 village CEDIS chief complaints across village→MHC journeys."""
     cc = _chief_complaint_per_journey(df)
     return _top10_chief_complaints(cc, len(cc))
 
