@@ -1151,13 +1151,38 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     base = pd.DataFrame(result)
 
-    # ── Append CEDIS Chief Complaints section (using cc_definitive) ──────────
-    # cc_definitive = first non-'Follow-up visit' / non-'Unknown' CC in the
-    # full journey sequence; journeys with only those → "Undefined".
+    # ── Append CEDIS sections (category block + complaint block) ─────────────
+    # cc_definitive = first non-'Follow-up visit' / non-'Unknown' CC across
+    # the full journey sequence; journeys with only those → "Undefined".
     cc = _definitive_cc_per_journey(df)
-    # Exclude "Undefined" from the ranked list (but keep in denominator)
     valid_cc = cc[cc["cc_definitive"] != "Undefined"].copy()
 
+    col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
+    bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
+    n_overall_cc = len(cc)
+
+    def _cc_row(label: str, series_col: str, value: str) -> list[str]:
+        n_ov = int((valid_cc[series_col] == value).sum())
+        row = [f"  {label}", fmt_pct_n(n_ov, n_overall_cc)]
+        for _, bk in AGE_GROUPS:
+            sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
+            n_bk = int((sub_cc[series_col] == value).sum())
+            row.append(fmt_pct_n(n_bk, bucket_totals[bk]))
+        return row
+
+    # Block 1: CEDIS major categories (top 10 by frequency)
+    top_cats = (
+        valid_cc.groupby("cc_definitive_category", dropna=False)
+        .size()
+        .sort_values(ascending=False)
+        .head(10)
+        .index.tolist()
+    )
+    cc_rows = [["CEDIS Major Category:"] + [""] * (len(col_order) - 1)]
+    for cat in top_cats:
+        cc_rows.append(_cc_row(cat, "cc_definitive_category", cat))
+
+    # Block 2: individual CEDIS complaints (top 10 by frequency)
     top10 = (
         valid_cc.groupby("cc_definitive", dropna=False)
         .size()
@@ -1165,21 +1190,9 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
         .head(10)
         .index.tolist()
     )
-
-    col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
-    # Header row
-    cc_rows = [["Chief Complaints (CEDIS, definitive):"] + [""] * (len(col_order) - 1)]
-    # Denoms: total journeys in cohort (including Undefined)
-    bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
-    n_overall_cc = len(cc)
+    cc_rows.append(["Chief Complaints (CEDIS, definitive):"] + [""] * (len(col_order) - 1))
     for complaint in top10:
-        n_ov = int((valid_cc["cc_definitive"] == complaint).sum())
-        row_vals = [f"  {complaint}", fmt_pct_n(n_ov, n_overall_cc)]
-        for _, bk in AGE_GROUPS:
-            sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
-            n_bk = int((sub_cc["cc_definitive"] == complaint).sum())
-            row_vals.append(fmt_pct_n(n_bk, bucket_totals[bk]))
-        cc_rows.append(row_vals)
+        cc_rows.append(_cc_row(complaint, "cc_definitive", complaint))
 
     cc_df = pd.DataFrame(cc_rows, columns=col_order)
     out = pd.concat([base, cc_df], ignore_index=True)
@@ -2319,6 +2332,27 @@ def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame
 
 _SKIP_CC = frozenset({"follow-up visit", "unknown"})
 
+# Official CEDIS code → major category lookup (codes 888/999 excluded as non-clinical)
+_CEDIS_CATEGORY_MAP: dict[int, str] = {
+    **{c: "Cardiovascular"    for c in range(1,   13)},
+    **{c: "ENT"               for c in range(51,  57)},
+    **{c: "ENT"               for c in range(101, 108)},
+    **{c: "ENT"               for c in range(151, 156)},
+    **{c: "Environmental"     for c in range(201, 207)},
+    **{c: "Gastrointestinal"  for c in range(251, 268)},
+    **{c: "Genitourinary"     for c in range(301, 311)},
+    **{c: "Mental Health"     for c in range(351, 361)},
+    **{c: "Neurologic"        for c in range(401, 412)},
+    **{c: "OB/GYN"            for c in range(451, 461)},
+    **{c: "Ophthalmology"     for c in range(502, 512)},
+    **{c: "Orthopedic"        for c in range(551, 560)},
+    **{c: "Respiratory"       for c in range(651, 661)},
+    **{c: "Skin"              for c in range(701, 718)},
+    **{c: "Substance Misuse"  for c in range(751, 754)},
+    **{c: "Trauma"            for c in range(801, 807)},
+    **{c: "General and Minor" for c in range(851, 891)},
+}
+
 
 def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -2357,19 +2391,50 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     )
     avail_cols = [c for c in _SEARCH_ORDER if c in sub.columns]
 
-    def _first_definitive(row: pd.Series) -> str:
-        for col in avail_cols:
-            val = row[col]
+    # Build parallel lists of code columns in the same search order
+    _SEARCH_ORDER_CODES = (
+        [f"village_cedis_code_{i}"        for i in range(1, 20)] +
+        [f"mhc_ed_cedis_code_{i}"         for i in range(1, 9)]  +
+        [f"mhc_inpatient_cedis_code_{i}"  for i in range(1, 6)]  +
+        [f"anmc_ed_cedis_code_{i}"        for i in range(1, 3)]
+    )
+    avail_code_cols = [c for c in _SEARCH_ORDER_CODES if c in sub.columns]
+    # Align code columns to complaint columns by index
+    col_pairs = [(c, k) for c, k in zip(avail_cols, avail_code_cols)
+                 if c in sub.columns and k in sub.columns]
+
+    def _first_definitive(row: pd.Series) -> tuple[str, str, str]:
+        """Returns (complaint_text, cedis_code_str, category)."""
+        for comp_col, code_col in col_pairs:
+            val = row[comp_col]
             if pd.isna(val):
                 continue
             s = str(val).strip()
             if s and s.lower() not in _SKIP_CC:
-                return s
-        return "Undefined"
+                raw_code = row[code_col]
+                try:
+                    code_int = int(float(raw_code))
+                    code_str = str(code_int)
+                    category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
+                except (ValueError, TypeError):
+                    code_str = ""
+                    category = "General and Minor"
+                return s, code_str, category
+        return "Undefined", "", "Undefined"
 
-    definitive = sub[avail_cols].apply(_first_definitive, axis=1)
-    m = dict(zip(sub["journey_id"].astype(str), definitive))
-    base["cc_definitive"] = base["journey_id"].astype(str).str.strip().map(m).fillna("Undefined")
+    results = sub[
+        [c for pair in col_pairs for c in pair]
+    ].apply(_first_definitive, axis=1)
+    sub = sub.copy()
+    sub["_def_complaint"] = [r[0] for r in results]
+    sub["_def_code"]      = [r[1] for r in results]
+    sub["_def_category"]  = [r[2] for r in results]
+
+    js = base["journey_id"].astype(str).str.strip()
+    id_map = sub.set_index(sub["journey_id"].astype(str))
+    base["cc_definitive"]          = js.map(id_map["_def_complaint"]).fillna("Undefined")
+    base["cc_definitive_code"]     = js.map(id_map["_def_code"]).fillna("")
+    base["cc_definitive_category"] = js.map(id_map["_def_category"]).fillna("Undefined")
     return base
 
 
