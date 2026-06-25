@@ -2432,6 +2432,10 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     }
     _GROUPED_COMPLAINTS = {
         "Head injury":      "Trauma/Injury",
+        "Facial trauma":    "Trauma/Injury",
+        "Neck trauma":      "Trauma/Injury",
+        "Genital trauma":   "Trauma/Injury",
+        "Eye trauma":       "Trauma/Injury",
         "URTI complaints":  "Respiratory",
     }
 
