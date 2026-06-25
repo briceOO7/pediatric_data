@@ -2423,19 +2423,25 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
 
     # Custom grouping: collapse Respiratory, GI, Trauma/Orthopedic;
     # keep every other complaint at individual level.
+    # Complaint-level overrides take priority over category rules.
     _GROUPED_CATS = {
-        "Respiratory":    "Respiratory",
+        "Respiratory":      "Respiratory",
         "Gastrointestinal": "Gastrointestinal",
-        "Trauma":         "Trauma/Injury",
-        "Orthopedic":     "Trauma/Injury",
+        "Trauma":           "Trauma/Injury",
+        "Orthopedic":       "Trauma/Injury",
+    }
+    _GROUPED_COMPLAINTS = {
+        "Head injury":      "Trauma/Injury",
+        "URTI complaints":  "Respiratory",
     }
 
     def _custom_group(row: pd.Series) -> str:
-        cat = row["cc_definitive_category"]
         complaint = row["cc_definitive"]
         if complaint == "Undefined":
             return "Undefined"
-        return _GROUPED_CATS.get(cat, complaint)
+        if complaint in _GROUPED_COMPLAINTS:
+            return _GROUPED_COMPLAINTS[complaint]
+        return _GROUPED_CATS.get(row["cc_definitive_category"], complaint)
 
     base["cc_definitive_custom_grouping"] = base.apply(_custom_group, axis=1)
     return base
