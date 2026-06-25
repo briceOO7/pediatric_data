@@ -2376,7 +2376,7 @@ def _top10_chief_complaints(cc_df: pd.DataFrame, denominator_journeys: int) -> p
 
 def build_table3_cedis_chief_complaints(
     df: pd.DataFrame,
-    top_n: int = 15,
+    top_n: int = 10,
 ) -> pd.DataFrame:
     """
     Table 3: Top-N CEDIS chief complaints by age group (wide format).

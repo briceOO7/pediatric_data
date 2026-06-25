@@ -159,7 +159,7 @@ show_tbl(build_table2_patient_characteristics_by_age(df))
 
 ```{python}
 #| label: tbl-t3
-#| tbl-cap: "Top 15 CEDIS chief complaints by age group. n (%) = count (proportion of all journeys in that age group). Denominator = all village→MHC primary journeys with a recorded CEDIS complaint."
+#| tbl-cap: "Top 10 CEDIS chief complaints by age group. n (%) = count (proportion of all journeys in that age group). Denominator = all village→MHC primary journeys with a recorded CEDIS complaint."
 show_tbl(build_table3_cedis_chief_complaints(df))
 ```
 
