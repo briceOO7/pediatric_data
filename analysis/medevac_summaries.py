@@ -2565,19 +2565,22 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
 
     j = df_all.drop_duplicates("journey_id").copy()
 
-    # Classify route for each journey
-    j["_route"] = j.apply(_classify_journey_route, axis=1)
-
-    # Only keep village-originating journeys
+    # Keep only village-originating journeys (facility_1 = village clinic)
     _vmask = j["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
     j = j[_vmask].copy()
 
-    ROUTE_LABELS = {
-        "Primary (village → MHC)": "Primary only",
-        "Secondary transfer":       "Secondary",
-        "Direct tertiary":          "Direct tertiary",
-    }
-    j["_grp"] = j["_route"].map(ROUTE_LABELS)
+    # Classify using facility_1/2/3 columns directly:
+    #   Primary      : loc1=village, loc2=MHC, loc3=null
+    #   Secondary    : loc1=village, loc2=MHC, loc3=non-null (ANMC/outside)
+    #   Direct tertiary: loc1=village, loc2≠MHC
+    def _route_from_facilities(row: pd.Series) -> str:
+        loc2 = str(row.get("facility_2_name") or "").strip()
+        loc3 = str(row.get("facility_3_name") or "").strip()
+        if _is_mhc_cah_destination(loc2):
+            return "Secondary" if loc3 else "Primary only"
+        return "Direct tertiary"
+
+    j["_grp"] = j.apply(_route_from_facilities, axis=1)
     groups_order = ["Primary only", "Secondary", "Direct tertiary"]
     grp_data = {g: j[j["_grp"] == g] for g in groups_order}
     ns = {g: len(v) for g, v in grp_data.items()}
