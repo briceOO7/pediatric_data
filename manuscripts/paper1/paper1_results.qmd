@@ -43,6 +43,7 @@ from medevac_summaries import (
     build_table1_village_characteristics,
     build_timing_overview_text,
     build_table2_patient_characteristics_by_age,
+    build_table3_route_comparison,
     build_table3a_primary_routes,
     build_table3b_secondary_routes,
     build_table3_village_utilization,
@@ -171,15 +172,22 @@ show_tbl(build_table2_patient_characteristics_by_age(df))
 
 ### Route Typology
 
-Transports were classified into three route types: **primary**, **secondary**, and
-**direct tertiary**. Primary transports are defined as any medevac leg originating
-from a village clinic (village → MHC). Primary transports accounted for the largest
-share (n = `{python} _n_primary`), reflecting MHC's role as a regional stabilization
-hub. A meaningful subset of pediatric transports bypassed MHC entirely as direct
-tertiary transports (n = `{python} _n_direct`). Secondary transfers (MHC → tertiary,
-predominantly ANMC) represented the escalation pathway for patients whose acuity
-exceeded MHC's capabilities (n = `{python} _n_secondary`). [@tbl-t3a] and
-[@tbl-t3b] detail the primary and secondary transfer cohorts.
+Transports were classified into three route types: **primary only** (village → MHC,
+no further transfer), **secondary** (village → MHC → ANMC or outside facility), and
+**direct tertiary** (village → ANMC, bypassing MHC). Primary transports accounted
+for the largest share (n = `{python} _n_primary`), reflecting MHC's role as a
+regional stabilization hub. A meaningful subset bypassed MHC entirely as direct
+tertiary transports (n = `{python} _n_direct`). Secondary transfers represented the
+escalation pathway for patients whose acuity exceeded MHC's capabilities
+(n = `{python} _n_secondary`). [@tbl-t3] compares patient age and chief complaint
+across these three route groups. [@tbl-t3a] and [@tbl-t3b] detail routing patterns
+within the primary and secondary cohorts.
+
+```{python}
+#| label: tbl-t3
+#| tbl-cap: "Patient characteristics by transport route type. Primary only = village → MHC with no secondary transfer. Secondary = village → MHC → ANMC or outside facility. Direct tertiary = village → ANMC (bypassing MHC). p-values: Kruskal-Wallis (age); chi-square (categorical)."
+show_tbl(build_table3_route_comparison(_df_all))
+```
 
 ```{python}
 #| label: tbl-t3a

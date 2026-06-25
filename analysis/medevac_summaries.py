@@ -2549,6 +2549,125 @@ def _top10_chief_complaints(cc_df: pd.DataFrame, denominator_journeys: int) -> p
     return pd.DataFrame(rows)
 
 
+def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
+    """
+    Table 3: Patient characteristics by transport route type.
+
+    Route groups (columns):
+      Primary only   — village → MHC, no secondary transfer
+      Secondary      — village → MHC → ANMC or outside facility
+      Direct tertiary— village → ANMC/outside (bypasses MHC)
+
+    Rows: Age (median IQR), Age group (%), Chief Complaint top 10 (%)
+    Extra column: p-value (Kruskal-Wallis for continuous; chi-square for categorical)
+    """
+    from scipy import stats as _stats
+
+    j = df_all.drop_duplicates("journey_id").copy()
+
+    # Classify route for each journey
+    j["_route"] = j.apply(_classify_journey_route, axis=1)
+
+    # Only keep village-originating journeys
+    _vmask = j["facility_1_name"].apply(lambda x: is_village_medevac_origin(str(x or "")))
+    j = j[_vmask].copy()
+
+    ROUTE_LABELS = {
+        "Primary (village → MHC)": "Primary only",
+        "Secondary transfer":       "Secondary",
+        "Direct tertiary":          "Direct tertiary",
+    }
+    j["_grp"] = j["_route"].map(ROUTE_LABELS)
+    groups_order = ["Primary only", "Secondary", "Direct tertiary"]
+    grp_data = {g: j[j["_grp"] == g] for g in groups_order}
+    ns = {g: len(v) for g, v in grp_data.items()}
+
+    # Column headers with n=
+    col_labels = [f"{g}\n(n={ns[g]})" for g in groups_order]
+    all_cols = ["Metric"] + col_labels + ["p"]
+
+    rows: list[list] = []
+
+    # ── Age (continuous) ──────────────────────────────────────────────────────
+    age_series = {g: pd.to_numeric(grp_data[g]["age_at_medevac"], errors="coerce").dropna()
+                  for g in groups_order}
+
+    def _med_iqr(s: pd.Series) -> str:
+        if s.empty: return "—"
+        return f"{s.median():.1f} ({s.quantile(0.25):.1f}–{s.quantile(0.75):.1f})"
+
+    kw = _stats.kruskal(*[age_series[g] for g in groups_order
+                           if len(age_series[g]) > 0])
+    rows.append(
+        ["Age, years — Median (IQR)"]
+        + [_med_iqr(age_series[g]) for g in groups_order]
+        + [f"{kw.pvalue:.3f}" if kw.pvalue >= 0.001 else "<0.001"]
+    )
+
+    # ── Age group (%) ─────────────────────────────────────────────────────────
+    AGE_GROUPS = [("<1 year","b0"),("1 to <5 years","b1"),("5–12 years","b2"),("13–18 years","b3")]
+
+    def _age_bucket(a):
+        if pd.isna(a): return None
+        if a < 1:   return "b0"
+        if a < 5:   return "b1"
+        if a < 13:  return "b2"
+        if a <= 18: return "b3"
+        return None
+
+    for g in groups_order:
+        grp_data[g] = grp_data[g].copy()
+        grp_data[g]["_ab"] = pd.to_numeric(grp_data[g]["age_at_medevac"], errors="coerce").map(_age_bucket)
+
+    # Chi-square on age group contingency table
+    ct = pd.DataFrame(
+        {g: grp_data[g]["_ab"].value_counts() for g in groups_order}
+    ).fillna(0).reindex(["b0","b1","b2","b3"], fill_value=0)
+    try:
+        chi2_age, p_age, *_ = _stats.chi2_contingency(ct.values)
+        p_age_str = f"{p_age:.3f}" if p_age >= 0.001 else "<0.001"
+    except Exception:
+        p_age_str = "—"
+
+    rows.append(["Age group, n (%)"] + [""] * len(groups_order) + [p_age_str])
+    for lbl, bk in AGE_GROUPS:
+        cells = [fmt_pct_n(int((grp_data[g]["_ab"] == bk).sum()), ns[g]) for g in groups_order]
+        rows.append([f"  {lbl}"] + cells + [""])
+
+    # ── Chief Complaint (custom grouping, top 10) ─────────────────────────────
+    cc_j = _definitive_cc_per_journey(df_all)
+    cc_j = cc_j.merge(j[["journey_id","_grp"]], on="journey_id", how="inner")
+    valid_cc = cc_j[cc_j["cc_definitive_custom_grouping"] != "Undefined"]
+
+    top10_cc = (
+        valid_cc.groupby("cc_definitive_custom_grouping")
+        .size().sort_values(ascending=False).head(10).index.tolist()
+    )
+
+    # Chi-square across all top-10 categories
+    ct_cc = pd.DataFrame(
+        {g: valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"].value_counts()
+         for g in groups_order}
+    ).fillna(0).reindex(top10_cc, fill_value=0)
+    try:
+        _, p_cc, *_ = _stats.chi2_contingency(ct_cc.values)
+        p_cc_str = f"{p_cc:.3f}" if p_cc >= 0.001 else "<0.001"
+    except Exception:
+        p_cc_str = "—"
+
+    rows.append(["Chief Complaint (CEDIS), n (%)"] + [""] * len(groups_order) + [p_cc_str])
+    for cc_grp in top10_cc:
+        cells = [fmt_pct_n(
+            int((valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"] == cc_grp).sum()),
+            ns[g]
+        ) for g in groups_order]
+        rows.append([f"  {cc_grp}"] + cells + [""])
+
+    out = pd.DataFrame(rows, columns=all_cols)
+    out.to_csv(ROOT / "outputs" / "tables" / "table3_route_comparison.csv", index=False)
+    return out
+
+
 def build_table3_cedis_chief_complaints(
     df: pd.DataFrame,
     top_n: int = 10,
