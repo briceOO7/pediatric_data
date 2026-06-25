@@ -1165,7 +1165,7 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
         valid_cc.groupby("cc_definitive_custom_grouping", dropna=False)
         .size()
         .sort_values(ascending=False)
-        .head(20)
+        .head(10)
         .index.tolist()
     )
 
