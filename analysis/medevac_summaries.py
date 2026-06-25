@@ -343,6 +343,14 @@ def fmt_n_pct(count: int, denominator: int, digits: int = 1) -> str:
     return f"{count} ({pct:.{digits}f}%)"
 
 
+def fmt_pct_n(count: int, denominator: int, digits: int = 1) -> str:
+    """Format as 'pct% (n)' e.g. 45.2% (151). Standard for Table 2."""
+    if denominator <= 0:
+        return "—"
+    pct = 100.0 * count / denominator
+    return f"{pct:.{digits}f}% ({count})"
+
+
 def _table0_destination_label(to_raw: str) -> str:
     """Map raw medevac *to* code to display destination (MHC / ANMC / UW / Providence)."""
     b = str(to_raw).strip()
@@ -1081,13 +1089,13 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
             ai = sub["RaceDSC"].astype(str).str.contains(
                 r"indian|alaska\s*native|american\s*indian", case=False, na=False, regex=True
             )
-            race_val = fmt_n_pct(int(ai.sum()), N)
+            race_val = fmt_pct_n(int(ai.sum()), N)
         elif "AI_AN" in sub.columns:
             known = sub["AI_AN"].notna() & (sub["AI_AN"].astype(str).str.strip() != "")
             yes = known & sub["AI_AN"].apply(
                 lambda x: str(x).strip().lower() in ("1", "y", "yes", "true") or x is True
             )
-            race_val = fmt_n_pct(int(yes.sum()), N) if known.any() else None
+            race_val = fmt_pct_n(int(yes.sum()), N) if known.any() else None
         else:
             race_val = None
 
@@ -1108,19 +1116,19 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
     def _fmt_col(stats: dict) -> list[str]:
         N = stats["N"]
         rows_out = [str(N)]
-        rows_out.append(fmt_n_pct(stats["female"], N) if stats["female"] is not None else "NR*")
+        rows_out.append(fmt_pct_n(stats["female"], N) if stats["female"] is not None else "NR*")
         rows_out.append(stats["race"] if stats["race"] is not None else "NR*")
         # Insurance header (blank cell)
         rows_out.append("")
         for cat in INSURANCE_CATS:
             if stats["ins"] is not None:
-                rows_out.append(fmt_n_pct(stats["ins"][cat], N))
+                rows_out.append(fmt_pct_n(stats["ins"][cat], N))
             else:
                 rows_out.append("NR*")
         # Primary transports per patient
         rows_out.append("")
         for cat in ("1", "2", "3+"):
-            rows_out.append(fmt_n_pct(stats["transport"][cat], N))
+            rows_out.append(fmt_pct_n(stats["transport"][cat], N))
         return rows_out
 
     metric_col = [
@@ -1166,11 +1174,11 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
     n_overall_cc = len(cc)
     for complaint in top10:
         n_ov = int((valid_cc["cc_definitive"] == complaint).sum())
-        row_vals = [f"  {complaint}", fmt_n_pct(n_ov, n_overall_cc)]
+        row_vals = [f"  {complaint}", fmt_pct_n(n_ov, n_overall_cc)]
         for _, bk in AGE_GROUPS:
             sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
             n_bk = int((sub_cc["cc_definitive"] == complaint).sum())
-            row_vals.append(fmt_n_pct(n_bk, bucket_totals[bk]))
+            row_vals.append(fmt_pct_n(n_bk, bucket_totals[bk]))
         cc_rows.append(row_vals)
 
     cc_df = pd.DataFrame(cc_rows, columns=col_order)
