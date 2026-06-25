@@ -1151,48 +1151,33 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
 
     base = pd.DataFrame(result)
 
-    # ── Append CEDIS sections (category block + complaint block) ─────────────
-    # cc_definitive = first non-'Follow-up visit' / non-'Unknown' CC across
-    # the full journey sequence; journeys with only those → "Undefined".
+    # ── Append Chief Complaint section (custom grouping, top 20) ─────────────
+    # Respiratory, GI, and Trauma/Injury are collapsed to their category;
+    # all other complaints keep their individual CEDIS complaint name.
     cc = _definitive_cc_per_journey(df)
-    valid_cc = cc[cc["cc_definitive"] != "Undefined"].copy()
+    valid_cc = cc[cc["cc_definitive_custom_grouping"] != "Undefined"].copy()
 
     col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
     bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
     n_overall_cc = len(cc)
 
-    def _cc_row(label: str, series_col: str, value: str) -> list[str]:
-        n_ov = int((valid_cc[series_col] == value).sum())
-        row = [f"  {label}", fmt_pct_n(n_ov, n_overall_cc)]
+    top20 = (
+        valid_cc.groupby("cc_definitive_custom_grouping", dropna=False)
+        .size()
+        .sort_values(ascending=False)
+        .head(20)
+        .index.tolist()
+    )
+
+    cc_rows = [["Chief Complaints (CEDIS):"] + [""] * (len(col_order) - 1)]
+    for grp in top20:
+        n_ov = int((valid_cc["cc_definitive_custom_grouping"] == grp).sum())
+        row = [f"  {grp}", fmt_pct_n(n_ov, n_overall_cc)]
         for _, bk in AGE_GROUPS:
             sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
-            n_bk = int((sub_cc[series_col] == value).sum())
+            n_bk = int((sub_cc["cc_definitive_custom_grouping"] == grp).sum())
             row.append(fmt_pct_n(n_bk, bucket_totals[bk]))
-        return row
-
-    # Block 1: CEDIS major categories (top 10 by frequency)
-    top_cats = (
-        valid_cc.groupby("cc_definitive_category", dropna=False)
-        .size()
-        .sort_values(ascending=False)
-        .head(10)
-        .index.tolist()
-    )
-    cc_rows = [["CEDIS Major Category:"] + [""] * (len(col_order) - 1)]
-    for cat in top_cats:
-        cc_rows.append(_cc_row(cat, "cc_definitive_category", cat))
-
-    # Block 2: individual CEDIS complaints (top 10 by frequency)
-    top10 = (
-        valid_cc.groupby("cc_definitive", dropna=False)
-        .size()
-        .sort_values(ascending=False)
-        .head(10)
-        .index.tolist()
-    )
-    cc_rows.append(["Chief Complaints (CEDIS, definitive):"] + [""] * (len(col_order) - 1))
-    for complaint in top10:
-        cc_rows.append(_cc_row(complaint, "cc_definitive", complaint))
+        cc_rows.append(row)
 
     cc_df = pd.DataFrame(cc_rows, columns=col_order)
     out = pd.concat([base, cc_df], ignore_index=True)
@@ -2435,6 +2420,24 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     base["cc_definitive"]          = js.map(id_map["_def_complaint"]).fillna("Undefined")
     base["cc_definitive_code"]     = js.map(id_map["_def_code"]).fillna("")
     base["cc_definitive_category"] = js.map(id_map["_def_category"]).fillna("Undefined")
+
+    # Custom grouping: collapse Respiratory, GI, Trauma/Orthopedic;
+    # keep every other complaint at individual level.
+    _GROUPED_CATS = {
+        "Respiratory":    "Respiratory",
+        "Gastrointestinal": "Gastrointestinal",
+        "Trauma":         "Trauma/Injury",
+        "Orthopedic":     "Trauma/Injury",
+    }
+
+    def _custom_group(row: pd.Series) -> str:
+        cat = row["cc_definitive_category"]
+        complaint = row["cc_definitive"]
+        if complaint == "Undefined":
+            return "Undefined"
+        return _GROUPED_CATS.get(cat, complaint)
+
+    base["cc_definitive_custom_grouping"] = base.apply(_custom_group, axis=1)
     return base
 
 
