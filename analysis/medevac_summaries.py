@@ -1293,6 +1293,48 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     )
 
 
+def export_secondary_excluded_from_mhc_filter(df_all: pd.DataFrame) -> pd.DataFrame:
+    """
+    Export the secondary (village→MHC→ANMC) journeys that pass the facility-sequence
+    route classification but do NOT appear in filter_journeys_village_to_mhc().
+    These are likely data quality edge cases worth investigating.
+    Saved to outputs/review/secondary_excluded_from_mhc_filter.csv.
+    """
+    j = df_all.drop_duplicates("journey_id").copy()
+
+    # All secondary journeys by facility sequence
+    def _is_secondary(row):
+        loc2 = row.get("facility_2_name")
+        loc3 = row.get("facility_3_name")
+        loc1 = str(row.get("facility_1_name") or "")
+        loc2s = "" if pd.isna(loc2) else str(loc2).strip()
+        loc3s = "" if pd.isna(loc3) else str(loc3).strip()
+        return is_village_medevac_origin(loc1) and _is_mhc_cah_destination(loc2s) and bool(loc3s)
+
+    secondary_ids = set(j[j.apply(_is_secondary, axis=1)]["journey_id"].astype(str))
+
+    # Journeys in the MHC filter
+    from medevac_summaries import filter_journeys_village_to_mhc
+    df_mhc = filter_journeys_village_to_mhc(df_all)
+    mhc_ids = set(df_mhc["journey_id"].astype(str))
+
+    excluded_ids = secondary_ids - mhc_ids
+    out = j[j["journey_id"].astype(str).isin(excluded_ids)].copy()
+
+    review_cols = [
+        "journey_id", "MRN", "facility_1_name", "facility_2_name", "facility_3_name",
+        "journey_start_date", "medevac1_from", "medevac1_to", "medevac2_from", "medevac2_to",
+        "journey_pattern", "journey_end_reason",
+    ]
+    out = out[[c for c in review_cols if c in out.columns]].reset_index(drop=True)
+
+    out_path = ROOT / "outputs" / "review" / "secondary_excluded_from_mhc_filter.csv"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(out_path, index=False)
+    print(f"[export] {len(out)} journeys written to {out_path}")
+    return out
+
+
 def export_missing_destination_datetime(df: pd.DataFrame) -> pd.DataFrame:
     """
     Pull journeys where destination_datetime is missing (MHC arrival timestamp

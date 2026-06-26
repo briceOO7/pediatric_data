@@ -98,18 +98,23 @@ def _is_anmc_dest(v):
     t = str(v or "").strip()
     return t.startswith("Hub") or t.upper() in ("HUB_01", "ANMC")
 
-_n_primary = _n_direct = _n_secondary = 0
-for _, _r in _j.iterrows():
-    _t1 = _r.get("medevac1_to", "")
-    _t2 = _r.get("medevac2_to", "")
-    _f1 = str(_r.get("facility_1_name") or "")
-    if is_village_medevac_origin(_f1):
-        if _is_mhc_cah_destination(_t1):
-            _n_primary += 1
-        elif pd.notna(_t1) and str(_t1).strip():
-            _n_direct += 1
-    if _is_mhc_cah_destination(_t1) and pd.notna(_t2) and str(_t2).strip():
-        _n_secondary += 1
+# Route counts using facility sequence (matches Table 3 classification)
+def _route_facility(row):
+    loc2 = row.get("facility_2_name")
+    loc3 = row.get("facility_3_name")
+    loc2s = "" if pd.isna(loc2) else str(loc2).strip()
+    loc3s = "" if pd.isna(loc3) else str(loc3).strip()
+    if not is_village_medevac_origin(str(row.get("facility_1_name") or "")):
+        return None
+    if _is_mhc_cah_destination(loc2s):
+        return "Secondary" if loc3s else "Primary only"
+    return "Direct tertiary"
+
+_j["_route_fac"] = _j.apply(_route_facility, axis=1)
+_rc = _j["_route_fac"].value_counts()
+_n_primary   = int(_rc.get("Primary only",    0))
+_n_secondary = int(_rc.get("Secondary",       0))
+_n_direct    = int(_rc.get("Direct tertiary", 0))
 
 # Utilization fold
 _ut = build_table3_village_utilization(df)
@@ -172,14 +177,15 @@ show_tbl(build_table2_patient_characteristics_by_age(df))
 
 ### Route Typology
 
-Transports were classified into three route types: **primary only** (village → MHC,
-no further transfer), **secondary** (village → MHC → ANMC or outside facility), and
-**direct tertiary** (village → ANMC, bypassing MHC). Primary transports accounted
-for the largest share (n = `{python} _n_primary`), reflecting MHC's role as a
-regional stabilization hub. A meaningful subset bypassed MHC entirely as direct
-tertiary transports (n = `{python} _n_direct`). Secondary transfers represented the
-escalation pathway for patients whose acuity exceeded MHC's capabilities
-(n = `{python} _n_secondary`). [@tbl-t3] compares patient age and chief complaint
+Transports were classified into three route types using the facility sequence
+recorded for each journey. **Primary only** (village → MHC, no further transfer,
+n = `{python} _n_primary`) represents the majority of encounters and forms the
+basis of Table 1 (together with secondary transfers that include an MHC stop,
+giving the Table 1 cohort of `{python} N_JOURNEYS`). **Secondary** transfers
+(village → MHC → ANMC or outside facility, n = `{python} _n_secondary`) reflect
+patients whose acuity required escalation beyond MHC. **Direct tertiary** transfers
+(village → ANMC, bypassing MHC entirely, n = `{python} _n_direct`) are excluded
+from Table 1 but included here. [@tbl-t3] compares patient age and chief complaint
 across these three route groups. [@tbl-t3a] and [@tbl-t3b] detail routing patterns
 within the primary and secondary cohorts.
 

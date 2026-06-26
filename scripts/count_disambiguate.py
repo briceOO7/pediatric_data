@@ -18,6 +18,7 @@ from medevac_summaries import (
     filter_journeys_village_to_mhc,
     is_village_medevac_origin,
     _is_mhc_cah_destination,
+    export_secondary_excluded_from_mhc_filter,
 )
 
 df_all  = load_data()
@@ -97,3 +98,8 @@ print(f"  Primary only (no secondary)  : {rc.get('Primary only', 0):>4}")
 print(f"  Secondary (→MHC→further)     : {rc.get('Secondary', 0):>4}")
 print(f"  Direct tertiary (→ANMC)      : {rc.get('Direct tertiary', 0):>4}")
 print(f"  filter_journeys_village_to_mhc: {j_mhc['journey_id'].nunique():>4}  (Table 1 N)")
+
+if in_t3_not_t1:
+    print()
+    print("Exporting secondary journeys excluded from MHC filter...")
+    export_secondary_excluded_from_mhc_filter(df_all)
