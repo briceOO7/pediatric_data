@@ -1665,64 +1665,126 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def build_table3_village_utilization(df: pd.DataFrame) -> pd.DataFrame:
+def build_table4_village_utilization(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Paper 1, Table 3: Village-level utilization summary.
+    Paper 1, Table 4: Village-level utilization summary with age strata.
 
-    Rows = one per village of origin, sorted by n legs descending.
-    Columns: Village, N Legs, N Unique Patients, Median Annual Legs,
-             Utilization Rate per 1,000 Pediatric Residents.
+    Rows = one per village of origin, sorted by utilization rate per 1,000 descending.
+    Columns: Village, Pediatric pop (2020), Total journeys, Journeys/year mean (SD),
+             Rate per 1,000, then n (%) for each of 4 age groups.
 
     *df* should be the village→MHC journey cohort from filter_journeys_village_to_mhc().
+    Village origin is resolved from facility_1_name, falling back to medevac1_from /
+    origin_facility when facility_1_name does not contain village identifiers (e.g.
+    on some de-identified synthetic extracts).
     """
     census_path = ROOT / "docs" / "maniilaq_village_census2020_pediatric.csv"
     census = pd.read_csv(census_path) if census_path.exists() else None
     census_map: dict[str, int] = (
-        dict(zip(census["NAME"], census["pediatric_pop"].astype(int))) if census is not None else {}
+        dict(zip(census["NAME"], census["pediatric_pop"].astype(int)))
+        if census is not None else {}
     )
 
+    AGE_GROUPS = [
+        ("<1 yr",       "b0"),
+        ("1–4 yr",      "b1"),
+        ("5–12 yr",     "b2"),
+        ("13–18 yr",    "b3"),
+    ]
+
+    j = df.drop_duplicates("journey_id").copy()
+
+    # ── Village column resolution ──────────────────────────────────────────────
     village_col = "facility_1_name"
+    if not j[village_col].apply(lambda x: is_village_medevac_origin(str(x or ""))).any():
+        for alt in ("origin_facility", "medevac1_from"):
+            if alt in j.columns and j[alt].apply(
+                lambda x: is_village_medevac_origin(str(x or ""))
+            ).any():
+                village_col = alt
+                break
+
+    # ── Study year range ───────────────────────────────────────────────────────
     yr_col = "journey_start_year"
-    j = df.copy()
-    j["_year"] = pd.to_numeric(j.get(yr_col, pd.Series(dtype=float)), errors="coerce")
+    if yr_col not in j.columns or j[yr_col].isna().all():
+        j[yr_col] = pd.to_datetime(j.get("origin_datetime"), errors="coerce").dt.year
+    j["_year"] = pd.to_numeric(j[yr_col], errors="coerce")
+    yr_vals = j["_year"].dropna()
+    y0 = int(yr_vals.min()) if not yr_vals.empty else 0
+    y1 = int(yr_vals.max()) if not yr_vals.empty else 0
+    study_year_range = range(y0, y1 + 1) if y1 >= y0 else range(y0, y0 + 1)
+
+    # ── Age bucket per journey ─────────────────────────────────────────────────
+    j["_ab"] = pd.to_numeric(j.get("age_at_medevac"), errors="coerce").map(_age_bucket_key)
+
+    def _fmt_pct(n_sub: int, n_tot: int) -> str:
+        if n_tot == 0:
+            return "—"
+        return f"{n_sub / n_tot * 100:.1f}% ({n_sub})"
+
+    def _mean_sd_annual(sub: pd.DataFrame) -> str:
+        _yr = sub["_year"].dropna().astype(int)
+        _counts = _yr.value_counts()
+        _annual = pd.Series({y: _counts.get(y, 0) for y in study_year_range})
+        mn = _annual.mean()
+        sd = _annual.std(ddof=1) if len(_annual) > 1 else 0.0
+        return f"{mn:.1f} ({sd:.1f})"
+
+    # ── Per-village rows ───────────────────────────────────────────────────────
+    village_mask = j[village_col].apply(lambda x: is_village_medevac_origin(str(x or "")))
+    villages_sorted = (
+        j[village_mask].groupby(village_col).size()
+        .sort_values(ascending=False).index.tolist()
+    )
 
     rows = []
-    for village, sub in j.groupby(village_col):
-        n_legs = int(sub["num_medevacs"].sum()) if "num_medevacs" in sub.columns else len(sub)
-        n_patients = int(sub["MRN"].nunique())
-        annual = sub.groupby("_year").size()
-        median_annual = f"{annual.median():.1f}" if len(annual) > 0 else "—"
+    for village in villages_sorted:
+        sub = j[j[village_col] == village]
+        n = len(sub)
         pop = census_map.get(village)
-        util = f"{len(sub) / pop * 1_000:.1f}" if pop and pop > 0 else "—"
-        rows.append({
-            "Village": village,
-            "N Legs": n_legs,
-            "N Unique Patients": n_patients,
-            "Median Annual Legs": median_annual,
-            "Utilization Rate per 1,000 Pediatric Residents": util,
-        })
+        rate = f"{n / pop * 1_000:.1f}" if pop and pop > 0 else "—"
+        row: dict[str, str] = {
+            "Village":                   village,
+            "Pediatric pop (2020)":      str(pop) if pop else "—",
+            "Total journeys":            str(n),
+            "Journeys/year, mean (SD)":  _mean_sd_annual(sub),
+            "Rate per 1,000":            rate,
+        }
+        for label, bk in AGE_GROUPS:
+            n_bk = int((sub["_ab"] == bk).sum())
+            row[label] = _fmt_pct(n_bk, n)
+        rows.append(row)
 
-    out = (
-        pd.DataFrame(rows)
-        .sort_values("N Legs", ascending=False)
-        .reset_index(drop=True)
-    )
+    out = pd.DataFrame(rows)
 
-    # Overall total row
-    total_pop = sum(census_map.get(v, 0) for v in j[village_col].unique()) or None
-    total_annual = j.groupby("_year").size()
-    out.loc[len(out)] = {
-        "Village": "Overall",
-        "N Legs": int(j["num_medevacs"].sum()) if "num_medevacs" in j.columns else len(j),
-        "N Unique Patients": int(j["MRN"].nunique()),
-        "Median Annual Legs": f"{total_annual.median():.1f}" if len(total_annual) > 0 else "—",
-        "Utilization Rate per 1,000 Pediatric Residents": (
-            f"{len(j) / total_pop * 1_000:.1f}" if total_pop else "—"
-        ),
+    # Sort by numeric rate descending (villages with "—" go to end)
+    _rate_num = pd.to_numeric(out["Rate per 1,000"], errors="coerce")
+    out = out.iloc[_rate_num.argsort()[::-1].values].reset_index(drop=True)
+
+    # ── Overall total row ──────────────────────────────────────────────────────
+    sub_all = j[village_mask]
+    n_all = len(sub_all)
+    total_pop = sum(census_map.get(v, 0) for v in villages_sorted) or None
+    overall_rate = f"{n_all / total_pop * 1_000:.1f}" if total_pop else "—"
+    overall_row: dict[str, str] = {
+        "Village":                   "Overall",
+        "Pediatric pop (2020)":      str(total_pop) if total_pop else "—",
+        "Total journeys":            str(n_all),
+        "Journeys/year, mean (SD)":  _mean_sd_annual(sub_all),
+        "Rate per 1,000":            overall_rate,
     }
+    for label, bk in AGE_GROUPS:
+        n_bk = int((sub_all["_ab"] == bk).sum())
+        overall_row[label] = _fmt_pct(n_bk, n_all)
+    out = pd.concat([out, pd.DataFrame([overall_row])], ignore_index=True)
 
-    out.to_csv(ROOT / "outputs" / "tables" / "table3_village_utilization.csv", index=False)
+    out.to_csv(ROOT / "outputs" / "tables" / "table4_village_utilization.csv", index=False)
     return out
+
+
+# backward-compat alias (tbl-t4 in qmd previously called this name)
+def build_table3_village_utilization(df: pd.DataFrame) -> pd.DataFrame:
+    return build_table4_village_utilization(df)
 
 
 def build_table2_village_visit_vitals(df: pd.DataFrame) -> pd.DataFrame:

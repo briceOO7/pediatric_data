@@ -550,7 +550,7 @@ def plot_fig_voronoi_service_districts(
     cbar.ax.tick_params(labelsize=10)
 
     ax.set_title(
-        "Figure 3. Approximate medevac service districts — pediatric utilization by village",
+        "Pediatric medevac utilization by village — approximate service districts",
         fontsize=15, pad=8)
 
     fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.03)

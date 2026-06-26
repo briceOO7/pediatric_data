@@ -46,6 +46,7 @@ from medevac_summaries import (
     build_table3_route_comparison,
     build_table3a_primary_routes,
     build_table3b_secondary_routes,
+    build_table4_village_utilization,
     build_table3_village_utilization,
     build_table5_timing_minutes,
     build_table2_1_vitals_missingness,
@@ -114,13 +115,13 @@ _n_primary   = int(_rc.get("Primary only",    0))
 _n_secondary = int(_rc.get("Secondary",       0))
 _n_direct    = int(_rc.get("Direct tertiary", 0))
 
-# Utilization fold
-_ut = build_table3_village_utilization(df)
-_rate_col = "Utilization Rate per 1,000 Pediatric Residents"
-_rates = pd.to_numeric(_ut[_rate_col].astype(str).str.replace(",", ""), errors="coerce").dropna()
-UTIL_FOLD  = f"{_rates.max() / _rates.min():.1f}"
-UTIL_MAX_V = str(_ut.loc[_rates.idxmax(), "Village"])
-UTIL_MIN_V = str(_ut.loc[_rates.idxmin(), "Village"])
+# Utilization fold — exclude the Overall row when computing fold change
+_ut = build_table4_village_utilization(df)
+_ut_villages = _ut[_ut["Village"] != "Overall"]
+_rates = pd.to_numeric(_ut_villages["Rate per 1,000"], errors="coerce").dropna()
+UTIL_FOLD  = f"{_rates.max() / _rates.min():.1f}" if len(_rates) >= 2 else "—"
+UTIL_MAX_V = str(_ut_villages.loc[_rates.idxmax(), "Village"]) if not _rates.empty else "—"
+UTIL_MIN_V = str(_ut_villages.loc[_rates.idxmin(), "Village"]) if not _rates.empty else "—"
 
 # Temporal: peak year and lowest month — use primary cohort
 _yr = pd.to_numeric(_j_primary["journey_start_year"], errors="coerce")
@@ -219,8 +220,8 @@ explained by raw village size alone. The geographic pattern is shown in [@fig-ma
 
 ```{python}
 #| label: tbl-t4
-#| tbl-cap: "Village-level pediatric medevac utilization. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
-show_tbl(build_table3_village_utilization(df))
+#| tbl-cap: "Village-level pediatric medevac utilization. Rate = village→MHC journeys per 1,000 pediatric residents under 18 (2020 Census). Age columns show n (%) of total journeys for that village. Sorted by utilization rate, highest to lowest."
+show_tbl(_ut)
 ```
 
 ```{python}
