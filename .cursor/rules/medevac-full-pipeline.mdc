@@ -1,0 +1,20 @@
+---
+description: Rerun full analysis + Quarto after medevac/report changes
+alwaysApply: true
+---
+
+# Full pipeline default
+
+After changes to **`analysis/`**, **`medevac_report.qmd`**, or **`scripts/run_full_pipeline.py`**, run the full pipeline so tables, figures, and HTML stay in sync:
+
+```bash
+# Local / de-identified data + village codebook:
+python3 scripts/run_full_pipeline.py -synthetic
+
+# PHI / real community names (omit -synthetic):
+python3 scripts/run_full_pipeline.py
+```
+
+**Outputs to review:** `_quarto_output/medevac_report.html` (open in browser), plus `outputs/tables/*.csv` and `outputs/figures/*.png`.
+
+When the user asks to “see the data” or refresh the report, prefer this command unless they specify otherwise.

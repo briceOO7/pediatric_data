@@ -1,3 +1,1 @@
 journey_id,MRN,facility_1_name,facility_2_name,facility_3_name,journey_start_date,medevac1_from,medevac1_to,medevac2_from,medevac2_to,journey_pattern,journey_end_reason
-J_000143,M000150,Noorvik,MHC,ANMC,2017-04-05 03:14:05,Noorvik,ANMC,MHC,ANMC,Noorvik→MHC_ED→Medevac(Noorvik→ANMC)→Medevac(MHC→ANMC)→ANMC_Inpatient,anmc_inpatient_discharge
-J_000107,M000110,Selawik,MHC,ANMC,2022-03-08 10:00:00,Selawik,ANMC,,,Selawik→Medevac(Selawik→ANMC)→MHC_ED→ANMC_Inpatient,anmc_inpatient_discharge

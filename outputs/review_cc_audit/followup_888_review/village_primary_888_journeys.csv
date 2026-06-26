@@ -1,0 +1,62 @@
+journey_id,MRN,age_at_medevac,age_bin,village_primary_cc_text,village_primary_cedis_code,village_primary_cedis_complaint
+JRN_00002,PAT_00002,,1 to <5 years,f/u bronchitis Mom: <PERSON>: <PHONE_NUMBER> improving,888,Follow-up visit
+JRN_00034,PAT_00033,,<1 year,Follow up R peritonsillar abscess,888,Follow-up visit
+JRN_00068,PAT_00002,,1 to <5 years,f/u bilat ORIF distal radius,888,Follow-up visit
+JRN_00120,PAT_00002,,1 to <5 years,follow up hospital dc for pneumonia,888,Follow-up visit
+JRN_00125,PAT_00107,,<1 year,F/U Suction D&C,888,Follow-up visit
+JRN_00134,PAT_00113,,5-12 years,"FV , AVB , PPM , post-op , device check",888,Follow-up visit
+JRN_00135,PAT_00114,,<1 year,f/u respritory bib mom <PERSON> and escort staying at guest house leave: tomrrow <PERSON> and <PERSON>: <PERSON> <PHONE_NUMBER>,888,Follow-up visit
+JRN_00149,PAT_00125,,5-12 years,recheck,888,Follow-up visit
+JRN_00172,PAT_00145,,<1 year,<DATE_TIME> post-op follow up,888,Follow-up visit
+JRN_00174,PAT_00104,,<1 year,bib parents <PERSON> and <PERSON> for f/u EEG,888,Follow-up visit
+JRN_00179,PAT_00104,,<1 year,bib parents <PERSON> and <PERSON> for f/u EEG,888,Follow-up visit
+JRN_00185,PAT_00109,,1 to <5 years,pt . is here for F/U for right forearm fracture,888,Follow-up visit
+JRN_00212,PAT_00175,,13-18 years,Follow up Hospital Discharge,888,Follow-up visit
+JRN_00225,PAT_00185,,5-12 years,follow up seizure,888,Follow-up visit
+JRN_00252,PAT_00208,,1 to <5 years,f/u s/p pacer <DATE_TIME>,888,Follow-up visit
+JRN_00382,PAT_00304,,1 to <5 years,Village vitals,888,Follow-up visit
+JRN_00436,PAT_00349,,1 to <5 years,recheck,888,Follow-up visit
+JRN_00461,PAT_00204,,1 to <5 years,flu due,888,Follow-up visit
+JRN_00485,PAT_00388,,<1 year,immunizations due .,888,Follow-up visit
+JRN_00513,PAT_00412,,13-18 years,F/V: Traumatic C6 Facet Fx,888,Follow-up visit
+JRN_00533,PAT_00427,,<1 year,Baby for Hosp . D/C follow-up here with grandma-<PERSON> . <PHONE_NUMBER>,888,Follow-up visit
+JRN_00548,PAT_00437,,1 to <5 years,Recheck abdominal pain,888,Follow-up visit
+JRN_00556,PAT_00070,,5-12 years,f/u multiple injuries,888,Follow-up visit
+JRN_00594,PAT_00472,,<1 year,<DATE_TIME> check up and immunizations,888,Follow-up visit
+JRN_00641,PAT_00504,,13-18 years,follow up after hospital visit,888,Follow-up visit
+JRN_00682,PAT_00531,,<1 year,f/u hosp D/C bib mom <LOCATION> <PHONE_NUMBER>,888,Follow-up visit
+JRN_00731,PAT_00520,,<1 year,FV,888,Follow-up visit
+JRN_00733,PAT_00570,,5-12 years,<DATE_TIME> female came in for follow up from,888,Follow-up visit
+JRN_00752,PAT_00343,,13-18 years,F/U Labs,888,Follow-up visit
+JRN_00800,PAT_00623,,5-12 years,phone call visit post op f/u,888,Follow-up visit
+JRN_00830,PAT_00640,,13-18 years,"F/U: Low Back Pain , last seen <DATE_TIME>",888,Follow-up visit
+JRN_00937,PAT_00719,,1 to <5 years,F/u R sided cyst removal,888,Follow-up visit
+JRN_00943,PAT_00723,,13-18 years,Hospital discharge; ablation/ICD revision,888,Follow-up visit
+JRN_00945,PAT_00725,,<1 year,F/u D/c bib foster parents <PHONE_NUMBER> <PERSON>,888,Follow-up visit
+JRN_00983,PAT_00754,,<1 year,follow up UTI/kidney infection,888,Follow-up visit
+JRN_00991,PAT_00761,,1 to <5 years,f/u labs,888,Follow-up visit
+JRN_01064,PAT_00805,,1 to <5 years,Inpatient CD F/U,888,Follow-up visit
+JRN_01189,PAT_00889,,<1 year,<DATE_TIME> week wwc,888,Follow-up visit
+JRN_01214,PAT_00901,,13-18 years,General check up/Pap,888,Follow-up visit
+JRN_01251,PAT_00930,,13-18 years,"F/<PERSON> , labs , echo",888,Follow-up visit
+JRN_01266,PAT_00802,,13-18 years,<DATE_TIME> female came in for recheck,888,Follow-up visit
+JRN_01286,PAT_00955,,13-18 years,FU BACK PAIN MED REFILL,888,Follow-up visit
+JRN_01289,PAT_00958,,1 to <5 years,Re-check,888,Follow-up visit
+JRN_01310,PAT_00972,,5-12 years,F/U Care,888,Follow-up visit
+JRN_01327,PAT_00986,,1 to <5 years,"WCC , <PERSON> , lab , panhypopituitarism",888,Follow-up visit
+JRN_01334,PAT_00993,,13-18 years,follow up left clavicle injury,888,Follow-up visit
+JRN_01349,PAT_01001,,<1 year,NP osteoporosis,888,Follow-up visit
+JRN_01420,PAT_01050,,<1 year,recheck cough and breathing,888,Follow-up visit
+JRN_01481,PAT_01096,,<1 year,FV - s/p lap appy,888,Follow-up visit
+JRN_01519,PAT_01125,,<1 year,F/u L shoulder,888,Follow-up visit
+JRN_01531,PAT_01134,,<1 year,F lap appy,888,Follow-up visit
+JRN_01533,PAT_01136,,5-12 years,recheck fractured clavicle- right side,888,Follow-up visit
+JRN_01643,PAT_01218,,5-12 years,FV discharged API R) ft injury,888,Follow-up visit
+JRN_01688,PAT_01246,,1 to <5 years,Hosp d/c Bib mom Heather <PHONE_NUMBER>,888,Follow-up visit
+JRN_01811,PAT_01332,,1 to <5 years,<PERSON> for f/u peds inpatient and <LOCATION>,888,Follow-up visit
+JRN_01843,PAT_00993,,13-18 years,follow up,888,Follow-up visit
+JRN_01844,PAT_01352,,13-18 years,FV - s/p PTHC drain +malignant pancreatic cancer,888,Follow-up visit
+JRN_01864,PAT_01364,,<1 year,recheck frost bites,888,Follow-up visit
+JRN_01870,PAT_01370,,5-12 years,f/u hospital d/c,888,Follow-up visit
+JRN_01892,PAT_01386,,<1 year,D/c F/u Bib mom Barbara <PHONE_NUMBER>,888,Follow-up visit
+JRN_01914,PAT_01401,,13-18 years,F/U ER,888,Follow-up visit

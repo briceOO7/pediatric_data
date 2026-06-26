@@ -1,0 +1,62 @@
+journey_id,MRN,age_at_medevac,age_bin,expanded_cc_code,expanded_cc_complaint,expanded_cc_fu
+JRN_00002,PAT_00002,,1 to <5 years,251,Abdominal pain,Yes
+JRN_00034,PAT_00033,,<1 year,852,Fever,Yes
+JRN_00068,PAT_00002,,1 to <5 years,,,No
+JRN_00120,PAT_00002,,1 to <5 years,555,Lower extremity pain,Yes
+JRN_00125,PAT_00107,,<1 year,154,URTI complaints,Yes
+JRN_00134,PAT_00113,,5-12 years,510,Eye trauma,Yes
+JRN_00135,PAT_00114,,<1 year,651,Shortness of breath,Yes
+JRN_00149,PAT_00125,,5-12 years,251,Abdominal pain,Yes
+JRN_00172,PAT_00145,,<1 year,251,Abdominal pain,Yes
+JRN_00174,PAT_00104,,<1 year,863,Abnormal lab values,Yes
+JRN_00179,PAT_00104,,<1 year,405,Seizure,Yes
+JRN_00185,PAT_00109,,1 to <5 years,,,No
+JRN_00212,PAT_00175,,13-18 years,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00225,PAT_00185,,5-12 years,,,No
+JRN_00252,PAT_00208,,1 to <5 years,,,No
+JRN_00382,PAT_00304,,1 to <5 years,251,Abdominal pain,Yes
+JRN_00436,PAT_00349,,1 to <5 years,101,Dental/gum problem,Yes
+JRN_00461,PAT_00204,,1 to <5 years,103,Sore throat,Yes
+JRN_00485,PAT_00388,,<1 year,855,Direct referral for consultation,Yes
+JRN_00513,PAT_00412,,13-18 years,752,Overdose ingestion,Yes
+JRN_00533,PAT_00427,,<1 year,5,Palpitations/irregular heart beat,Yes
+JRN_00548,PAT_00437,,1 to <5 years,657,Allergic reaction,Yes
+JRN_00556,PAT_00070,,5-12 years,,,No
+JRN_00594,PAT_00472,,<1 year,866,Minor complaints NOS,Yes
+JRN_00641,PAT_00504,,13-18 years,802,Major trauma—blunt,Yes
+JRN_00682,PAT_00531,,<1 year,651,Shortness of breath,Yes
+JRN_00731,PAT_00520,,<1 year,402,Confusion,Yes
+JRN_00733,PAT_00570,,5-12 years,709,Localized swelling/redness,Yes
+JRN_00752,PAT_00343,,13-18 years,,,No
+JRN_00800,PAT_00623,,5-12 years,,,No
+JRN_00830,PAT_00640,,13-18 years,351,Depression/suicidal/deliberate self-harm,Yes
+JRN_00937,PAT_00719,,1 to <5 years,852,Fever,Yes
+JRN_00943,PAT_00723,,13-18 years,557,Lower extremity injury,Yes
+JRN_00945,PAT_00725,,<1 year,659,Wheezing—no other complaints,Yes
+JRN_00983,PAT_00754,,<1 year,852,Fever,Yes
+JRN_00991,PAT_00761,,1 to <5 years,752,Overdose ingestion,Yes
+JRN_01064,PAT_00805,,1 to <5 years,,,No
+JRN_01189,PAT_00889,,<1 year,852,Fever,Yes
+JRN_01214,PAT_00901,,13-18 years,251,Abdominal pain,Yes
+JRN_01251,PAT_00930,,13-18 years,251,Abdominal pain,Yes
+JRN_01266,PAT_00802,,13-18 years,752,Overdose ingestion,Yes
+JRN_01286,PAT_00955,,13-18 years,855,Direct referral for consultation,Yes
+JRN_01289,PAT_00958,,1 to <5 years,852,Fever,Yes
+JRN_01310,PAT_00972,,5-12 years,556,Upper extremity injury,Yes
+JRN_01327,PAT_00986,,1 to <5 years,257,Nausea and/or vomiting,Yes
+JRN_01334,PAT_00993,,13-18 years,103,Sore throat,Yes
+JRN_01349,PAT_01001,,<1 year,852,Fever,Yes
+JRN_01420,PAT_01050,,<1 year,653,Cough/congestion,Yes
+JRN_01481,PAT_01096,,<1 year,852,Fever,Yes
+JRN_01519,PAT_01125,,<1 year,651,Shortness of breath,Yes
+JRN_01531,PAT_01134,,<1 year,651,Shortness of breath,Yes
+JRN_01533,PAT_01136,,5-12 years,852,Fever,Yes
+JRN_01643,PAT_01218,,5-12 years,154,URTI complaints,Yes
+JRN_01688,PAT_01246,,1 to <5 years,407,Head injury,Yes
+JRN_01811,PAT_01332,,1 to <5 years,651,Shortness of breath,Yes
+JRN_01843,PAT_00993,,13-18 years,103,Sore throat,Yes
+JRN_01844,PAT_01352,,13-18 years,458,"Pregnancy issues, >20 weeks",Yes
+JRN_01864,PAT_01364,,<1 year,867,Inconsolable crying,Yes
+JRN_01870,PAT_01370,,5-12 years,859,Imaging tests,Yes
+JRN_01892,PAT_01386,,<1 year,855,Direct referral for consultation,Yes
+JRN_01914,PAT_01401,,13-18 years,,,No

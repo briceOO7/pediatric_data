@@ -181,13 +181,21 @@ def _origin_with_fallback(row: pd.Series, leg_idx: int) -> str:
 
 # ── Route classification ───────────────────────────────────────────────────────
 
+def _safe_str(val: object) -> str:
+    """Convert a value to string, returning '' for NaN/None."""
+    if val is None or (isinstance(val, float) and val != val):  # NaN check
+        return ""
+    s = str(val).strip()
+    return "" if s.lower() == "nan" else s
+
+
 def classify_route(row: pd.Series) -> str:
     first_to = ""
     second_to = ""
     found_first = False
     for i in (1, 2, 3):
-        to_val = str(row.get(f"medevac{i}_to", "") or "").strip()
-        from_val = str(row.get(f"medevac{i}_from", "") or "").strip()
+        to_val = _safe_str(row.get(f"medevac{i}_to"))
+        from_val = _safe_str(row.get(f"medevac{i}_from"))
         if not to_val:
             continue
         if not found_first:
@@ -447,6 +455,181 @@ def build_village_census() -> pd.DataFrame:
     return census[keep]
 
 
+def _haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    from math import radians, cos, sin, asin, sqrt
+    R = 3958.8
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return R * 2 * asin(sqrt(a))
+
+
+def _village_distances() -> dict[str, float]:
+    """Village → Kotzebue straight-line distance in miles from shapefile."""
+    shp = ROOT / "mapping_data" / "healthcare_facilities_safetynet" / \
+          "healthcare_facilities_safetynet.shp"
+    if not shp.is_file():
+        return {}
+    try:
+        import geopandas as gpd
+        fac = gpd.read_file(shp).to_crs(epsg=4326)
+        man = fac[fac["ManagingOr"] == "Maniilaq Association"][
+            ["CommunityN", "geometry"]
+        ].drop_duplicates("CommunityN")
+        kotz = man[man["CommunityN"].str.lower() == "kotzebue"]
+        if kotz.empty:
+            return {}
+        klon, klat = float(kotz.iloc[0].geometry.x), float(kotz.iloc[0].geometry.y)
+        return {
+            str(r["CommunityN"]).strip(): round(_haversine_miles(klat, klon, float(r.geometry.y), float(r.geometry.x)))
+            for _, r in man.iterrows()
+        }
+    except Exception:
+        return {}
+
+
+def _med_iqr_range(series: pd.Series) -> dict:
+    """Return dict of median, q1, q3, min, max, n for a numeric series."""
+    s = pd.to_numeric(series, errors="coerce").dropna()
+    n = len(s)
+    if n == 0:
+        return dict(median=None, q1=None, q3=None, lo=None, hi=None, n=0)
+    return dict(
+        median=round(float(s.median()), 1),
+        q1=round(float(s.quantile(0.25)), 1),
+        q3=round(float(s.quantile(0.75)), 1),
+        lo=round(float(s.min()), 1),
+        hi=round(float(s.max()), 1),
+        n=n,
+    )
+
+
+def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
+    """
+    Per-village (+ Overall) summary statistics for Table 1.
+
+    Timing QC:
+      - Total ATA: origin_datetime → destination_datetime (direction check applied)
+      - Activation subset: both time_to_activate_min and activate_to_arrive_min valid
+        - Excludes: direction errors, values below per-village 2× reference flight floor
+    """
+    j = df_primary.drop_duplicates("journey_id").copy()
+    vcol = "village_name"   # computed by medevac_data_prep, always correct
+
+    # Load census
+    census = pd.read_csv(CENSUS_CSV) if CENSUS_CSV.exists() else pd.DataFrame()
+    name_col = next((c for c in ("NAME", "name", "village_name") if c in census.columns), None)
+    pop_map: dict[str, int] = {}
+    if name_col and "pediatric_pop" in census.columns:
+        pop_map = dict(zip(census[name_col].astype(str), census["pediatric_pop"].astype(int)))
+
+    dist_map = _village_distances()
+
+    # ── Timing QC setup ────────────────────────────────────────────────────────
+    ft = pd.to_numeric(j.get("flight_time_min", pd.Series(dtype=float, index=j.index)), errors="coerce")
+    j["_ft"] = ft
+    floors: dict[str, float] = {}
+    if ft.notna().any() and vcol in j.columns:
+        floors = (
+            j[j[vcol].notna()].groupby(vcol)["_ft"]
+            .apply(lambda x: x.dropna().median() * 2.0)
+            .dropna().to_dict()
+        )
+
+    ata  = pd.to_numeric(j.get("activate_to_arrive_min", pd.Series(dtype=float, index=j.index)), errors="coerce")
+    tta  = pd.to_numeric(j.get("time_to_activate_min",   pd.Series(dtype=float, index=j.index)), errors="coerce")
+    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
+    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
+    total_min = (dest - orig).dt.total_seconds() / 60
+
+    bad_dir = dest.notna() & orig.notna() & (dest < orig)
+    below_floor = pd.Series(False, index=j.index)
+    if floors and vcol in j.columns:
+        for v, floor in floors.items():
+            vmask = (j[vcol] == v) & ata.notna() & ~bad_dir
+            below_floor |= vmask & (ata < floor)
+
+    valid_ata = ata.notna() & ~bad_dir & ~below_floor
+    valid_tta = tta.notna() & (tta >= 0) & (tta <= total_min.fillna(float("inf")))
+    valid_act = valid_tta & valid_ata
+    total_valid = total_min[(total_min > 0) & ~bad_dir]
+
+    # ── Study period ───────────────────────────────────────────────────────────
+    yr = pd.to_numeric(j.get("journey_start_year"), errors="coerce")
+    yr_range = range(int(yr.min()), int(yr.max()) + 1) if yr.notna().any() else range(1, 2)
+
+    def _stats_for(mask: pd.Series) -> dict:
+        sub = j[mask]
+        n_j = len(sub)
+        n_p = sub["MRN"].nunique()
+        # Mean (SD) per year
+        yr_sub = pd.to_numeric(sub.get("journey_start_year"), errors="coerce")
+        if yr_sub.notna().any():
+            yr_counts = yr_sub.value_counts()
+            annual = pd.Series({y: yr_counts.get(y, 0) for y in yr_range})
+            mean_yr, sd_yr = float(annual.mean()), float(annual.std(ddof=1)) if len(annual) > 1 else 0.0
+        else:
+            mean_yr, sd_yr = n_j / max(len(yr_range), 1), 0.0
+
+        total_stats = _med_iqr_range(total_min[mask & (total_min > 0) & ~bad_dir])
+        act_total   = int(valid_act[mask].sum())
+        pct_act     = round(100 * act_total / n_j, 1) if n_j else None
+        dec_stats   = _med_iqr_range(tta[mask & valid_act])
+        res_stats   = _med_iqr_range(ata[mask & valid_act])
+
+        return dict(
+            n_journeys=n_j, n_patients=n_p,
+            mean_per_year=round(mean_yr, 1), sd_per_year=round(sd_yr, 1),
+            total_ata_median=total_stats["median"], total_ata_q1=total_stats["q1"],
+            total_ata_q3=total_stats["q3"],         total_ata_lo=total_stats["lo"],
+            total_ata_hi=total_stats["hi"],          total_ata_n=total_stats["n"],
+            pct_complete_timing=pct_act,             n_complete_timing=act_total,
+            decision_median=dec_stats["median"],     decision_q1=dec_stats["q1"],
+            decision_q3=dec_stats["q3"],             decision_lo=dec_stats["lo"],
+            decision_hi=dec_stats["hi"],             decision_n=dec_stats["n"],
+            response_median=res_stats["median"],     response_q1=res_stats["q1"],
+            response_q3=res_stats["q3"],             response_lo=res_stats["lo"],
+            response_hi=res_stats["hi"],             response_n=res_stats["n"],
+        )
+
+    villages = (
+        j[j[vcol].notna() & (j[vcol] != "")]
+        [vcol].value_counts().index.tolist()
+    )
+
+    rows = []
+    for v in villages:
+        vmask = j[vcol] == v
+        s = _stats_for(vmask)
+        s["village_name"] = v
+        s["distance_miles"] = dist_map.get(v)
+        s["pediatric_pop"] = pop_map.get(v)
+        s["util_rate"] = round(s["n_journeys"] / pop_map[v] * 1000, 1) if pop_map.get(v) else None
+        rows.append(s)
+
+    # Overall row (all primary cohort journeys)
+    village_mask = j[vcol].notna() & (j[vcol] != "") if vcol in j.columns else pd.Series(True, index=j.index)
+    overall = _stats_for(village_mask)
+    overall_pop = sum(pop_map.get(v, 0) for v in villages) or None
+    overall.update(
+        village_name="Overall",
+        distance_miles=None,
+        pediatric_pop=overall_pop,
+        util_rate=round(overall["n_journeys"] / overall_pop * 1000, 1) if overall_pop else None,
+    )
+    rows.append(overall)
+
+    col_order = [
+        "village_name", "n_journeys", "n_patients", "mean_per_year", "sd_per_year",
+        "distance_miles", "pediatric_pop", "util_rate",
+        "total_ata_median", "total_ata_q1", "total_ata_q3", "total_ata_lo", "total_ata_hi", "total_ata_n",
+        "pct_complete_timing", "n_complete_timing",
+        "decision_median", "decision_q1", "decision_q3", "decision_lo", "decision_hi", "decision_n",
+        "response_median", "response_q1", "response_q3", "response_lo", "response_hi", "response_n",
+    ]
+    return pd.DataFrame(rows)[[c for c in col_order if c in pd.DataFrame(rows).columns]]
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main(synthetic: bool = False) -> None:
@@ -476,6 +659,7 @@ def main(synthetic: bool = False) -> None:
     _write(build_patients_primary(df_primary), "patients_primary")
     _write(build_legs_primary(df_primary), "legs_primary")
     _write(build_village_census(), "village_census")
+    _write(build_village_summary(df_primary), "village_summary")
 
     print(f"\nDone. {len(df_primary):,} primary journeys, {df_primary['MRN'].nunique():,} unique patients.")
 

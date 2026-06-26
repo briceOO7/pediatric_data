@@ -1,0 +1,11 @@
+journey_id,MRN,age_at_medevac,age_bin,cc_sequence,cc_location,cc_slot,cc_text,cc_cedis_code,cc_cedis_complaint,EncounterStartDTS,EncounterStartDTS_source_col,hours_since_previous_cc
+JRN_00021,PAT_00020,,<1 year,1,village,1,<LOCATION>,458,"Pregnancy issues, >20 weeks",,,
+JRN_00125,PAT_00107,,<1 year,5,mhc_ed,2,MISCARRIAGE,457,"Pregnancy issues, <20 weeks",,,
+JRN_00732,PAT_00569,,<1 year,1,mhc_ed,1,1st PNV <PHONE_NUMBER>,457,"Pregnancy issues, <20 weeks",,,
+JRN_00738,PAT_00575,,<1 year,1,mhc_ed,1,"medevac from <LOCATION> , lives in <LOCATION> , 6 wks preg , bleeding <DATE_TIME> , G3P2",457,"Pregnancy issues, <20 weeks",,,
+JRN_00945,PAT_00725,,<1 year,7,village,7,pruritus of pregnancy,458,"Pregnancy issues, >20 weeks",,,
+JRN_01300,PAT_00965,,<1 year,3,village,3,"<PERSON> that have been consistant <DATE_TIME> , painful and letting baby move a lot",458,"Pregnancy issues, >20 weeks",,,
+JRN_01505,PAT_01113,,<1 year,1,mhc_ed,1,RPNV 34 <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,,
+JRN_01567,PAT_01159,,<1 year,2,village,2,ctx every <PHONE_NUMBER> min for the past <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,,
+JRN_01743,PAT_01283,,<1 year,3,mhc_ed,1,RPNV 33 <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,,
+JRN_01846,PAT_01353,,<1 year,1,village,1,vaginal bleeding . <LOCATION> <DATE_TIME>. Pt reports soaking thru pads,458,"Pregnancy issues, >20 weeks",,,

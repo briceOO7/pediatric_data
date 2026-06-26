@@ -26,125 +26,151 @@ get_legs_primary <- function() {
 get_village_census <- function() {
   if (!exists("vc", envir = .cache)) {
     vc <- load_village_census()
-    # Normalise the village name column regardless of CSV header
     name_col <- intersect(c("village_name", "NAME", "name"), names(vc))[1]
     .cache$vc <- rename(vc, village_name = !!name_col)
   }
   .cache$vc
 }
+get_village_summary <- function() {
+  if (!exists("vs", envir = .cache)) .cache$vs <- load_village_summary()
+  .cache$vs
+}
 
 # ── Cohort counts (for inline narrative) ──────────────────────────────────────
 
 cohort_counts <- function() {
-  jp <- get_journeys_primary()
-  ja <- get_journeys_all()
+  jp <- get_journeys_primary()   # village → MHC cohort
+  ja <- get_journeys_all()       # all journeys
 
-  village_mask <- ja$village_name != "" & !is.na(ja$village_name) &
-                  ja$route_type %in% c("Primary (village → MHC)", "Secondary transfer", "Direct tertiary")
+  # All village-originating journeys (any destination)
+  village_mask <- !is.na(ja$village_name) & ja$village_name != ""
 
   list(
+    # Primary cohort (village → MHC, Table 1 denominator)
     n_journeys         = n_distinct(jp$journey_id),
     n_patients         = n_distinct(jp$MRN),
-    n_villages         = n_distinct(jp$village_name[jp$village_name != ""]),
-    n_village_journeys = sum(village_mask, na.rm = TRUE),
+    n_villages         = n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""]),
+    # All village-originating (narrative "of these...")
+    n_village_journeys = n_distinct(ja$journey_id[village_mask]),
     n_village_patients = n_distinct(ja$MRN[village_mask]),
-    n_primary_only     = sum(jp$route_type == "Primary (village → MHC)", na.rm = TRUE),
+    # Route breakdown within primary cohort
+    n_primary_only     = sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE),
     n_secondary        = sum(jp$route_type == "Secondary transfer", na.rm = TRUE),
-    n_direct_tertiary  = sum(
-      ja$route_type == "Direct tertiary" &
-      !is.na(ja$village_name) & ja$village_name != "", na.rm = TRUE
-    )
+    n_direct_tertiary  = n_distinct(ja$journey_id[village_mask & ja$route_type == "Direct tertiary"])
   )
 }
 
-# ── Table 1: Village characteristics ──────────────────────────────────────────
-# One row per village. Custom gt table (gtsummary expects one row per subject).
+# ── Table 1: Village characteristics (transposed: metrics × villages) ─────────
+
+.fmt_mir <- function(median, q1, q3, lo, hi) {
+  # Vectorised: format as "median (q1–q3); lo–hi", NA -> "—"
+  ifelse(
+    is.na(median), "\u2014",
+    sprintf("%.0f (%.0f\u2013%.0f); %.0f\u2013%.0f", median, q1, q3, lo, hi)
+  )
+}
 
 tbl1_village_characteristics <- function() {
-  jp  <- get_journeys_primary()
-  vc  <- get_village_census()
+  vs <- get_village_summary()
 
-  years <- sort(unique(jp$journey_start_year[!is.na(jp$journey_start_year)]))
-  n_years <- max(length(years), 1)
+  # Sort: villages by n_journeys desc, Overall last
+  villages_order <- vs |>
+    filter(village_name != "Overall") |>
+    arrange(desc(n_journeys)) |>
+    pull(village_name)
+  col_order <- c("Overall", villages_order)
 
-  village_stats <- jp |>
-    filter(!is.na(village_name), village_name != "") |>
-    group_by(village_name) |>
-    summarise(
-      n_journeys  = n_distinct(journey_id),
-      n_patients  = n_distinct(MRN),
-      per_year    = round(n_distinct(journey_id) / n_years, 1),
-      ata_median  = median(activate_to_arrive_min, na.rm = TRUE),
-      ata_q1      = quantile(activate_to_arrive_min, 0.25, na.rm = TRUE),
-      ata_q3      = quantile(activate_to_arrive_min, 0.75, na.rm = TRUE),
-      ft_median   = median(flight_time_min, na.rm = TRUE),
-      ft_q1       = quantile(flight_time_min, 0.25, na.rm = TRUE),
-      ft_q3       = quantile(flight_time_min, 0.75, na.rm = TRUE),
-      .groups = "drop"
-    ) |>
-    arrange(desc(n_journeys))
-
-  # Join census
-  village_stats <- village_stats |>
-    left_join(vc |> select(village_name, pediatric_pop), by = "village_name") |>
+  # Build one cell-value per (metric, village)
+  vs_fmt <- vs |>
     mutate(
-      util_rate = ifelse(
-        !is.na(pediatric_pop) & pediatric_pop > 0,
-        round(n_journeys / pediatric_pop * 1000, 1),
-        NA_real_
-      ),
-      ata_str = ifelse(
-        !is.na(ata_median),
-        sprintf("%.0f (%.0f–%.0f)", ata_median, ata_q1, ata_q3),
-        "—"
-      ),
-      ft_str = ifelse(
-        !is.na(ft_median),
-        sprintf("%.0f (%.0f–%.0f)", ft_median, ft_q1, ft_q3),
-        "—"
-      ),
-      util_str = ifelse(!is.na(util_rate), as.character(util_rate), "—")
+      mean_yr_str   = sprintf("%.1f (%.1f)", mean_per_year, sd_per_year),
+      dist_str      = ifelse(!is.na(distance_miles), as.character(distance_miles), "\u2014"),
+      total_ata_str = .fmt_mir(total_ata_median, total_ata_q1, total_ata_q3,
+                                total_ata_lo, total_ata_hi),
+      pct_act_str   = ifelse(!is.na(pct_complete_timing),
+                              sprintf("%.1f%% (n=%d)", pct_complete_timing, n_complete_timing),
+                              "\u2014"),
+      decision_str  = .fmt_mir(decision_median, decision_q1, decision_q3,
+                                decision_lo, decision_hi),
+      response_str  = .fmt_mir(response_median, response_q1, response_q3,
+                                response_lo, response_hi),
+      util_str      = ifelse(!is.na(util_rate), as.character(util_rate), "\u2014")
     )
 
-  # Overall row
-  overall <- tibble(
-    village_name = "Overall",
-    n_journeys   = n_distinct(jp$journey_id),
-    n_patients   = n_distinct(jp$MRN),
-    per_year     = round(n_distinct(jp$journey_id) / n_years, 1),
-    ata_str      = fmt_median_iqr(jp$activate_to_arrive_min),
-    ft_str       = fmt_median_iqr(jp$flight_time_min),
-    util_str     = "—"
+  # Metric rows in display order
+  metric_rows <- tribble(
+    ~metric_id,              ~Metric,
+    "n_journeys",            "Total journeys",
+    "n_patients",            "Total patients",
+    "mean_yr_str",           "Mean journeys per year (SD)",
+    "dist_str",              "Distance to Kotzebue (miles)",
+    "total_ata_str",         "Total air ambulance time (arrival \u2192 MHC), min \u2014 Median (IQR); Range",
+    "_header_act",           "Air Ambulance Activation",
+    "pct_act_str",           "  % with complete timing data (n)",
+    "decision_str",          "  Air ambulance decision-making time, min \u2014 Median (IQR); Range",
+    "response_str",          "  Air ambulance response and transfer time, min \u2014 Median (IQR); Range\u1d43",
+    "util_str",              "Utilization rate per 1,000 pediatric residents"
   )
 
-  tbl_data <- bind_rows(
-    village_stats |> select(village_name, n_journeys, n_patients, per_year, ata_str, ft_str, util_str),
-    overall
-  )
+  # For each column (village), pull the value for each metric
+  get_val <- function(vname, mid) {
+    if (mid == "_header_act") return("")
+    row <- vs_fmt |> filter(village_name == vname)
+    if (nrow(row) == 0) return("\u2014")
+    val <- row[[mid]]
+    if (is.null(val) || length(val) == 0) return("\u2014")
+    ifelse(is.na(val), "\u2014", as.character(val))
+  }
 
-  tbl_data |>
-    gt() |>
-    cols_label(
-      village_name = "Village",
-      n_journeys   = "Journeys (n)",
-      n_patients   = "Patients (n)",
-      per_year     = "Journeys/yr",
-      ata_str      = "Activation → MHC, min\nMedian (IQR)",
-      ft_str       = "Flight time, min\nMedian (IQR)",
-      util_str     = "Rate per 1,000\npediatric residents"
+  # Build wide table: one column per village/overall
+  tbl_wide <- metric_rows
+  for (cn in col_order) {
+    tbl_wide[[cn]] <- sapply(metric_rows$metric_id, function(m) get_val(cn, m))
+  }
+  tbl_wide <- tbl_wide |> select(-metric_id)
+
+  # Render with gt
+  tbl_wide |>
+    gt(rowname_col = "Metric") |>
+    tab_stubhead(label = "Metric") |>
+    tab_style(
+      style = list(cell_text(weight = "bold", color = "#2C3E50"),
+                   cell_fill(color = "#EBF5FB")),
+      locations = cells_stub(rows = Metric %in% c(
+        "Air Ambulance Activation", "Total journeys"
+      ))
     ) |>
     tab_style(
       style = cell_text(weight = "bold"),
-      locations = cells_body(rows = village_name == "Overall")
+      locations = cells_column_labels()
+    ) |>
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(columns = "Overall")
+    ) |>
+    tab_style(
+      style = cell_text(color = "#555555", size = "small"),
+      locations = cells_body(rows = startsWith(Metric, "  "))
+    ) |>
+    tab_style(
+      style = cell_fill(color = "#F8F9FA"),
+      locations = cells_body(rows = Metric == "Air Ambulance Activation")
     ) |>
     tab_footnote(
-      "Utilization rate = village → MHC journeys per 1,000 pediatric residents under 18 (2020 Census)."
+      footnote = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
+      locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
     ) |>
     tab_footnote(
-      "Activation → MHC excludes timing records flagged as implausible."
+      footnote = html("Activation \u2192 MHC arrival excludes observations below the per-village round-trip flight-time floor (2 \u00d7 median one-way flight time)."),
+      locations = cells_stub(rows = endsWith(Metric, "\u1d43"))
     ) |>
     opt_stylize(style = 1) |>
-    opt_table_font(font = "Arial")
+    opt_table_font(font = "Arial") |>
+    tab_options(
+      stub.font.weight = "bold",
+      column_labels.font.weight = "bold",
+      table.font.size = "small"
+    )
 }
 
 # ── Table 2: Patient characteristics by age group ─────────────────────────────

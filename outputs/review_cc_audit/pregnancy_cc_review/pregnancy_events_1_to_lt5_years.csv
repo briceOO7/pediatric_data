@@ -1,0 +1,8 @@
+journey_id,MRN,age_at_medevac,age_bin,cc_sequence,cc_location,cc_slot,cc_text,cc_cedis_code,cc_cedis_complaint,EncounterStartDTS,EncounterStartDTS_source_col,hours_since_previous_cc
+JRN_00120,PAT_00002,,1 to <5 years,3,mhc_ed,1,RPNV 36 <DATE_TIME>,458,"Pregnancy issues, >20 weeks",,,
+JRN_00282,PAT_00233,,1 to <5 years,3,village,3,"Gallstones , <DATE_TIME> pregnant",457,"Pregnancy issues, <20 weeks",,,
+JRN_00382,PAT_00304,,1 to <5 years,7,mhc_ed,5,Fetal monitoring,458,"Pregnancy issues, >20 weeks",,,
+JRN_01543,PAT_01141,,1 to <5 years,1,village,1,Pregnant with RLQ abdominal pain and R lower back pain,457,"Pregnancy issues, <20 weeks",,,
+JRN_01543,PAT_01141,,1 to <5 years,2,village,2,<DATE_TIME> pregnant and havng severe right abdominal and lower back pains . Pains on the back are more on the right side .,457,"Pregnancy issues, <20 weeks",,,
+JRN_01750,PAT_01289,,1 to <5 years,1,village,1,2wk <LOCATION>,458,"Pregnancy issues, >20 weeks",,,
+JRN_01889,PAT_01383,,1 to <5 years,1,village,1,PP BP check,458,"Pregnancy issues, >20 weeks",,,
