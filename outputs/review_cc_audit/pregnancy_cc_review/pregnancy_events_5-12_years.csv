@@ -1,8 +1,0 @@
-journey_id,MRN,age_at_medevac,age_bin,cc_sequence,cc_location,cc_slot,cc_text,cc_cedis_code,cc_cedis_complaint,EncounterStartDTS,EncounterStartDTS_source_col,hours_since_previous_cc
-JRN_00134,PAT_00113,,5-12 years,4,village,4,prenatal,458,"Pregnancy issues, >20 weeks",,,
-JRN_00251,PAT_00207,,5-12 years,1,village,1,bleeding in pregnancy,457,"Pregnancy issues, <20 weeks",,,
-JRN_00429,PAT_00343,,5-12 years,1,village,1,Cholestasis pf Pregnancy98,458,"Pregnancy issues, >20 weeks",,,
-JRN_00522,PAT_00418,,5-12 years,2,mhc_ed,1,contraction,458,"Pregnancy issues, >20 weeks",,,
-JRN_01875,PAT_01375,,5-12 years,1,mhc_ed,1,RPNV,458,"Pregnancy issues, >20 weeks",,,
-JRN_01932,PAT_01412,,5-12 years,1,village,1,PTL,458,"Pregnancy issues, >20 weeks",,,
-JRN_01932,PAT_01412,,5-12 years,2,village,2,PTL,458,"Pregnancy issues, >20 weeks",,,
