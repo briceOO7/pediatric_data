@@ -1,11 +1,22 @@
-# All contents under data/ (patient / study extracts); keep locally, not in git
+# ── Data (PHI / study extracts — never commit) ────────────────────────────────
 data/
+outputs/data/
 
-# Python / Quarto / OS
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# ── R / renv ───────────────────────────────────────────────────────────────────
+# Track: renv.lock, renv/activate.R, renv/settings.json  (committed — reproducibility)
+# Ignore: the actual installed library (large, machine-specific binaries)
+renv/library/
+renv/local/
+renv/cellar/
+renv/staging/
+
+# ── Quarto / OS ────────────────────────────────────────────────────────────────
 .quarto/
 _quarto_output/
 .DS_Store

@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-Full pipeline: write CSV tables, all PNG figures (including Figure 1 map), then render Quarto.
+Full pipeline (Python data engineering → Python figures → Quarto/R tables).
 
-Designed for headless servers (PHI/Linux): MPLBACKEND=Agg, Quarto HTML by default.
+Architecture:
+  Step 1 (data):    analysis/python/medevac_data_prep.py
+                    → outputs/data/*.csv  (analysis-ready CSVs for R)
+  Step 2 (figures): analysis/medevac_summaries.py  (existing figure pipeline)
+                    → outputs/figures/*.png
+  Step 3 (quarto):  quarto render  (R reads outputs/data/, builds gtsummary tables)
 
 Usage (from repo root or anywhere):
   python scripts/run_full_pipeline.py              # default: real data (infer)
-  python scripts/run_full_pipeline.py -synthetic   # local: de-ID extract + village_name_codebook
+  python scripts/run_full_pipeline.py -synthetic   # local: de-ID extract + village codebook
   MEDEVAC_SYNTHETIC=1 python scripts/run_full_pipeline.py   # same as -synthetic
   python scripts/run_full_pipeline.py --skip-quarto
   python scripts/run_full_pipeline.py --skip-analysis --quarto-to html
-  python scripts/run_full_pipeline.py --fetch-census   # needs network; updates pediatric denominators
+  python scripts/run_full_pipeline.py --fetch-census   # refresh Census denominators
 
-Requires: Python deps (requirements.txt), `quarto` on PATH, `data/*.csv`, `mapping_data/` shapefiles for the map.
+Requires: Python deps (requirements.txt), R + renv packages, quarto on PATH.
 """
 
 from __future__ import annotations
@@ -95,7 +100,15 @@ def main() -> int:
             return r.returncode
 
     if not args.skip_analysis:
-        print("==> Tables + figures (analysis/medevac_summaries.py)")
+        print("==> Step 1: Data engineering (analysis/python/medevac_data_prep.py → outputs/data/)")
+        r = subprocess.run(
+            [py, str(root / "analysis" / "python" / "medevac_data_prep.py")],
+            cwd=root,
+        )
+        if r.returncode != 0:
+            return r.returncode
+
+        print("==> Step 2: Figures (analysis/medevac_summaries.py → outputs/figures/)")
         r = subprocess.run([py, str(root / "analysis" / "medevac_summaries.py")], cwd=root)
         if r.returncode != 0:
             return r.returncode
@@ -105,7 +118,8 @@ def main() -> int:
         if not quarto:
             print("ERROR: quarto not found on PATH. Install Quarto or use --skip-quarto.", file=sys.stderr)
             return 127
-        cmd = [quarto, "render", str(root / "medevac_report.qmd")]
+        print("==> Step 3: Quarto render (R builds tables via gtsummary)")
+        cmd = [quarto, "render", str(root / "manuscripts" / "paper1" / "paper1_results.qmd")]
         if args.quarto_to == "html":
             cmd.extend(["--to", "html"])
         elif args.quarto_to == "pdf":
