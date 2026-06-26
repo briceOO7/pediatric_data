@@ -98,16 +98,14 @@ def _is_anmc_dest(v):
     t = str(v or "").strip()
     return t.startswith("Hub") or t.upper() in ("HUB_01", "ANMC")
 
-# Route counts using facility sequence (matches Table 3 classification)
+# Route counts using medevac leg destinations (matches Table 3 classification)
 def _route_facility(row):
-    loc2 = row.get("facility_2_name")
-    loc3 = row.get("facility_3_name")
-    loc2s = "" if pd.isna(loc2) else str(loc2).strip()
-    loc3s = "" if pd.isna(loc3) else str(loc3).strip()
     if not is_village_medevac_origin(str(row.get("facility_1_name") or "")):
         return None
-    if _is_mhc_cah_destination(loc2s):
-        return "Secondary" if loc3s else "Primary only"
+    m1s = "" if pd.isna(row.get("medevac1_to")) else str(row.get("medevac1_to")).strip()
+    m2s = "" if pd.isna(row.get("medevac2_to")) else str(row.get("medevac2_to")).strip()
+    if _is_mhc_cah_destination(m1s):
+        return "Secondary" if m2s else "Primary only"
     return "Direct tertiary"
 
 _j["_route_fac"] = _j.apply(_route_facility, axis=1)

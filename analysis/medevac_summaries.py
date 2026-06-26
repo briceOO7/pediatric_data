@@ -1304,12 +1304,12 @@ def export_secondary_excluded_from_mhc_filter(df_all: pd.DataFrame) -> pd.DataFr
 
     # All secondary journeys by facility sequence
     def _is_secondary(row):
-        loc2 = row.get("facility_2_name")
-        loc3 = row.get("facility_3_name")
         loc1 = str(row.get("facility_1_name") or "")
-        loc2s = "" if pd.isna(loc2) else str(loc2).strip()
-        loc3s = "" if pd.isna(loc3) else str(loc3).strip()
-        return is_village_medevac_origin(loc1) and _is_mhc_cah_destination(loc2s) and bool(loc3s)
+        m1to = row.get("medevac1_to")
+        m2to = row.get("medevac2_to")
+        m1s = "" if pd.isna(m1to) else str(m1to).strip()
+        m2s = "" if pd.isna(m2to) else str(m2to).strip()
+        return is_village_medevac_origin(loc1) and _is_mhc_cah_destination(m1s) and bool(m2s)
 
     secondary_ids = set(j[j.apply(_is_secondary, axis=1)]["journey_id"].astype(str))
 
@@ -2615,16 +2615,19 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
     #   Primary      : loc1=village, loc2=MHC, loc3=null
     #   Secondary    : loc1=village, loc2=MHC, loc3=non-null (ANMC/outside)
     #   Direct tertiary: loc1=village, loc2≠MHC
-    def _route_from_facilities(row: pd.Series) -> str:
-        loc2_raw = row.get("facility_2_name")
-        loc3_raw = row.get("facility_3_name")
-        loc2 = "" if pd.isna(loc2_raw) else str(loc2_raw).strip()
-        loc3 = "" if pd.isna(loc3_raw) else str(loc3_raw).strip()
-        if _is_mhc_cah_destination(loc2):
-            return "Secondary" if loc3 else "Primary only"
+    def _route_from_legs(row: pd.Series) -> str:
+        # Use the actual medevac leg destinations (not facility sequence) so that
+        # journeys where MHC appears as a facility encounter but the medevac flew
+        # directly to ANMC are correctly classified as Direct tertiary.
+        m1to_raw = row.get("medevac1_to")
+        m2to_raw = row.get("medevac2_to")
+        m1to = "" if pd.isna(m1to_raw) else str(m1to_raw).strip()
+        m2to = "" if pd.isna(m2to_raw) else str(m2to_raw).strip()
+        if _is_mhc_cah_destination(m1to):
+            return "Secondary" if m2to else "Primary only"
         return "Direct tertiary"
 
-    j["_grp"] = j.apply(_route_from_facilities, axis=1)
+    j["_grp"] = j.apply(_route_from_legs, axis=1)
     groups_order = ["Primary only", "Secondary", "Direct tertiary"]
     grp_data = {g: j[j["_grp"] == g] for g in groups_order}
     ns = {g: len(v) for g, v in grp_data.items()}

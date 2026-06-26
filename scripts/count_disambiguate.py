@@ -41,21 +41,19 @@ print("STEP 2 — Village-originating journeys (facility_1 = village clinic)")
 print(f"  Total            : {len(j_vill)}")
 print(f"  Unique MRNs      : {j_vill['MRN'].nunique()}")
 
-# ── Step 3: by route type (facility sequence) ─────────────────────────────────
+# ── Step 3: by route type (medevac leg destinations) ──────────────────────────
 def _route(row):
-    loc2 = row.get("facility_2_name")
-    loc3 = row.get("facility_3_name")
-    loc2s = "" if pd.isna(loc2) else str(loc2).strip()
-    loc3s = "" if pd.isna(loc3) else str(loc3).strip()
-    if _is_mhc_cah_destination(loc2s):
-        return "Secondary" if loc3s else "Primary only"
+    m1s = "" if pd.isna(row.get("medevac1_to")) else str(row.get("medevac1_to")).strip()
+    m2s = "" if pd.isna(row.get("medevac2_to")) else str(row.get("medevac2_to")).strip()
+    if _is_mhc_cah_destination(m1s):
+        return "Secondary" if m2s else "Primary only"
     return "Direct tertiary"
 
 j_vill = j_vill.copy()
 j_vill["_route"] = j_vill.apply(_route, axis=1)
 rc = j_vill["_route"].value_counts()
 print()
-print("STEP 3 — Village journeys by route type (facility_1/2/3 sequence)")
+print("STEP 3 — Village journeys by route type (medevac1_to / medevac2_to legs)")
 for r in ["Primary only", "Secondary", "Direct tertiary"]:
     print(f"  {r:<22}: {rc.get(r, 0):>4}")
 print(f"  {'TOTAL':<22}: {rc.sum():>4}  ← should equal Step 2")
