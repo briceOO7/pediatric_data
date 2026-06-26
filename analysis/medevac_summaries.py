@@ -2708,12 +2708,16 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
         if s.empty: return "—"
         return f"{s.median():.1f} ({s.quantile(0.25):.1f}–{s.quantile(0.75):.1f})"
 
-    kw = _stats.kruskal(*[age_series[g] for g in groups_order
-                           if len(age_series[g]) > 0])
+    _age_nonempty = [age_series[g] for g in groups_order if len(age_series[g]) > 0]
+    try:
+        kw = _stats.kruskal(*_age_nonempty) if len(_age_nonempty) >= 2 else None
+        kw_p = (f"{kw.pvalue:.3f}" if kw.pvalue >= 0.001 else "<0.001") if kw else "—"
+    except Exception:
+        kw_p = "—"
     rows.append(
         ["Age, years — Median (IQR)"]
         + [_med_iqr(age_series[g]) for g in groups_order]
-        + [f"{kw.pvalue:.3f}" if kw.pvalue >= 0.001 else "<0.001"]
+        + [kw_p]
     )
 
     # ── Age group (%) ─────────────────────────────────────────────────────────
