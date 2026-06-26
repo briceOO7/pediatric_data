@@ -29,7 +29,27 @@ _pipeline_root = Path(
     os.environ.get("MEDEVAC_PIPELINE_DIR", ROOT.parent / "medevac_pipeline_project")
 ).resolve()
 _pipeline_pediatric = _pipeline_root / "data" / "final" / "pediatric"
-DATA = _pipeline_pediatric if _pipeline_pediatric.exists() else ROOT / "data"
+_local_data = ROOT / "data"
+
+if _pipeline_pediatric.exists():
+    DATA = _pipeline_pediatric
+elif _local_data.exists() and any(_local_data.glob("*.csv")):
+    # Explicit warning so it's never silent
+    import warnings
+    warnings.warn(
+        f"Pipeline data not found at {_pipeline_pediatric}. "
+        f"Falling back to local data/ — use -synthetic flag and ensure this is intentional.",
+        stacklevel=1,
+    )
+    DATA = _local_data
+else:
+    raise FileNotFoundError(
+        f"No data source found.\n"
+        f"  Expected pipeline data at: {_pipeline_pediatric}\n"
+        f"  No local data/ CSVs found either.\n"
+        f"  On PHI machine: ensure medevac_pipeline_project is a sibling directory.\n"
+        f"  On dev machine: place synthetic extract in data/ and use -synthetic flag."
+    )
 
 VILLAGE_CODEBOOK  = ROOT / "docs" / "village_name_codebook.csv"
 FACILITY_CODEBOOK = ROOT / "docs" / "facility_name_codebook.csv"
