@@ -35,29 +35,107 @@ get_village_summary <- function() {
   if (!exists("vs", envir = .cache)) .cache$vs <- load_village_summary()
   .cache$vs
 }
+get_cohort_flow <- function() {
+  if (!exists("cf", envir = .cache)) .cache$cf <- load_cohort_flow()
+  .cache$cf
+}
+get_leg_breakdown <- function() {
+  if (!exists("lb", envir = .cache)) .cache$lb <- load_leg_breakdown()
+  .cache$lb
+}
 
 # ── Cohort counts (for inline narrative) ──────────────────────────────────────
 
 cohort_counts <- function() {
-  jp <- get_journeys_primary()   # village → MHC cohort
-  ja <- get_journeys_all()       # all journeys
+  jp <- get_journeys_primary()
+  cf <- get_cohort_flow()
+  lb <- get_leg_breakdown()
 
-  # All village-originating journeys (any destination)
-  village_mask <- !is.na(ja$village_name) & ja$village_name != ""
+  all_row  <- cf[cf$stage == "All records in database", ]
+  coh_row  <- cf[cf$stage == "Village-originating (cohort)", ]
+  excl_row <- cf[cf$stage == "MHC-presenting (excluded)", ]
+
+  # Leg counts by route segment (village-originating journeys only)
+  is_mhc_from  <- grepl("MHC|Maniilaq", lb$from_type)
+  is_vill_from <- lb$from_type == "Village"
+  is_anmc_to   <- grepl("ANMC|Alaska Native", lb$to_type)
+  is_mhc_to    <- grepl("MHC|Maniilaq", lb$to_type)
+
+  n_legs_village_mhc   <- sum(lb$n_legs[is_vill_from &  is_mhc_to])
+  n_legs_village_anmc  <- sum(lb$n_legs[is_vill_from &  is_anmc_to])
+  n_legs_village_other <- sum(lb$n_legs[is_vill_from & !is_mhc_to & !is_anmc_to])
+  n_legs_mhc_anmc      <- sum(lb$n_legs[is_mhc_from &  is_anmc_to])
+  n_legs_mhc_other     <- sum(lb$n_legs[is_mhc_from & !is_anmc_to])
 
   list(
-    # Primary cohort (village → MHC, Table 1 denominator)
-    n_journeys         = n_distinct(jp$journey_id),
-    n_patients         = n_distinct(jp$MRN),
-    n_villages         = n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""]),
-    # All village-originating (narrative "of these...")
-    n_village_journeys = n_distinct(ja$journey_id[village_mask]),
-    n_village_patients = n_distinct(ja$MRN[village_mask]),
-    # Route breakdown within primary cohort
-    n_primary_only     = sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE),
-    n_secondary        = sum(jp$route_type == "Secondary transfer", na.rm = TRUE),
-    n_direct_tertiary  = n_distinct(ja$journey_id[village_mask & ja$route_type == "Direct tertiary"])
+    # Primary cohort
+    n_journeys           = n_distinct(jp$journey_id),
+    n_patients           = n_distinct(jp$MRN),
+    n_villages           = n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""]),
+    # DB totals (for PRISMA context)
+    n_db_total           = as.integer(all_row$n_journeys),
+    n_mhc_presenting     = as.integer(excl_row$n_journeys),
+    # Route breakdown within cohort
+    n_primary_only       = sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE),
+    n_secondary          = sum(jp$route_type == "Secondary transfer", na.rm = TRUE),
+    # Flight leg breakdown (village-originating journeys only)
+    n_legs_total         = sum(lb$n_legs),
+    n_legs_village_mhc   = n_legs_village_mhc,
+    n_legs_mhc_anmc      = n_legs_mhc_anmc,
+    n_legs_village_anmc  = n_legs_village_anmc,
+    n_legs_mhc_other     = n_legs_mhc_other,
+    n_legs_village_other = n_legs_village_other,
+    # Completeness (cohort only)
+    n_complete_dest_cohort   = as.integer(coh_row$n_complete_dest),
+    n_complete_timing_cohort = as.integer(coh_row$n_complete_timing)
   )
+}
+
+# ── PRISMA patient flow diagram ────────────────────────────────────────────────
+
+fig_prisma_diagram <- function() {
+  library(DiagrammeR)
+  cf <- get_cohort_flow()
+  jp <- get_journeys_primary()
+
+  all_row  <- cf[cf$stage == "All records in database", ]
+  coh_row  <- cf[cf$stage == "Village-originating (cohort)", ]
+  excl_row <- cf[cf$stage == "MHC-presenting (excluded)", ]
+
+  n_villages <- n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""])
+  pct <- function(n, d) paste0(round(100 * as.numeric(n) / as.numeric(d)), "%")
+
+  # Two-branch layout: DB record → [village cohort | excluded MHC-local]
+  dot <- sprintf(
+    'digraph PRISMA {
+      graph [rankdir=TB, splines=ortho, nodesep=1.2, ranksep=0.9]
+      node [shape=rectangle, style=filled, fontname="Helvetica", fontsize=12, margin="0.25,0.15"]
+      edge [fontsize=11]
+
+      A [fillcolor="#D6EAF8",
+         label="All pediatric air ambulance records\\nin database, 2020\\u20132024\\nn = %d journeys"]
+
+      B [fillcolor="#A9DFBF",
+         label="Village-originating flights (cohort)\\n%d journeys  \\u00b7  %d unique patients\\n%d communities\\nComplete destination data: %d (%s)\\nComplete timing data: %d (%s)"]
+
+      Ex [fillcolor="#FADBD8",
+          label="Excluded: n = %d\\nMHC-presenting patients\\n(not village air ambulance)\\nLocal or ground-transport arrivals\\nrequiring air transfer to ANMC"]
+
+      A -> B
+      A -> Ex
+      {rank=same; B; Ex}
+    }',
+    as.integer(all_row$n_journeys),
+    as.integer(coh_row$n_journeys), as.integer(coh_row$n_patients),
+    n_villages,
+    as.integer(coh_row$n_complete_dest),
+      pct(coh_row$n_complete_dest, coh_row$n_journeys),
+    as.integer(coh_row$n_complete_timing),
+      pct(coh_row$n_complete_timing, coh_row$n_journeys),
+    as.integer(excl_row$n_journeys)
+  )
+
+  grViz(dot)
 }
 
 # ── Table 1: Village characteristics (transposed: metrics × villages) ─────────

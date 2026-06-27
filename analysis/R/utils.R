@@ -72,6 +72,14 @@ load_village_summary <- function() {
   read_csv(file.path(DATA_DIR, "village_summary.csv"), show_col_types = FALSE)
 }
 
+load_cohort_flow <- function() {
+  read_csv(file.path(DATA_DIR, "cohort_flow.csv"), show_col_types = FALSE)
+}
+
+load_leg_breakdown <- function() {
+  read_csv(file.path(DATA_DIR, "leg_breakdown.csv"), show_col_types = FALSE)
+}
+
 # ── Formatting helpers ─────────────────────────────────────────────────────────
 
 #' Format median (IQR) for a numeric vector

@@ -1,5 +1,5 @@
 ---
-title: "Pediatric Medevac Operations in a Remote Arctic Health System"
+title: "Pediatric Air Ambulance Operations in a Remote Arctic Health System"
 subtitle: "Utilization, Timeliness, and Regional Variation — Results"
 date: today
 date-format: long
@@ -23,6 +23,7 @@ engine: knitr
 ```{r}
 #| include: false
 library(here)
+library(DiagrammeR)
 source(here("analysis", "R", "paper1_tables.R"))
 
 cc <- cohort_counts()
@@ -32,19 +33,45 @@ cc <- cohort_counts()
 
 ### Cohort Overview
 
-During the five-year study period (2020–2024), `r cc$n_village_journeys` pediatric
-medevac flights originated from a village clinic, involving `r cc$n_village_patients`
-unique patients. Of these, `r cc$n_journeys` journeys had a primary destination of
-Maniilaq Health Center (MHC), spanning `r cc$n_villages` villages and involving
-`r cc$n_patients` unique patients. This village-to-MHC cohort forms the basis of
-the analyses below. @tbl-t1 summarizes medevac characteristics by
-village, including total journeys, unique patients, mean journeys per year,
-air ambulance timing, and per-village utilization rate. @tbl-t2 summarizes patient
-characteristics by age group.
+The analysis is restricted to air ambulance flights departing from a village
+clinic — defined as an emergency originating in one of the 11 communities served
+by the Maniilaq Health System that required air evacuation. During the five-year
+study period (2020–2024), `r cc$n_journeys` such flights were identified,
+involving `r cc$n_patients` unique patients across `r cc$n_villages` communities.
+This village-originating cohort forms the basis of all analyses below. An
+additional `r cc$n_mhc_presenting` air transport records in the database
+(MHC → tertiary center) were excluded, as these represent patients who presented
+locally to MHC — by walk-in, ground transport, or scheduled transfer — rather
+than village-originating emergencies.
+
+@fig-prisma shows the cohort selection flow and data completeness. @tbl-t1
+summarizes air ambulance characteristics by village, including total journeys,
+unique patients, mean journeys per year, air ambulance timing, and per-village
+utilization rate. @tbl-t2 summarizes patient characteristics by age group.
+
+#### Flight Segment Breakdown
+
+Across the `r cc$n_journeys` village-originating journeys, a total of
+`r cc$n_legs_total` individual flight segments were recorded. Segments by origin
+and destination:
+
+- **Village → MHC**: `r cc$n_legs_village_mhc` segments (primary inbound transport)
+- **MHC → ANMC**: `r cc$n_legs_mhc_anmc` segments (secondary escalation to tertiary)
+- **Village → ANMC**: `r cc$n_legs_village_anmc` segments (direct tertiary, bypassing MHC)
+- **MHC → outside facility**: `r cc$n_legs_mhc_other` segments (secondary to non-ANMC tertiary)
+- **Village → outside facility**: `r cc$n_legs_village_other` segments (if any)
+
+#### Patient Flow Diagram
+
+```{r}
+#| label: fig-prisma
+#| fig-cap: "Cohort selection. Left branch = village-originating air ambulance flights (analytic cohort). Right branch = MHC-presenting patients excluded from analysis (local or ground-transport arrivals requiring air transfer to ANMC; not village emergencies). Complete destination data: all non-empty leg slots have a destination recorded. Complete timing data: activation-to-arrival interval verified as non-circular (quality flag = 'real')."
+fig_prisma_diagram()
+```
 
 ```{r}
 #| label: tbl-t1
-#| tbl-cap: "Medevac characteristics by village. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+#| tbl-cap: "Air ambulance characteristics by village. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
 tbl1_village_characteristics()
 ```
 
@@ -58,14 +85,13 @@ tbl2_patient_characteristics()
 
 ### Route Typology
 
-Transports were classified into three route types using the facility sequence
-recorded for each journey. **Primary only** (village → MHC, no further transfer,
+Transports were classified into route types using the facility sequence recorded
+for each journey. **Primary only** (village → MHC, no further transfer,
 n = `r cc$n_primary_only`) represents the majority of encounters. **Secondary**
 transfers (village → MHC → ANMC or outside facility, n = `r cc$n_secondary`)
-reflect patients whose acuity required escalation beyond MHC. **Direct tertiary**
-transfers (village → ANMC bypassing MHC, n = `r cc$n_direct_tertiary`) are included
-here for completeness. @tbl-t3 compares patient age and chief complaint across
-these route groups. @tbl-t3a and @tbl-t3b detail leg-level routing patterns.
+reflect patients whose acuity required escalation beyond MHC. @tbl-t3 compares
+patient age and chief complaint across route groups. @tbl-t3a and @tbl-t3b detail
+leg-level routing patterns.
 
 ```{r}
 #| label: tbl-t3
@@ -75,7 +101,7 @@ tbl3_route_comparison()
 
 ```{r}
 #| label: tbl-t3a
-#| tbl-cap: "Primary transfers: village-originating medevac legs. Percent denominator = all primary legs."
+#| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
 tbl3a_primary_routes()
 ```
 
@@ -95,7 +121,7 @@ per-village utilization after accounting for pediatric population denominators.
 
 ```{r}
 #| label: tbl-t4
-#| tbl-cap: "Village-level pediatric medevac utilization. Rate = village → MHC journeys per 1,000 pediatric residents under 18 (2020 Census). Sorted by utilization rate, highest to lowest."
+#| tbl-cap: "Village-level pediatric air ambulance utilization. Rate = village → MHC journeys per 1,000 pediatric residents under 18 (2020 Census). Sorted by utilization rate, highest to lowest."
 tbl4_village_utilization()
 ```
 
@@ -103,7 +129,7 @@ tbl4_village_utilization()
 
 ### Timeliness
 
-Time intervals from medevac activation to MHC arrival are reported in @tbl-t5.
+Time intervals from air ambulance activation to MHC arrival are reported in @tbl-t5.
 
 ```{r}
 #| label: tbl-t5
@@ -122,7 +148,7 @@ and embedded here as pre-built images. Run `make figures` to regenerate.
 
 ```{r}
 #| label: fig-map
-#| fig-cap: "Pediatric medevac service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = utilization rate per 1,000 pediatric residents (2020 Census)."
+#| fig-cap: "Pediatric air ambulance service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = utilization rate per 1,000 pediatric residents (2020 Census)."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1_medevac_map.png"))
 ```

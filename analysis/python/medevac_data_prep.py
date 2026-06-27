@@ -630,6 +630,84 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)[[c for c in col_order if c in pd.DataFrame(rows).columns]]
 
 
+# ── Cohort flow (PRISMA nodes) ─────────────────────────────────────────────────
+
+def build_cohort_flow(df: pd.DataFrame, df_primary: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cohort flow for the PRISMA diagram.
+
+    Stages (rows):
+      "All records in database"      – every journey record in the extract
+      "MHC-presenting (excluded)"    – records whose first leg starts at MHC,
+                                       not village-originating air ambulance
+      "Village-originating (cohort)" – primary cohort: village → MHC journeys
+    """
+
+    def _complete_dest(subset: pd.DataFrame) -> int:
+        """Journeys where every non-empty leg slot has a destination."""
+        def _row_ok(r: pd.Series) -> bool:
+            for i in (1, 2, 3):
+                if _safe_str(r.get(f"medevac{i}_from")) and not _safe_str(r.get(f"medevac{i}_to")):
+                    return False
+            return True
+        return int(subset.apply(_row_ok, axis=1).sum())
+
+    def _complete_timing(subset: pd.DataFrame) -> int:
+        """Journeys with genuinely measured timing (quality == 'real')."""
+        if "time_to_activate_quality" not in subset.columns:
+            return 0
+        return int((subset["time_to_activate_quality"] == "real").sum())
+
+    def _stage(subset: pd.DataFrame, label: str) -> dict:
+        return dict(
+            stage=label,
+            n_journeys=int(subset["journey_id"].nunique()),
+            n_patients=int(subset["MRN"].nunique()),
+            n_complete_dest=_complete_dest(subset),
+            n_complete_timing=_complete_timing(subset),
+        )
+
+    n_all  = int(df["journey_id"].nunique())
+    n_prim = int(df_primary["journey_id"].nunique())
+
+    s_all  = _stage(df, "All records in database")
+    s_prim = _stage(df_primary, "Village-originating (cohort)")
+    s_excl: dict = dict(
+        stage="MHC-presenting (excluded)",
+        n_journeys=n_all - n_prim,
+        n_patients=None,
+        n_complete_dest=None,
+        n_complete_timing=None,
+    )
+    return pd.DataFrame([s_all, s_excl, s_prim])
+
+
+# ── Leg breakdown ───────────────────────────────────────────────────────────────
+
+def build_leg_breakdown(df: pd.DataFrame) -> pd.DataFrame:
+    """Count flight legs by origin-type × destination-type (village-originating journeys only)."""
+    rows = []
+    for _, r in df.iterrows():
+        for i in (1, 2, 3):
+            frm = _safe_str(r.get(f"medevac{i}_from"))
+            to  = _safe_str(r.get(f"medevac{i}_to"))
+            if not frm or not to:
+                continue
+            from_cat = "Village" if is_village_origin(frm) else _dest_label(frm)
+            to_cat   = _dest_label(to)
+            rows.append({"from_type": from_cat, "to_type": to_cat})
+
+    if not rows:
+        return pd.DataFrame(columns=["from_type", "to_type", "n_legs"])
+
+    return (
+        pd.DataFrame(rows)
+        .groupby(["from_type", "to_type"])
+        .size()
+        .reset_index(name="n_legs")
+    )
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main(synthetic: bool = False) -> None:
@@ -660,6 +738,8 @@ def main(synthetic: bool = False) -> None:
     _write(build_legs_primary(df_primary), "legs_primary")
     _write(build_village_census(), "village_census")
     _write(build_village_summary(df_primary), "village_summary")
+    _write(build_cohort_flow(df, df_primary), "cohort_flow")
+    _write(build_leg_breakdown(df_primary), "leg_breakdown")
 
     print(f"\nDone. {len(df_primary):,} primary journeys, {df_primary['MRN'].nunique():,} unique patients.")
 
