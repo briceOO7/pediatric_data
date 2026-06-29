@@ -496,6 +496,7 @@ tbl3_route_comparison <- function() {
         age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
         all_categorical()  ~ "{p}% ({n})"
       ),
+      digits  = list(all_categorical() ~ c(1, 0)),
       missing = "no"
     ) |>
     add_p(
