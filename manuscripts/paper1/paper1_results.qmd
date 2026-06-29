@@ -139,6 +139,12 @@ knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 ```
 
 ```{r}
+#| label: tbl-t4
+#| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Times in minutes: Median (IQR); Range."
+tbl4_timing_by_village()
+```
+
+```{r}
 #| label: tbl-t3a
 #| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
 tbl3a_primary_routes()

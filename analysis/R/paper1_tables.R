@@ -138,29 +138,28 @@ fig_prisma_diagram <- function() {
   grViz(dot)
 }
 
-# ── Table 1: Village characteristics (transposed: metrics × villages) ─────────
+# ── Shared infrastructure for transposed village tables ────────────────────────
 
 .fmt_mir <- function(median, q1, q3, lo, hi) {
-  # Vectorised: format as "median (q1–q3); lo–hi", NA -> "—"
   ifelse(
     is.na(median), "\u2014",
     sprintf("%.0f (%.0f\u2013%.0f); %.0f\u2013%.0f", median, q1, q3, lo, hi)
   )
 }
 
-tbl1_village_characteristics <- function() {
+# Build the shared vs_fmt / transport_fmt / col_order objects used by both
+# village tables. Returns a list so each table function can call it once.
+.village_table_data <- function() {
   vs <- get_village_summary()
   pp <- get_patients_primary()
 
-  # Sort columns: villages by utilization rate desc, Overall first
   villages_order <- vs |>
     filter(village_name != "Overall") |>
     arrange(desc(util_rate)) |>
     pull(village_name)
   col_order <- c("Overall", villages_order)
 
-  # Transport count distribution per village (for insertion after Total patients)
-  .transport_fmt <- function(df) {
+  .tfmt <- function(df) {
     total <- nrow(df)
     if (total == 0) return(tibble(t1_str = "\u2014", t2_str = "\u2014", t3p_str = "\u2014"))
     n1  <- sum(df$n_journeys_primary == 1,  na.rm = TRUE)
@@ -172,61 +171,39 @@ tbl1_village_characteristics <- function() {
       t3p_str = sprintf("%d (%.0f%%)", n3p, 100 * n3p / total)
     )
   }
-
-  transport_overall <- .transport_fmt(pp)
-
-  transport_by_village <- pp |>
-    filter(!is.na(village_name), village_name != "") |>
-    group_by(village_name) |>
-    group_modify(~ .transport_fmt(.x)) |>
-    ungroup()
-
-  # Combine into a lookup: village_name → (t1_str, t2_str, t3p_str)
   transport_fmt <- bind_rows(
-    transport_overall |> mutate(village_name = "Overall"),
-    transport_by_village
+    .tfmt(pp) |> mutate(village_name = "Overall"),
+    pp |> filter(!is.na(village_name), village_name != "") |>
+      group_by(village_name) |> group_modify(~ .tfmt(.x)) |> ungroup()
   )
 
-  # Build one cell-value per (metric, village)
-  vs_fmt <- vs |>
-    mutate(
-      mean_yr_str   = sprintf("%.1f (%.1f)", mean_per_year, sd_per_year),
-      dist_str      = ifelse(!is.na(distance_miles), as.character(distance_miles), "\u2014"),
-      total_ata_str = .fmt_mir(total_ata_median, total_ata_q1, total_ata_q3,
-                                total_ata_lo, total_ata_hi),
-      pct_act_str   = ifelse(!is.na(pct_complete_timing),
-                              sprintf("%.1f%% (n=%d)", pct_complete_timing, n_complete_timing),
-                              "\u2014"),
-      decision_str  = .fmt_mir(decision_median, decision_q1, decision_q3,
-                                decision_lo, decision_hi),
-      response_str  = .fmt_mir(response_median, response_q1, response_q3,
-                                response_lo, response_hi),
-      util_str      = ifelse(!is.na(util_rate), as.character(util_rate), "\u2014")
-    )
-
-  # Metric rows in display order
-  metric_rows <- tribble(
-    ~metric_id,              ~Metric,
-    "pediatric_pop",         "Pediatric population (under 18)",
-    "n_journeys",            "Total journeys",
-    "n_patients",            "Total patients",
-    "_header_transport",     "Air ambulance transports per patient",
-    "t1_str",                "  1 transport",
-    "t2_str",                "  2 transports",
-    "t3p_str",               "  3+ transports",
-    "mean_yr_str",           "Mean journeys per year (SD)",
-    "dist_str",              "Distance to Kotzebue (miles)",
-    "total_ata_str",         "Total air ambulance time (arrival \u2192 MHC), min \u2014 Median (IQR); Range",
-    "_header_act",           "Air Ambulance Activation",
-    "pct_act_str",           "  % with complete timing data (n)",
-    "decision_str",          "  Air ambulance decision-making time, min \u2014 Median (IQR); Range",
-    "response_str",          "  Air ambulance response and transfer time, min \u2014 Median (IQR); Range\u1d43",
-    "util_str",              "Utilization rate per 1,000 pediatric residents"
+  vs_fmt <- vs |> mutate(
+    mean_yr_str   = sprintf("%.1f (%.1f)", mean_per_year, sd_per_year),
+    dist_str      = ifelse(!is.na(distance_miles), as.character(distance_miles), "\u2014"),
+    total_ata_str = .fmt_mir(total_ata_median, total_ata_q1, total_ata_q3,
+                              total_ata_lo, total_ata_hi),
+    pct_act_str   = ifelse(!is.na(pct_complete_timing),
+                            sprintf("%.1f%% (n=%d)", pct_complete_timing, n_complete_timing),
+                            "\u2014"),
+    decision_str  = .fmt_mir(decision_median, decision_q1, decision_q3,
+                              decision_lo, decision_hi),
+    response_str  = .fmt_mir(response_median, response_q1, response_q3,
+                              response_lo, response_hi),
+    util_str      = ifelse(!is.na(util_rate), as.character(util_rate), "\u2014")
   )
 
-  # For each column (village), pull the value for each metric
+  list(vs_fmt = vs_fmt, transport_fmt = transport_fmt, col_order = col_order)
+}
+
+# Render a transposed village gt table from a metric_rows tibble + data list
+.render_village_gt <- function(metric_rows, dat, bold_header_rows = character(0),
+                               shaded_rows = character(0), footnotes = list()) {
+  vs_fmt        <- dat$vs_fmt
+  transport_fmt <- dat$transport_fmt
+  col_order     <- dat$col_order
+
   get_val <- function(vname, mid) {
-    if (mid %in% c("_header_act", "_header_transport")) return("")
+    if (startsWith(mid, "_header")) return("")
     if (mid %in% c("t1_str", "t2_str", "t3p_str")) {
       trow <- transport_fmt |> filter(village_name == vname)
       if (nrow(trow) == 0) return("\u2014")
@@ -239,59 +216,97 @@ tbl1_village_characteristics <- function() {
     ifelse(is.na(val), "\u2014", as.character(val))
   }
 
-  # Build wide table: one column per village/overall
   tbl_wide <- metric_rows
   for (cn in col_order) {
     tbl_wide[[cn]] <- sapply(metric_rows$metric_id, function(m) get_val(cn, m))
   }
   tbl_wide <- tbl_wide |> select(-metric_id)
 
-  # Render with gt
-  tbl_wide |>
+  tbl <- tbl_wide |>
     gt(rowname_col = "Metric") |>
     tab_stubhead(label = "Metric") |>
     tab_style(
       style = list(cell_text(weight = "bold", color = "#2C3E50"),
                    cell_fill(color = "#EBF5FB")),
-      locations = cells_stub(rows = Metric %in% c(
-        "Air Ambulance Activation", "Total journeys",
-        "Air ambulance transports per patient",
-        "Pediatric population (under 18)"
-      ))
+      locations = cells_stub(rows = Metric %in% bold_header_rows)
     ) |>
-    tab_style(
-      style = cell_text(weight = "bold"),
-      locations = cells_column_labels()
-    ) |>
-    tab_style(
-      style = cell_text(weight = "bold"),
-      locations = cells_body(columns = "Overall")
-    ) |>
-    tab_style(
-      style = cell_text(color = "#555555", size = "small"),
-      locations = cells_body(rows = startsWith(Metric, "  "))
-    ) |>
-    tab_style(
-      style = cell_fill(color = "#F8F9FA"),
-      locations = cells_body(rows = Metric %in% c(
-        "Air Ambulance Activation", "Air ambulance transports per patient"
-      ))
-    ) |>
-    tab_footnote(
-      footnote = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
-      locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
-    ) |>
-    tab_footnote(
-      footnote = html("Activation \u2192 MHC arrival excludes observations below the per-village round-trip flight-time floor (2 \u00d7 median one-way flight time)."),
-      locations = cells_stub(rows = endsWith(Metric, "\u1d43"))
-    ) |>
+    tab_style(style = cell_text(weight = "bold"),
+              locations = cells_column_labels()) |>
+    tab_style(style = cell_text(weight = "bold"),
+              locations = cells_body(columns = "Overall")) |>
+    tab_style(style = cell_text(color = "#555555", size = "small"),
+              locations = cells_body(rows = startsWith(Metric, "  "))) |>
+    tab_style(style = cell_fill(color = "#F8F9FA"),
+              locations = cells_body(rows = Metric %in% shaded_rows)) |>
     opt_stylize(style = 1) |>
     opt_table_font(font = "Arial") |>
-    tab_options(
-      stub.font.weight = "bold",
-      column_labels.font.weight = "bold",
-      table.font.size = "small"
+    tab_options(stub.font.weight = "bold",
+                column_labels.font.weight = "bold",
+                table.font.size = "small")
+
+  for (fn in footnotes) {
+    tbl <- tbl |> tab_footnote(footnote = fn$footnote,
+                               locations = fn$locations)
+  }
+  tbl
+}
+
+# ── Table 1: Village summary (population, journeys, transport counts) ──────────
+
+tbl1_village_characteristics <- function() {
+  dat <- .village_table_data()
+
+  metric_rows <- tribble(
+    ~metric_id,          ~Metric,
+    "pediatric_pop",     "Pediatric population (under 18)",
+    "n_journeys",        "Total journeys",
+    "n_patients",        "Total patients",
+    "_header_transport", "Air ambulance transports per patient",
+    "t1_str",            "  1 transport",
+    "t2_str",            "  2 transports",
+    "t3p_str",           "  3+ transports",
+    "mean_yr_str",       "Mean journeys per year (SD)"
+  )
+
+  .render_village_gt(
+    metric_rows, dat,
+    bold_header_rows = c("Pediatric population (under 18)", "Total journeys",
+                         "Air ambulance transports per patient"),
+    shaded_rows      = "Air ambulance transports per patient"
+  )
+}
+
+# ── Table 4: Air ambulance timing by village ───────────────────────────────────
+
+tbl4_timing_by_village <- function() {
+  dat <- .village_table_data()
+
+  metric_rows <- tribble(
+    ~metric_id,      ~Metric,
+    "dist_str",      "Distance to Kotzebue (miles)",
+    "total_ata_str", "Total air ambulance time (village activation \u2192 MHC arrival), min \u2014 Median (IQR); Range",
+    "_header_act",   "Air Ambulance Activation",
+    "pct_act_str",   "  % with complete timing data (n)",
+    "decision_str",  "  Decision-making time, min \u2014 Median (IQR); Range",
+    "response_str",  "  Response and transfer time, min \u2014 Median (IQR); Range\u1d43",
+    "util_str",      "Utilization rate per 1,000 pediatric residents"
+  )
+
+  .render_village_gt(
+    metric_rows, dat,
+    bold_header_rows = "Air Ambulance Activation",
+    shaded_rows      = "Air Ambulance Activation",
+    footnotes = list(
+      list(
+        footnote  = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
+        locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
+      ),
+      list(
+        footnote  = html("Activation \u2192 MHC arrival excludes observations below the per-village round-trip flight-time floor (2 \u00d7 median one-way flight time)."),
+        locations = cells_stub(rows = endsWith(Metric, "\u1d43"))
+      )
     )
+  )
 }
 
 # ── Table 2: Journey characteristics by age group (n = 309 journeys) ──────────
