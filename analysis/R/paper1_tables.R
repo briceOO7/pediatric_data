@@ -150,6 +150,7 @@ fig_prisma_diagram <- function() {
 
 tbl1_village_characteristics <- function() {
   vs <- get_village_summary()
+  pp <- get_patients_primary()
 
   # Sort: villages by n_journeys desc, Overall last
   villages_order <- vs |>
@@ -157,6 +158,34 @@ tbl1_village_characteristics <- function() {
     arrange(desc(n_journeys)) |>
     pull(village_name)
   col_order <- c("Overall", villages_order)
+
+  # Transport count distribution per village (for insertion after Total patients)
+  .transport_fmt <- function(df) {
+    total <- nrow(df)
+    if (total == 0) return(tibble(t1_str = "\u2014", t2_str = "\u2014", t3p_str = "\u2014"))
+    n1  <- sum(df$n_journeys_primary == 1,  na.rm = TRUE)
+    n2  <- sum(df$n_journeys_primary == 2,  na.rm = TRUE)
+    n3p <- sum(df$n_journeys_primary >= 3,  na.rm = TRUE)
+    tibble(
+      t1_str  = sprintf("%d (%.0f%%)", n1,  100 * n1  / total),
+      t2_str  = sprintf("%d (%.0f%%)", n2,  100 * n2  / total),
+      t3p_str = sprintf("%d (%.0f%%)", n3p, 100 * n3p / total)
+    )
+  }
+
+  transport_overall <- .transport_fmt(pp)
+
+  transport_by_village <- pp |>
+    filter(!is.na(village_name), village_name != "") |>
+    group_by(village_name) |>
+    group_modify(~ .transport_fmt(.x)) |>
+    ungroup()
+
+  # Combine into a lookup: village_name → (t1_str, t2_str, t3p_str)
+  transport_fmt <- bind_rows(
+    transport_overall |> mutate(village_name = "Overall"),
+    transport_by_village
+  )
 
   # Build one cell-value per (metric, village)
   vs_fmt <- vs |>
@@ -180,6 +209,10 @@ tbl1_village_characteristics <- function() {
     ~metric_id,              ~Metric,
     "n_journeys",            "Total journeys",
     "n_patients",            "Total patients",
+    "_header_transport",     "Air ambulance transports per patient",
+    "t1_str",                "  1 transport",
+    "t2_str",                "  2 transports",
+    "t3p_str",               "  3+ transports",
     "mean_yr_str",           "Mean journeys per year (SD)",
     "dist_str",              "Distance to Kotzebue (miles)",
     "total_ata_str",         "Total air ambulance time (arrival \u2192 MHC), min \u2014 Median (IQR); Range",
@@ -192,7 +225,12 @@ tbl1_village_characteristics <- function() {
 
   # For each column (village), pull the value for each metric
   get_val <- function(vname, mid) {
-    if (mid == "_header_act") return("")
+    if (mid %in% c("_header_act", "_header_transport")) return("")
+    if (mid %in% c("t1_str", "t2_str", "t3p_str")) {
+      trow <- transport_fmt |> filter(village_name == vname)
+      if (nrow(trow) == 0) return("\u2014")
+      return(as.character(trow[[mid]]))
+    }
     row <- vs_fmt |> filter(village_name == vname)
     if (nrow(row) == 0) return("\u2014")
     val <- row[[mid]]
@@ -215,7 +253,8 @@ tbl1_village_characteristics <- function() {
       style = list(cell_text(weight = "bold", color = "#2C3E50"),
                    cell_fill(color = "#EBF5FB")),
       locations = cells_stub(rows = Metric %in% c(
-        "Air Ambulance Activation", "Total journeys"
+        "Air Ambulance Activation", "Total journeys",
+        "Air ambulance transports per patient"
       ))
     ) |>
     tab_style(
@@ -232,7 +271,9 @@ tbl1_village_characteristics <- function() {
     ) |>
     tab_style(
       style = cell_fill(color = "#F8F9FA"),
-      locations = cells_body(rows = Metric == "Air Ambulance Activation")
+      locations = cells_body(rows = Metric %in% c(
+        "Air Ambulance Activation", "Air ambulance transports per patient"
+      ))
     ) |>
     tab_footnote(
       footnote = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
@@ -251,14 +292,25 @@ tbl1_village_characteristics <- function() {
     )
 }
 
-# ── Table 2: Patient characteristics by age group ─────────────────────────────
+# ── Table 2: Journey characteristics by age group (n = 309 journeys) ──────────
 
 tbl2_patient_characteristics <- function() {
+  jp <- get_journeys_primary()
   pp <- get_patients_primary()
 
+  # Join patient-level demographics (RaceDSC, insurance_cat) that may not be
+  # present on the journey file
+  demo_extra <- intersect(c("RaceDSC", "insurance_cat"), names(pp))
+  if (length(demo_extra) > 0) {
+    jp <- jp |> left_join(
+      pp |> select(MRN, all_of(demo_extra)),
+      by = "MRN"
+    )
+  }
+
   # Sex
-  if ("GenderDSC" %in% names(pp)) {
-    pp <- pp |> mutate(
+  if ("GenderDSC" %in% names(jp)) {
+    jp <- jp |> mutate(
       female = factor(
         case_when(GenderDSC == "Female" ~ "Female", GenderDSC == "Male" ~ "Male",
                   TRUE ~ NA_character_),
@@ -268,8 +320,8 @@ tbl2_patient_characteristics <- function() {
   }
 
   # Race: prefer RaceDSC (text match), fall back to AI_AN flag
-  if ("RaceDSC" %in% names(pp)) {
-    pp <- pp |> mutate(
+  if ("RaceDSC" %in% names(jp)) {
+    jp <- jp |> mutate(
       ai_an = factor(
         case_when(
           grepl("indian|alaska.?native|american.?indian", RaceDSC, ignore.case = TRUE) ~ "AI/AN",
@@ -279,8 +331,8 @@ tbl2_patient_characteristics <- function() {
         levels = c("AI/AN", "Non-AI/AN")
       )
     )
-  } else if ("AI_AN" %in% names(pp)) {
-    pp <- pp |> mutate(
+  } else if ("AI_AN" %in% names(jp)) {
+    jp <- jp |> mutate(
       ai_an = factor(
         case_when(
           AI_AN %in% c(TRUE, "True", "true", "TRUE", "1", 1)    ~ "AI/AN",
@@ -293,30 +345,22 @@ tbl2_patient_characteristics <- function() {
   }
 
   # Insurance categories (Commercial / Government / IHS / Self-Pay / Other)
-  if ("insurance_cat" %in% names(pp)) {
-    pp <- pp |> mutate(
+  if ("insurance_cat" %in% names(jp)) {
+    jp <- jp |> mutate(
       insurance_cat = factor(insurance_cat,
         levels = c("Commercial", "Government", "IHS", "Self-Pay", "Other"))
     )
   }
 
-  # Transport count capped at 3+
-  pp <- pp |> mutate(
-    n_transports = factor(
-      case_when(n_journeys_primary >= 3 ~ "3+", TRUE ~ as.character(n_journeys_primary)),
-      levels = c("1", "2", "3+")
-    )
-  )
-
   # Chief complaint: keep top 10 by overall frequency, sorted high → low
-  if ("primary_cedis_custom_group" %in% names(pp)) {
-    top10_cc <- pp |>
+  if ("primary_cedis_custom_group" %in% names(jp)) {
+    top10_cc <- jp |>
       filter(!is.na(primary_cedis_custom_group)) |>
       count(primary_cedis_custom_group, sort = TRUE) |>
       slice_head(n = 10) |>
       pull(primary_cedis_custom_group)
 
-    pp <- pp |> mutate(
+    jp <- jp |> mutate(
       primary_cedis_custom_group = factor(
         ifelse(primary_cedis_custom_group %in% top10_cc,
                primary_cedis_custom_group, NA_character_),
@@ -325,36 +369,34 @@ tbl2_patient_characteristics <- function() {
     )
   }
 
-  # Ordered variable list (determines row order in table)
+  # Ordered variable list
   ordered_vars <- c(
     "age_at_medevac_num",
-    if ("female"        %in% names(pp)) "female",
-    if ("ai_an"         %in% names(pp)) "ai_an",
-    if ("insurance_cat" %in% names(pp)) "insurance_cat",
-    "n_transports",
+    if ("female"        %in% names(jp)) "female",
+    if ("ai_an"         %in% names(jp)) "ai_an",
+    if ("insurance_cat" %in% names(jp)) "insurance_cat",
     "primary_cedis_custom_group"
   )
-  include_vars <- intersect(ordered_vars, names(pp))
-  pp_sel <- pp |> select(all_of(c(include_vars, "age_group")))
+  include_vars <- intersect(ordered_vars, names(jp))
+  jp_sel <- jp |> select(all_of(c(include_vars, "age_group")))
 
   all_labels <- list(
-    age_at_medevac_num         ~ "Age at first transport, yr",
+    age_at_medevac_num         ~ "Age at transport, yr",
     female                     ~ "Sex",
     ai_an                      ~ "Race",
     insurance_cat              ~ "Insurance type",
-    n_transports               ~ "Number of air ambulance transports per patient",
     primary_cedis_custom_group ~ "Chief Complaint"
   )
-  label_vars   <- lapply(all_labels, function(x) as.character(x[[2]]))
+  label_vars    <- lapply(all_labels, function(x) as.character(x[[2]]))
   active_labels <- all_labels[unlist(label_vars) %in% include_vars]
 
-  pp_sel |>
+  jp_sel |>
     tbl_summary(
       by      = age_group,
       include = include_vars,
       label   = active_labels,
       statistic = list(
-        age_at_medevac_num ~ "{median} ({p25}–{p75})",
+        age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
         all_categorical()  ~ "{n} ({p}%)"
       ),
       missing = "no"
@@ -362,7 +404,7 @@ tbl2_patient_characteristics <- function() {
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column. Transports capped at 3+.")
+    modify_caption("**Table 2.** Journey characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.")
 }
 
 # ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
@@ -371,9 +413,12 @@ tbl3_route_comparison <- function() {
   ja <- get_journeys_all()
 
   # Village-originating primary and secondary journeys only.
-  # Direct tertiary (n ≤ 1 in current dataset) excluded — too few for analysis.
+  # Direct tertiary excluded (too few for comparative analysis; noted in footnote).
   village_journeys <- ja |>
-    filter(!is.na(village_name), village_name != "") |>
+    filter(
+      !is.na(village_name), village_name != "",
+      !grepl("tertiary", route_type, ignore.case = TRUE)
+    ) |>
     mutate(
       route_label = factor(
         case_when(
@@ -385,6 +430,11 @@ tbl3_route_comparison <- function() {
       )
     ) |>
     filter(!is.na(route_label))
+
+  n_excluded_dt <- ja |>
+    filter(!is.na(village_name), village_name != "",
+           grepl("tertiary", route_type, ignore.case = TRUE)) |>
+    nrow()
 
   if (nrow(village_journeys) == 0) {
     return(gt(tibble(Note = "No data available.")))
@@ -459,7 +509,18 @@ tbl3_route_comparison <- function() {
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 3.** Patient characteristics by transport route type. Primary only = village \u2192 MHC, no further transfer. Secondary = village \u2192 MHC \u2192 ANMC or outside facility. One direct tertiary transport (village \u2192 ANMC) was identified but excluded from comparative analysis due to small n. p-values: Wilcoxon rank-sum (age); chi-square (categorical).")
+    modify_caption(paste0(
+      "**Table 3.** Patient characteristics by transport route type ",
+      "(n\u00a0=\u00a0", nrow(village_journeys), " journeys). ",
+      "Primary only = village \u2192 MHC, no further transfer. ",
+      "Secondary = village \u2192 MHC \u2192 ANMC or outside facility. ",
+      if (n_excluded_dt > 0) paste0(
+        "\u2020\u00a0", n_excluded_dt,
+        " direct tertiary journey(s) (village \u2192 ANMC, bypassing MHC) ",
+        "excluded from comparative analysis due to small n. "
+      ) else "",
+      "p-values: Wilcoxon rank-sum (age); chi-square (categorical)."
+    ))
 }
 
 # ── Table 3a: Primary legs (village → any destination) ────────────────────────
