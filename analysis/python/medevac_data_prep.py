@@ -246,74 +246,101 @@ def age_group(age_years: float | None) -> str | None:
 
 # ── CEDIS primary complaint ────────────────────────────────────────────────────
 
+# CEDIS 3.1 code → category (matches medevac_summaries.py)
 _CEDIS_CATEGORY_MAP: dict[int, str] = {
-    100: "Cardiac/Vascular", 101: "Cardiac/Vascular", 102: "Cardiac/Vascular",
-    103: "Cardiac/Vascular", 104: "Cardiac/Vascular", 105: "Cardiac/Vascular",
-    106: "Cardiac/Vascular", 107: "Cardiac/Vascular", 108: "Cardiac/Vascular",
-    109: "Cardiac/Vascular", 110: "Cardiac/Vascular",
-    200: "Respiratory", 201: "Respiratory", 202: "Respiratory", 203: "Respiratory",
-    204: "Respiratory", 205: "Respiratory", 206: "Respiratory", 207: "Respiratory",
-    208: "Respiratory", 209: "Respiratory", 210: "Respiratory", 211: "Respiratory",
-    212: "Respiratory", 213: "Respiratory", 214: "Respiratory",
-    251: "Abdominal/GI", 252: "Abdominal/GI", 253: "Abdominal/GI", 254: "Abdominal/GI",
-    255: "Abdominal/GI", 256: "Abdominal/GI", 257: "Abdominal/GI", 258: "Abdominal/GI",
-    259: "Abdominal/GI", 260: "Abdominal/GI", 261: "Abdominal/GI",
-    300: "Neurological", 301: "Neurological", 302: "Neurological", 303: "Neurological",
-    304: "Neurological", 305: "Neurological", 306: "Neurological",
-    350: "Psychiatric", 351: "Psychiatric", 352: "Psychiatric", 353: "Psychiatric",
-    400: "Trauma/MSK", 401: "Trauma/MSK", 402: "Trauma/MSK", 403: "Trauma/MSK",
-    404: "Trauma/MSK", 405: "Trauma/MSK", 406: "Trauma/MSK", 407: "Trauma/MSK",
-    408: "Trauma/MSK", 409: "Trauma/MSK", 410: "Trauma/MSK", 411: "Trauma/MSK",
-    412: "Trauma/MSK", 413: "Trauma/MSK", 414: "Trauma/MSK", 415: "Trauma/MSK",
-    416: "Trauma/MSK", 417: "Trauma/MSK",
-    500: "Genitourinary/GYN", 501: "Genitourinary/GYN", 502: "Genitourinary/GYN",
-    503: "Genitourinary/GYN", 504: "Genitourinary/GYN",
-    600: "ENT/Eyes", 601: "ENT/Eyes", 602: "ENT/Eyes", 603: "ENT/Eyes",
-    604: "ENT/Eyes", 605: "ENT/Eyes", 606: "ENT/Eyes",
-    650: "Respiratory", 651: "Respiratory", 652: "Respiratory", 653: "Respiratory",
-    654: "Respiratory", 655: "Respiratory",
-    700: "General/Minor", 701: "General/Minor", 702: "General/Minor", 703: "General/Minor",
-    704: "General/Minor", 705: "General/Minor", 706: "General/Minor", 707: "General/Minor",
-    708: "General/Minor", 709: "General/Minor", 710: "General/Minor", 711: "General/Minor",
-    712: "General/Minor", 713: "General/Minor", 714: "General/Minor",
-    750: "Toxicology", 751: "Toxicology", 752: "Toxicology", 753: "Toxicology",
-    800: "Metabolic/Endocrine", 801: "Metabolic/Endocrine", 802: "Metabolic/Endocrine",
-    803: "Metabolic/Endocrine", 804: "Metabolic/Endocrine", 850: "Metabolic/Endocrine",
-    851: "Metabolic/Endocrine", 852: "Metabolic/Endocrine", 853: "Metabolic/Endocrine",
-    854: "Metabolic/Endocrine",
+    **{c: "Cardiovascular"   for c in range(1,   13)},
+    **{c: "ENT"              for c in range(51,  57)},
+    **{c: "ENT"              for c in range(101, 108)},
+    **{c: "ENT"              for c in range(151, 156)},
+    **{c: "Environmental"    for c in range(201, 207)},
+    **{c: "Gastrointestinal" for c in range(251, 268)},
+    **{c: "Genitourinary"    for c in range(301, 311)},
+    **{c: "Mental Health"    for c in range(351, 361)},
+    **{c: "Neurologic"       for c in range(401, 412)},
+    **{c: "OB/GYN"           for c in range(451, 461)},
+    **{c: "Ophthalmology"    for c in range(502, 512)},
+    **{c: "Orthopedic"       for c in range(551, 560)},
+    **{c: "Respiratory"      for c in range(651, 661)},
+    **{c: "Skin"             for c in range(701, 718)},
+    **{c: "Substance Misuse" for c in range(751, 754)},
+    **{c: "Trauma"           for c in range(801, 807)},
+    **{c: "General and Minor" for c in range(851, 891)},
 }
 
+# Categories collapsed to a group label in the custom grouping
+_CC_GROUPED_CATS: dict[str, str] = {
+    "Respiratory":      "Respiratory",
+    "Gastrointestinal": "Gastrointestinal",
+    "Trauma":           "Trauma/Injury",
+    "Orthopedic":       "Trauma/Injury",
+}
 
-def _primary_cedis(cc_row: pd.Series) -> tuple[int | None, str | None, str | None]:
+# Individual complaint overrides (take priority over category rule)
+_CC_GROUPED_COMPLAINTS: dict[str, str] = {
+    "Head injury":    "Trauma/Injury",
+    "Facial trauma":  "Trauma/Injury",
+    "Neck trauma":    "Trauma/Injury",
+    "Genital trauma": "Trauma/Injury",
+    "Eye trauma":     "Trauma/Injury",
+    "URTI complaints": "Respiratory",
+}
+
+_CC_SKIP: frozenset[str] = frozenset({"follow-up visit", "unknown"})
+
+# Search columns in priority order: village → MHC ED → MHC inpatient → ANMC ED
+_CC_SEARCH_PREFIXES: list[tuple[str, str, int]] = [
+    ("village_cedis_complaint",       "village_cedis_code",       19),
+    ("mhc_ed_cedis_complaint",        "mhc_ed_cedis_code",         8),
+    ("mhc_inpatient_cedis_complaint", "mhc_inpatient_cedis_code",  5),
+    ("anmc_ed_cedis_complaint",       "anmc_ed_cedis_code",        2),
+]
+
+
+def _primary_cedis(cc_row: pd.Series) -> tuple[int | None, str | None, str | None, str | None]:
     """
     Extract the primary CEDIS code/complaint for a journey.
-    Priority: first non-888/999 village slot; if none, use 888 if present.
-    Returns (code, complaint, category).
+
+    Searches village → MHC ED → MHC inpatient → ANMC ED complaint slots.
+    Skips 'follow-up visit' and 'unknown'; falls back to follow-up if all others empty.
+
+    Returns (code, complaint_text, cedis_category, custom_group).
+    custom_group collapses Respiratory / Gastrointestinal / Trauma to category labels;
+    all other complaints keep their individual complaint text.
     """
-    follow_up_code = None
-    for slot in range(1, 20):
-        code_col = f"village_cedis_code_{slot}"
-        complaint_col = f"village_cedis_complaint_{slot}"
-        if code_col not in cc_row.index:
-            break
-        raw_code = cc_row.get(code_col)
-        raw_complaint = cc_row.get(complaint_col)
-        if pd.isna(raw_code):
-            continue
-        try:
-            code_int = int(float(raw_code))
-        except (ValueError, TypeError):
-            continue
-        complaint = str(raw_complaint).strip() if pd.notna(raw_complaint) else None
-        if code_int in (888, 999):
-            if follow_up_code is None:
-                follow_up_code = (code_int, complaint, "Follow-up/Unknown")
-            continue
-        category = _CEDIS_CATEGORY_MAP.get(code_int, "General/Minor")
-        return code_int, complaint, category
-    if follow_up_code:
-        return follow_up_code
-    return None, None, None
+    follow_up: tuple[int, str | None, str, str] | None = None
+
+    for comp_prefix, code_prefix, n_slots in _CC_SEARCH_PREFIXES:
+        for slot in range(1, n_slots + 1):
+            comp_col = f"{comp_prefix}_{slot}"
+            code_col = f"{code_prefix}_{slot}"
+            if comp_col not in cc_row.index:
+                break
+            raw_comp = cc_row.get(comp_col)
+            raw_code = cc_row.get(code_col)
+            if pd.isna(raw_comp):
+                continue
+            complaint = str(raw_comp).strip()
+            if not complaint or complaint.lower() in _CC_SKIP:
+                continue
+            try:
+                code_int = int(float(raw_code)) if pd.notna(raw_code) else 888
+            except (ValueError, TypeError):
+                code_int = 888
+            if code_int in (888, 999):
+                if follow_up is None:
+                    follow_up = (code_int, complaint, "Follow-up/Unknown", "Follow-up/Unknown")
+                continue
+            category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
+            # Custom group: complaint-level overrides first, then category collapse, else complaint text
+            if complaint in _CC_GROUPED_COMPLAINTS:
+                custom_group = _CC_GROUPED_COMPLAINTS[complaint]
+            else:
+                custom_group = _CC_GROUPED_CATS.get(category, complaint)
+            return code_int, complaint, category, custom_group
+
+    if follow_up:
+        return follow_up
+    return None, None, None, None
 
 
 # ── Data loading ───────────────────────────────────────────────────────────────
@@ -390,11 +417,12 @@ def compute_derived(df: pd.DataFrame, cc: pd.DataFrame) -> pd.DataFrame:
     if cc is not None and len(cc):
         cc_indexed = cc.set_index("journey_id")
         cedis_rows = df["journey_id"].map(
-            lambda jid: _primary_cedis(cc_indexed.loc[jid]) if jid in cc_indexed.index else (None, None, None)
+            lambda jid: _primary_cedis(cc_indexed.loc[jid]) if jid in cc_indexed.index else (None, None, None, None)
         )
-        df["primary_cedis_code"]      = [r[0] for r in cedis_rows]
-        df["primary_cedis_complaint"] = [r[1] for r in cedis_rows]
-        df["primary_cedis_category"]  = [r[2] for r in cedis_rows]
+        df["primary_cedis_code"]         = [r[0] for r in cedis_rows]
+        df["primary_cedis_complaint"]    = [r[1] for r in cedis_rows]
+        df["primary_cedis_category"]     = [r[2] for r in cedis_rows]
+        df["primary_cedis_custom_group"] = [r[3] for r in cedis_rows]
 
     return df
 
@@ -419,7 +447,8 @@ def build_patients_primary(df_primary: pd.DataFrame) -> pd.DataFrame:
     keep = [
         "MRN", "village_name", "age_at_medevac_num", "age_group",
         "n_journeys_primary",
-        "primary_cedis_code", "primary_cedis_complaint", "primary_cedis_category",
+        "primary_cedis_code", "primary_cedis_complaint",
+        "primary_cedis_category", "primary_cedis_custom_group",
     ]
     for phi_col in ("GenderDSC", "AI_AN", "RaceDSC", "PrimaryPayorNM"):
         if phi_col in first.columns:

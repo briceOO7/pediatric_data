@@ -284,7 +284,7 @@ tbl2_patient_characteristics <- function() {
     )
 
   var_list <- c("age_at_medevac_num", "age_group", "n_transports",
-                "primary_cedis_category")
+                "primary_cedis_custom_group")
 
   if ("female" %in% names(pp))      var_list <- c(var_list, "female")
   if ("ai_an" %in% names(pp))       var_list <- c(var_list, "ai_an")
@@ -296,12 +296,12 @@ tbl2_patient_characteristics <- function() {
   pp_sel <- pp |> select(all_of(c(include_vars, "age_group")))
 
   all_labels <- list(
-    age_at_medevac_num     ~ "Age at first air ambulance transport, yr",
-    n_transports           ~ "Number of air ambulance transports per patient",
-    primary_cedis_category ~ "Chief complaint category (CEDIS)",
-    female                 ~ "Sex",
-    ai_an                  ~ "AI/AN race",
-    PrimaryPayorNM         ~ "Insurance"
+    age_at_medevac_num        ~ "Age at first air ambulance transport, yr",
+    n_transports              ~ "Number of air ambulance transports per patient",
+    primary_cedis_custom_group ~ "Chief complaint (CEDIS)",
+    female                    ~ "Sex",
+    ai_an                     ~ "AI/AN race",
+    PrimaryPayorNM            ~ "Insurance"
   )
   label_vars <- lapply(all_labels, function(x) as.character(x[[2]]))
   active_labels <- all_labels[unlist(label_vars) %in% include_vars]
