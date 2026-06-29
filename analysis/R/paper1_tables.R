@@ -271,7 +271,19 @@ tbl2_patient_characteristics <- function() {
       ) |> factor(levels = c("Yes", "No"))
     )
 
-  var_list <- c("age_at_medevac_num", "age_group", "n_journeys_primary",
+  # Cap transport count at 3+
+  pp <- pp |>
+    mutate(
+      n_transports = factor(
+        case_when(
+          n_journeys_primary >= 3 ~ "3+",
+          TRUE ~ as.character(n_journeys_primary)
+        ),
+        levels = c("1", "2", "3+")
+      )
+    )
+
+  var_list <- c("age_at_medevac_num", "age_group", "n_transports",
                 "primary_cedis_category")
 
   if ("female" %in% names(pp))      var_list <- c(var_list, "female")
@@ -284,8 +296,8 @@ tbl2_patient_characteristics <- function() {
   pp_sel <- pp |> select(all_of(c(include_vars, "age_group")))
 
   all_labels <- list(
-    age_at_medevac_num     ~ "Age at first medevac, yr",
-    n_journeys_primary     ~ "Primary transports per patient",
+    age_at_medevac_num     ~ "Age at first air ambulance transport, yr",
+    n_transports           ~ "Number of air ambulance transports per patient",
     primary_cedis_category ~ "Chief complaint category (CEDIS)",
     female                 ~ "Sex",
     ai_an                  ~ "AI/AN race",
@@ -308,7 +320,7 @@ tbl2_patient_characteristics <- function() {
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column.")
+    modify_caption("**Table 2.** Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column. Transports capped at 3+.")
 }
 
 # ── Table 3: Route comparison (Primary / Secondary / Direct tertiary) ──────────
