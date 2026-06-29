@@ -277,12 +277,14 @@ _CC_GROUPED_CATS: dict[str, str] = {
 
 # Individual complaint overrides (take priority over category rule)
 _CC_GROUPED_COMPLAINTS: dict[str, str] = {
-    "Head injury":    "Trauma/Injury",
-    "Facial trauma":  "Trauma/Injury",
-    "Neck trauma":    "Trauma/Injury",
-    "Genital trauma": "Trauma/Injury",
-    "Eye trauma":     "Trauma/Injury",
-    "URTI complaints": "Respiratory",
+    "Head injury":        "Trauma/Injury",
+    "Facial trauma":      "Trauma/Injury",
+    "Neck trauma":        "Trauma/Injury",
+    "Genital trauma":     "Trauma/Injury",
+    "Eye trauma":         "Trauma/Injury",
+    "Trauma/Orthopedic":  "Trauma/Injury",
+    "Trauma/orthopedic":  "Trauma/Injury",
+    "URTI complaints":    "Respiratory",
 }
 
 _CC_SKIP: frozenset[str] = frozenset({"follow-up visit", "unknown"})
@@ -331,9 +333,13 @@ def _primary_cedis(cc_row: pd.Series) -> tuple[int | None, str | None, str | Non
                     follow_up = (code_int, complaint, "Follow-up/Unknown", "Follow-up/Unknown")
                 continue
             category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
-            # Custom group: complaint-level overrides first, then category collapse, else complaint text
-            if complaint in _CC_GROUPED_COMPLAINTS:
-                custom_group = _CC_GROUPED_COMPLAINTS[complaint]
+            # Custom group: complaint-level overrides first (case-insensitive),
+            # then category collapse, else keep individual complaint text
+            complaint_key = next(
+                (k for k in _CC_GROUPED_COMPLAINTS if k.lower() == complaint.lower()), None
+            )
+            if complaint_key:
+                custom_group = _CC_GROUPED_COMPLAINTS[complaint_key]
             else:
                 custom_group = _CC_GROUPED_CATS.get(category, complaint)
             return code_int, complaint, category, custom_group
