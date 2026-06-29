@@ -104,6 +104,13 @@ tbl3_route_comparison()
 ```
 
 ```{r}
+#| label: fig-sankey
+#| fig-cap: "Figure 2. Transport route flow diagram. Node width is proportional to journey volume. Village-originating flights (left) route through MHC for primary and secondary transports, or bypass directly to ANMC/outside for direct tertiary transports."
+#| out-width: 100%
+knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
+```
+
+```{r}
 #| label: tbl-t3a
 #| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
 tbl3a_primary_routes()
