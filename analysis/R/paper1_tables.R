@@ -500,11 +500,12 @@ tbl3_route_comparison <- function() {
       missing = "no"
     ) |>
     add_p(
-      test = list(
-        age_at_medevac_num         ~ "wilcox.test",
-        age_group                  ~ "chisq.test",
-        female                     ~ "chisq.test",
-        primary_cedis_custom_group ~ "chisq.test"
+      test = c(
+        list(age_at_medevac_num ~ "wilcox.test"),
+        lapply(
+          intersect(c("age_group", "female", "primary_cedis_custom_group"), include_vars),
+          function(v) as.formula(paste0(v, ' ~ "chisq.test"'))
+        )
       )
     ) |>
     add_overall(last = FALSE) |>
