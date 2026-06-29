@@ -24,6 +24,7 @@ engine: knitr
 #| include: false
 library(here)
 source(here("analysis", "R", "paper1_tables.R"))
+source(here("analysis", "R", "paper1_figures.R"))
 
 cc <- cohort_counts()
 ```
@@ -105,9 +106,11 @@ tbl3_route_comparison()
 
 ```{r}
 #| label: fig-sankey
-#| fig-cap: "Figure 2. Transport route flow diagram. Node width is proportional to journey volume. Village-originating flights (left) route through MHC for primary and secondary transports, or bypass directly to ANMC/outside for direct tertiary transports."
+#| fig-cap: "Figure 2. Air ambulance transport route flow (n = 309 village-originating journeys). Flows show the routing pathway from village origin through intermediate stops to final disposition. Width proportional to journey volume."
+#| fig-width: 8
+#| fig-height: 5
 #| out-width: 100%
-knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
+fig2_sankey_routes()
 ```
 
 ```{r}
