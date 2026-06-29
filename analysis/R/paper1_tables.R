@@ -152,10 +152,10 @@ tbl1_village_characteristics <- function() {
   vs <- get_village_summary()
   pp <- get_patients_primary()
 
-  # Sort: villages by n_journeys desc, Overall last
+  # Sort columns: villages by utilization rate desc, Overall first
   villages_order <- vs |>
     filter(village_name != "Overall") |>
-    arrange(desc(n_journeys)) |>
+    arrange(desc(util_rate)) |>
     pull(village_name)
   col_order <- c("Overall", villages_order)
 
@@ -207,6 +207,7 @@ tbl1_village_characteristics <- function() {
   # Metric rows in display order
   metric_rows <- tribble(
     ~metric_id,              ~Metric,
+    "pediatric_pop",         "Pediatric population (under 18)",
     "n_journeys",            "Total journeys",
     "n_patients",            "Total patients",
     "_header_transport",     "Air ambulance transports per patient",
@@ -254,7 +255,8 @@ tbl1_village_characteristics <- function() {
                    cell_fill(color = "#EBF5FB")),
       locations = cells_stub(rows = Metric %in% c(
         "Air Ambulance Activation", "Total journeys",
-        "Air ambulance transports per patient"
+        "Air ambulance transports per patient",
+        "Pediatric population (under 18)"
       ))
     ) |>
     tab_style(
