@@ -12,6 +12,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUT  = ROOT / "outputs" / "data"
 
+_ANMC_PATTERN = r"(?i)anmc|alaska.?native.?medical"
+
+
+def _is_anmc(dest: object) -> bool:
+    if pd.isna(dest):
+        return False
+    return bool(pd.Series([str(dest)]).str.contains(_ANMC_PATTERN, regex=True).iloc[0])
+
+
+def _fmt(n: int, total: int) -> str:
+    return f"{n:>4}  ({100 * n / total:4.1f}%)"
+
 
 def main() -> None:
     ja_path = OUT / "journeys_all.csv"
@@ -23,63 +35,84 @@ def main() -> None:
 
     ja = pd.read_csv(ja_path)
 
-    # ── All records ──────────────────────────────────────────────────────────
-    print(f"\n{'='*55}")
-    print("ALL RECORDS IN DATABASE")
-    print(f"{'='*55}")
-    rt_all = ja["route_type"].value_counts(dropna=False)
-    print(rt_all.to_string())
-    print(f"\nTotal: {len(ja):,} journeys, {ja['MRN'].nunique():,} unique patients")
-
-    # ── Village-originating only ─────────────────────────────────────────────
+    # Village-originating only
     village = ja[ja["village_name"].notna() & (ja["village_name"].str.strip() != "")].copy()
+    n_total = len(village)
 
-    print(f"\n{'='*55}")
-    print("VILLAGE-ORIGINATING JOURNEYS")
-    print(f"{'='*55}")
+    # ── Classify each journey ────────────────────────────────────────────────
+    is_primary    = village["route_type"].str.contains("Primary",   case=False, na=False)
+    is_secondary  = village["route_type"].str.contains("Secondary", case=False, na=False)
+    is_direct_ter = village["route_type"].str.contains("tertiary",  case=False, na=False)
 
-    route_map = {
-        "Primary only (village → MHC)":        village["route_type"].str.contains("Primary",   case=False, na=False),
-        "Secondary (village → MHC → outside)": village["route_type"].str.contains("Secondary", case=False, na=False),
-        "Direct tertiary (village → outside)": village["route_type"].str.contains("tertiary",  case=False, na=False),
-    }
+    # Secondary: destination determined by medevac2_to (first leg lands at MHC)
+    village["_sec_anmc"] = is_secondary & village["medevac2_to"].map(_is_anmc)
+    village["_sec_out"]  = is_secondary & ~village["medevac2_to"].map(_is_anmc)
+    sec_anmc = village[village["_sec_anmc"]]
+    sec_out  = village[village["_sec_out"]]
 
-    rows = []
-    for label, mask in route_map.items():
-        subset = village[mask]
-        rows.append({
-            "Route type":      label,
-            "N journeys":      len(subset),
-            "N unique patients": subset["MRN"].nunique(),
-            "% of village":    f"{100 * len(subset) / len(village):.1f}%",
-        })
+    # Direct tertiary: destination is medevac1_to (bypasses MHC entirely)
+    village["_dt_anmc"] = is_direct_ter & village["medevac1_to"].map(_is_anmc)
+    village["_dt_out"]  = is_direct_ter & ~village["medevac1_to"].map(_is_anmc)
+    dt_anmc = village[village["_dt_anmc"]]
+    dt_out  = village[village["_dt_out"]]
 
-    other = village[~(route_map["Primary only (village → MHC)"] |
-                      route_map["Secondary (village → MHC → outside)"] |
-                      route_map["Direct tertiary (village → outside)"])]
+    groups = [
+        ("Village → MHC (primary only)",      village[is_primary]),
+        ("Village → MHC → ANMC (secondary)",  sec_anmc),
+        ("Village → MHC → outside (secondary)", sec_out),
+        ("Village → ANMC (direct tertiary)",   dt_anmc),
+        ("Village → outside (direct tertiary)", dt_out),
+    ]
+
+    other = village[~(is_primary | is_secondary | is_direct_ter)]
+
+    # ── Print ────────────────────────────────────────────────────────────────
+    print(f"\n{'='*62}")
+    print(f"VILLAGE-ORIGINATING MEDEVAC ROUTES  (n = {n_total} journeys)")
+    print(f"{'='*62}")
+    print(f"{'Route':<42} {'Journeys':>9}  {'Patients':>8}")
+    print(f"{'-'*62}")
+
+    for label, subset in groups:
+        j = len(subset)
+        p = subset["MRN"].nunique()
+        pct = f"{100 * j / n_total:.1f}%" if n_total else "—"
+        print(f"  {label:<40} {j:>4} ({pct:>5})  {p:>8}")
+
     if len(other) > 0:
-        rows.append({
-            "Route type":        "Other / unclassified",
-            "N journeys":        len(other),
-            "N unique patients": other["MRN"].nunique(),
-            "% of village":      f"{100 * len(other) / len(village):.1f}%",
-        })
+        j = len(other)
+        p = other["MRN"].nunique()
+        pct = f"{100 * j / n_total:.1f}%"
+        print(f"  {'Unclassified':<40} {j:>4} ({pct:>5})  {p:>8}")
 
-    summary = pd.DataFrame(rows)
-    print(summary.to_string(index=False))
-    print(f"\nTotal village-originating: {len(village):,} journeys, {village['MRN'].nunique():,} unique patients")
+    print(f"{'-'*62}")
+    print(f"  {'TOTAL':<40} {n_total:>4}          {village['MRN'].nunique():>8}")
 
-    # ── MHC-presenting (excluded) ────────────────────────────────────────────
-    mhc = ja[ja["village_name"].isna() | (ja["village_name"].str.strip() == "")]
-    print(f"\n{'='*55}")
-    print("MHC-PRESENTING (EXCLUDED FROM VILLAGE COHORT)")
-    print(f"{'='*55}")
-    print(f"N journeys:        {len(mhc):,}")
-    print(f"N unique patients: {mhc['MRN'].nunique():,}")
-    print("\nRoute type breakdown:")
-    print(mhc["route_type"].value_counts(dropna=False).to_string())
+    # ── Secondary destination detail ─────────────────────────────────────────
+    if is_secondary.any():
+        print(f"\n{'='*62}")
+        print("SECONDARY TRANSFER DESTINATIONS  (medevac2_to)")
+        print(f"{'='*62}")
+        print(
+            village[is_secondary]["medevac2_to"]
+            .fillna("(missing)")
+            .value_counts()
+            .to_string()
+        )
 
-    print(f"\n{'='*55}\n")
+    # ── Direct tertiary destination detail ──────────────────────────────────
+    if is_direct_ter.any():
+        print(f"\n{'='*62}")
+        print("DIRECT TERTIARY DESTINATIONS  (medevac1_to)")
+        print(f"{'='*62}")
+        print(
+            village[is_direct_ter]["medevac1_to"]
+            .fillna("(missing)")
+            .value_counts()
+            .to_string()
+        )
+
+    print(f"\n{'='*62}\n")
 
 
 if __name__ == "__main__":
