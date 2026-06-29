@@ -436,6 +436,22 @@ def _write(df: pd.DataFrame, name: str) -> None:
     print(f"  wrote {path.relative_to(ROOT)}  ({len(df):,} rows)")
 
 
+def _insurance_category(raw: object) -> str | None:
+    """Classify PrimaryPayorNM into 5 standard groups (matches medevac_summaries.py)."""
+    r = str(raw).lower().strip()
+    if r in ("nan", "", "missing", "unknown", "none"):
+        return None
+    if any(x in r for x in ("commercial", "private", "blue cross", "aetna", "cigna", "united", "humana")):
+        return "Commercial"
+    if any(x in r for x in ("medicaid", "medicare", "chip", "government", "tricare", "va ")):
+        return "Government"
+    if any(x in r for x in ("ihs", "indian health", "tribal")):
+        return "IHS"
+    if any(x in r for x in ("self", "uninsured", "none", "no insurance")):
+        return "Self-Pay"
+    return "Other"
+
+
 def build_patients_primary(df_primary: pd.DataFrame) -> pd.DataFrame:
     """One row per patient: earliest qualifying journey. Patient-level demographics."""
     df_sorted = df_primary.sort_values("age_at_medevac_num")
@@ -444,13 +460,17 @@ def build_patients_primary(df_primary: pd.DataFrame) -> pd.DataFrame:
     journey_counts = df_primary.groupby("MRN")["journey_id"].nunique().rename("n_journeys_primary")
     first = first.merge(journey_counts, on="MRN", how="left")
 
+    # Insurance category (PHI column; None if absent)
+    if "PrimaryPayorNM" in first.columns:
+        first["insurance_cat"] = first["PrimaryPayorNM"].map(_insurance_category)
+
     keep = [
         "MRN", "village_name", "age_at_medevac_num", "age_group",
         "n_journeys_primary",
         "primary_cedis_code", "primary_cedis_complaint",
         "primary_cedis_category", "primary_cedis_custom_group",
     ]
-    for phi_col in ("GenderDSC", "AI_AN", "RaceDSC", "PrimaryPayorNM"):
+    for phi_col in ("GenderDSC", "AI_AN", "RaceDSC", "PrimaryPayorNM", "insurance_cat"):
         if phi_col in first.columns:
             keep.append(phi_col)
 

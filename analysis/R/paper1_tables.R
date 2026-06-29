@@ -256,61 +256,86 @@ tbl1_village_characteristics <- function() {
 tbl2_patient_characteristics <- function() {
   pp <- get_patients_primary()
 
-  # Variable labels
-  pp <- pp |>
-    mutate(
-      female = case_when(
-        GenderDSC == "Female" ~ "Female",
-        GenderDSC == "Male"   ~ "Male",
-        TRUE ~ NA_character_
-      ) |> factor(levels = c("Female", "Male")),
-      ai_an = case_when(
-        AI_AN %in% c(TRUE, "True", "true", "TRUE", "1", 1)   ~ "Yes",
-        AI_AN %in% c(FALSE, "False", "false", "FALSE", "0", 0) ~ "No",
-        TRUE ~ NA_character_
-      ) |> factor(levels = c("Yes", "No"))
-    )
-
-  # Cap transport count at 3+
-  pp <- pp |>
-    mutate(
-      n_transports = factor(
-        case_when(
-          n_journeys_primary >= 3 ~ "3+",
-          TRUE ~ as.character(n_journeys_primary)
-        ),
-        levels = c("1", "2", "3+")
+  # Sex
+  if ("GenderDSC" %in% names(pp)) {
+    pp <- pp |> mutate(
+      female = factor(
+        case_when(GenderDSC == "Female" ~ "Female", GenderDSC == "Male" ~ "Male",
+                  TRUE ~ NA_character_),
+        levels = c("Female", "Male")
       )
     )
+  }
 
-  var_list <- c("age_at_medevac_num", "age_group", "n_transports",
-                "primary_cedis_custom_group")
+  # Race: prefer RaceDSC (text match), fall back to AI_AN flag
+  if ("RaceDSC" %in% names(pp)) {
+    pp <- pp |> mutate(
+      ai_an = factor(
+        case_when(
+          grepl("indian|alaska.?native|american.?indian", RaceDSC, ignore.case = TRUE) ~ "AI/AN",
+          !is.na(RaceDSC) & RaceDSC != "" ~ "Non-AI/AN",
+          TRUE ~ NA_character_
+        ),
+        levels = c("AI/AN", "Non-AI/AN")
+      )
+    )
+  } else if ("AI_AN" %in% names(pp)) {
+    pp <- pp |> mutate(
+      ai_an = factor(
+        case_when(
+          AI_AN %in% c(TRUE, "True", "true", "TRUE", "1", 1)    ~ "AI/AN",
+          AI_AN %in% c(FALSE, "False", "false", "FALSE", "0", 0) ~ "Non-AI/AN",
+          TRUE ~ NA_character_
+        ),
+        levels = c("AI/AN", "Non-AI/AN")
+      )
+    )
+  }
 
-  if ("female" %in% names(pp))      var_list <- c(var_list, "female")
-  if ("ai_an" %in% names(pp))       var_list <- c(var_list, "ai_an")
-  if ("PrimaryPayorNM" %in% names(pp)) var_list <- c(var_list, "PrimaryPayorNM")
+  # Insurance categories (Commercial / Government / IHS / Self-Pay / Other)
+  if ("insurance_cat" %in% names(pp)) {
+    pp <- pp |> mutate(
+      insurance_cat = factor(insurance_cat,
+        levels = c("Commercial", "Government", "IHS", "Self-Pay", "Other"))
+    )
+  }
 
-  var_list <- intersect(var_list, names(pp))
+  # Transport count capped at 3+
+  pp <- pp |> mutate(
+    n_transports = factor(
+      case_when(n_journeys_primary >= 3 ~ "3+", TRUE ~ as.character(n_journeys_primary)),
+      levels = c("1", "2", "3+")
+    )
+  )
 
-  include_vars <- setdiff(var_list, "age_group")
+  # Ordered variable list (determines row order in table)
+  ordered_vars <- c(
+    "age_at_medevac_num",
+    if ("female"        %in% names(pp)) "female",
+    if ("ai_an"         %in% names(pp)) "ai_an",
+    if ("insurance_cat" %in% names(pp)) "insurance_cat",
+    "n_transports",
+    "primary_cedis_custom_group"
+  )
+  include_vars <- intersect(ordered_vars, names(pp))
   pp_sel <- pp |> select(all_of(c(include_vars, "age_group")))
 
   all_labels <- list(
-    age_at_medevac_num        ~ "Age at first air ambulance transport, yr",
-    n_transports              ~ "Number of air ambulance transports per patient",
-    primary_cedis_custom_group ~ "Chief complaint (CEDIS)",
-    female                    ~ "Sex",
-    ai_an                     ~ "AI/AN race",
-    PrimaryPayorNM            ~ "Insurance"
+    age_at_medevac_num         ~ "Age at first transport, yr",
+    female                     ~ "Sex",
+    ai_an                      ~ "Race (American Indian/Alaska Native)",
+    insurance_cat              ~ "Insurance type",
+    n_transports               ~ "Number of air ambulance transports per patient",
+    primary_cedis_custom_group ~ "Chief complaint (CEDIS)"
   )
-  label_vars <- lapply(all_labels, function(x) as.character(x[[2]]))
+  label_vars   <- lapply(all_labels, function(x) as.character(x[[2]]))
   active_labels <- all_labels[unlist(label_vars) %in% include_vars]
 
   pp_sel |>
     tbl_summary(
-      by = age_group,
+      by      = age_group,
       include = include_vars,
-      label = active_labels,
+      label   = active_labels,
       statistic = list(
         age_at_medevac_num ~ "{median} ({p25}–{p75})",
         all_categorical()  ~ "{n} ({p}%)"
