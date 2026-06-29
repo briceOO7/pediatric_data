@@ -365,14 +365,13 @@ tbl2_patient_characteristics <- function() {
     modify_caption("**Table 2.** Patient characteristics by age group. One row per patient (earliest qualifying journey). n (%) within each age-group column. Transports capped at 3+.")
 }
 
-# ── Table 3: Route comparison (Primary / Secondary / Direct tertiary) ──────────
+# ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
 
 tbl3_route_comparison <- function() {
   ja <- get_journeys_all()
 
-  # Village-originating journeys across all three route types.
-  # Direct tertiary (village → ANMC) are excluded from journeys_primary because
-  # they lack a village→MHC leg, so we pull from journeys_all here.
+  # Village-originating primary and secondary journeys only.
+  # Direct tertiary (n ≤ 1 in current dataset) excluded — too few for analysis.
   village_journeys <- ja |>
     filter(!is.na(village_name), village_name != "") |>
     mutate(
@@ -380,16 +379,26 @@ tbl3_route_comparison <- function() {
         case_when(
           grepl("Primary",   route_type, ignore.case = TRUE) ~ "Primary only",
           grepl("Secondary", route_type, ignore.case = TRUE) ~ "Secondary",
-          grepl("tertiary",  route_type, ignore.case = TRUE) ~ "Direct tertiary",
           TRUE ~ NA_character_
         ),
-        levels = c("Primary only", "Secondary", "Direct tertiary")
+        levels = c("Primary only", "Secondary")
       )
     ) |>
     filter(!is.na(route_label))
 
   if (nrow(village_journeys) == 0) {
     return(gt(tibble(Note = "No data available.")))
+  }
+
+  # Sex
+  if ("GenderDSC" %in% names(village_journeys)) {
+    village_journeys <- village_journeys |> mutate(
+      female = factor(
+        case_when(GenderDSC == "Female" ~ "Female", GenderDSC == "Male" ~ "Male",
+                  TRUE ~ NA_character_),
+        levels = c("Female", "Male")
+      )
+    )
   }
 
   # Top 10 chief complaints by overall frequency, sorted high → low
@@ -402,7 +411,7 @@ tbl3_route_comparison <- function() {
   village_journeys <- village_journeys |>
     mutate(
       age_group = factor(age_group,
-        levels = c("<1 yr", "1–<5 yr", "5–12 yr", "13–18 yr")),
+        levels = c("<1 yr", "1\u2013<5 yr", "5\u201312 yr", "13\u201318 yr")),
       primary_cedis_custom_group = factor(
         ifelse(primary_cedis_custom_group %in% top10_cc,
                primary_cedis_custom_group, NA_character_),
@@ -410,16 +419,29 @@ tbl3_route_comparison <- function() {
       )
     )
 
+  include_vars <- intersect(
+    c("age_at_medevac_num", "age_group",
+      if ("female" %in% names(village_journeys)) "female",
+      "primary_cedis_custom_group"),
+    names(village_journeys)
+  )
+
+  all_labels <- list(
+    age_at_medevac_num         ~ "Age, years \u2014 Median (IQR)",
+    age_group                  ~ "Age group",
+    female                     ~ "Sex",
+    primary_cedis_custom_group ~ "Chief Complaint (CEDIS)"
+  )
+  active_labels <- all_labels[
+    sapply(all_labels, function(x) as.character(x[[2]]) %in% include_vars)
+  ]
+
   village_journeys |>
-    select(route_label, age_at_medevac_num, age_group, primary_cedis_custom_group) |>
+    select(route_label, all_of(include_vars)) |>
     tbl_summary(
       by      = route_label,
-      include = c(age_at_medevac_num, age_group, primary_cedis_custom_group),
-      label   = list(
-        age_at_medevac_num         ~ "Age, years \u2014 Median (IQR)",
-        age_group                  ~ "Age group",
-        primary_cedis_custom_group ~ "Chief Complaint (CEDIS)"
-      ),
+      include = all_of(include_vars),
+      label   = active_labels,
       statistic = list(
         age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
         all_categorical()  ~ "{p}% ({n})"
@@ -428,15 +450,16 @@ tbl3_route_comparison <- function() {
     ) |>
     add_p(
       test = list(
-        age_at_medevac_num         ~ "kruskal.test",
+        age_at_medevac_num         ~ "wilcox.test",
         age_group                  ~ "chisq.test",
+        female                     ~ "chisq.test",
         primary_cedis_custom_group ~ "chisq.test"
       )
     ) |>
     add_overall(last = FALSE) |>
     bold_labels() |>
-    modify_header(label ~ "**Metric**") |>
-    modify_caption("**Table 3.** Patient characteristics by transport route type. Primary only = village \u2192 MHC with no secondary transfer. Secondary = village \u2192 MHC \u2192 ANMC or outside facility. Direct tertiary = village \u2192 ANMC (bypassing MHC). p-values: Kruskal-Wallis (age); chi-square (categorical).")
+    modify_header(label ~ "**Characteristic**") |>
+    modify_caption("**Table 3.** Patient characteristics by transport route type. Primary only = village \u2192 MHC, no further transfer. Secondary = village \u2192 MHC \u2192 ANMC or outside facility. One direct tertiary transport (village \u2192 ANMC) was identified but excluded from comparative analysis due to small n. p-values: Wilcoxon rank-sum (age); chi-square (categorical).")
 }
 
 # ── Table 3a: Primary legs (village → any destination) ────────────────────────

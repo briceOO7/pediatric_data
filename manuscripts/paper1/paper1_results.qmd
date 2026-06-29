@@ -85,13 +85,18 @@ tbl2_patient_characteristics()
 
 ### Route Typology
 
-Transports were classified into route types using the facility sequence recorded
-for each journey. **Primary only** (village → MHC, no further transfer,
-n = `r cc$n_primary_only`) represents the majority of encounters. **Secondary**
-transfers (village → MHC → ANMC or outside facility, n = `r cc$n_secondary`)
-reflect patients whose acuity required escalation beyond MHC. @tbl-t3 compares
-patient age and chief complaint across route groups. @tbl-t3a and @tbl-t3b detail
-leg-level routing patterns.
+Transports were classified by facility sequence. **Primary only** journeys
+(village → MHC, no further transfer) accounted for the large majority
+(n = `r cc$n_primary_only`), reflecting MHC's role as the regional
+stabilization hub. **Secondary** transfers (village → MHC → tertiary facility)
+represented the escalation pathway for patients whose acuity exceeded MHC's
+capabilities (n = `r cc$n_secondary`); of these, 30 proceeded to ANMC, 2 to
+Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. One
+additional journey was classified as a **direct tertiary** transport
+(village → ANMC, bypassing MHC entirely); given the single case, further
+comparative analysis of this route type is deferred. @tbl-t3 compares patient
+age, sex, and chief complaint between primary and secondary route groups.
+@tbl-t3a and @tbl-t3b detail leg-level routing patterns.
 
 ```{r}
 #| label: tbl-t3
