@@ -308,6 +308,23 @@ tbl2_patient_characteristics <- function() {
     )
   )
 
+  # Chief complaint: keep top 10 by overall frequency, sorted high → low
+  if ("primary_cedis_custom_group" %in% names(pp)) {
+    top10_cc <- pp |>
+      filter(!is.na(primary_cedis_custom_group)) |>
+      count(primary_cedis_custom_group, sort = TRUE) |>
+      slice_head(n = 10) |>
+      pull(primary_cedis_custom_group)
+
+    pp <- pp |> mutate(
+      primary_cedis_custom_group = factor(
+        ifelse(primary_cedis_custom_group %in% top10_cc,
+               primary_cedis_custom_group, NA_character_),
+        levels = top10_cc
+      )
+    )
+  }
+
   # Ordered variable list (determines row order in table)
   ordered_vars <- c(
     "age_at_medevac_num",
@@ -323,10 +340,10 @@ tbl2_patient_characteristics <- function() {
   all_labels <- list(
     age_at_medevac_num         ~ "Age at first transport, yr",
     female                     ~ "Sex",
-    ai_an                      ~ "Race (American Indian/Alaska Native)",
+    ai_an                      ~ "Race",
     insurance_cat              ~ "Insurance type",
     n_transports               ~ "Number of air ambulance transports per patient",
-    primary_cedis_custom_group ~ "Chief complaint (CEDIS)"
+    primary_cedis_custom_group ~ "Chief Complaint"
   )
   label_vars   <- lapply(all_labels, function(x) as.character(x[[2]]))
   active_labels <- all_labels[unlist(label_vars) %in% include_vars]
@@ -353,46 +370,73 @@ tbl2_patient_characteristics <- function() {
 tbl3_route_comparison <- function() {
   ja <- get_journeys_all()
 
-  # Restrict to village-origin journeys (all three route types)
+  # Village-originating journeys across all three route types.
+  # Direct tertiary (village → ANMC) are excluded from journeys_primary because
+  # they lack a village→MHC leg, so we pull from journeys_all here.
   village_journeys <- ja |>
-    filter(
-      !is.na(village_name), village_name != "",
-      route_type %in% c("Primary (village → MHC)", "Secondary transfer", "Direct tertiary")
-    ) |>
+    filter(!is.na(village_name), village_name != "") |>
     mutate(
-      route_type = droplevels(route_type)
-    )
+      route_label = factor(
+        case_when(
+          grepl("Primary",   route_type, ignore.case = TRUE) ~ "Primary only",
+          grepl("Secondary", route_type, ignore.case = TRUE) ~ "Secondary",
+          grepl("tertiary",  route_type, ignore.case = TRUE) ~ "Direct tertiary",
+          TRUE ~ NA_character_
+        ),
+        levels = c("Primary only", "Secondary", "Direct tertiary")
+      )
+    ) |>
+    filter(!is.na(route_label))
 
   if (nrow(village_journeys) == 0) {
     return(gt(tibble(Note = "No data available.")))
   }
 
+  # Top 10 chief complaints by overall frequency, sorted high → low
+  top10_cc <- village_journeys |>
+    filter(!is.na(primary_cedis_custom_group)) |>
+    count(primary_cedis_custom_group, sort = TRUE) |>
+    slice_head(n = 10) |>
+    pull(primary_cedis_custom_group)
+
+  village_journeys <- village_journeys |>
+    mutate(
+      age_group = factor(age_group,
+        levels = c("<1 yr", "1–<5 yr", "5–12 yr", "13–18 yr")),
+      primary_cedis_custom_group = factor(
+        ifelse(primary_cedis_custom_group %in% top10_cc,
+               primary_cedis_custom_group, NA_character_),
+        levels = top10_cc
+      )
+    )
+
   village_journeys |>
-    select(route_type, age_at_medevac_num = age_at_medevac_num,
-           primary_cedis_category) |>
+    select(route_label, age_at_medevac_num, age_group, primary_cedis_custom_group) |>
     tbl_summary(
-      by = route_type,
-      include = c(age_at_medevac_num, primary_cedis_category),
-      label = list(
-        age_at_medevac_num    ~ "Age at medevac, yr",
-        primary_cedis_category ~ "Chief complaint category (CEDIS)"
+      by      = route_label,
+      include = c(age_at_medevac_num, age_group, primary_cedis_custom_group),
+      label   = list(
+        age_at_medevac_num         ~ "Age, years \u2014 Median (IQR)",
+        age_group                  ~ "Age group",
+        primary_cedis_custom_group ~ "Chief Complaint (CEDIS)"
       ),
       statistic = list(
-        age_at_medevac_num ~ "{median} ({p25}–{p75})",
-        all_categorical()  ~ "{n} ({p}%)"
+        age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
+        all_categorical()  ~ "{p}% ({n})"
       ),
       missing = "no"
     ) |>
     add_p(
       test = list(
-        age_at_medevac_num    ~ "kruskal.test",
-        primary_cedis_category ~ "chisq.test"
+        age_at_medevac_num         ~ "kruskal.test",
+        age_group                  ~ "chisq.test",
+        primary_cedis_custom_group ~ "chisq.test"
       )
     ) |>
     add_overall(last = FALSE) |>
     bold_labels() |>
-    modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 3.** Patient characteristics by transport route type. p-values: Kruskal-Wallis (age); chi-square (categorical).")
+    modify_header(label ~ "**Metric**") |>
+    modify_caption("**Table 3.** Patient characteristics by transport route type. Primary only = village \u2192 MHC with no secondary transfer. Secondary = village \u2192 MHC \u2192 ANMC or outside facility. Direct tertiary = village \u2192 ANMC (bypassing MHC). p-values: Kruskal-Wallis (age); chi-square (categorical).")
 }
 
 # ── Table 3a: Primary legs (village → any destination) ────────────────────────

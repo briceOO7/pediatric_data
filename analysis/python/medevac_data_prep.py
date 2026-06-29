@@ -248,22 +248,22 @@ def age_group(age_years: float | None) -> str | None:
 
 # CEDIS 3.1 code → category (matches medevac_summaries.py)
 _CEDIS_CATEGORY_MAP: dict[int, str] = {
-    **{c: "Cardiovascular"   for c in range(1,   13)},
-    **{c: "ENT"              for c in range(51,  57)},
-    **{c: "ENT"              for c in range(101, 108)},
-    **{c: "ENT"              for c in range(151, 156)},
-    **{c: "Environmental"    for c in range(201, 207)},
-    **{c: "Gastrointestinal" for c in range(251, 268)},
-    **{c: "Genitourinary"    for c in range(301, 311)},
-    **{c: "Mental Health"    for c in range(351, 361)},
-    **{c: "Neurologic"       for c in range(401, 412)},
-    **{c: "OB/GYN"           for c in range(451, 461)},
-    **{c: "Ophthalmology"    for c in range(502, 512)},
-    **{c: "Orthopedic"       for c in range(551, 560)},
-    **{c: "Respiratory"      for c in range(651, 661)},
-    **{c: "Skin"             for c in range(701, 718)},
-    **{c: "Substance Misuse" for c in range(751, 754)},
-    **{c: "Trauma"           for c in range(801, 807)},
+    **{c: "Cardiovascular"    for c in range(1,   13)},
+    **{c: "ENT"               for c in range(51,  57)},
+    **{c: "ENT"               for c in range(101, 108)},
+    **{c: "ENT"               for c in range(151, 156)},
+    **{c: "Environmental"     for c in range(201, 207)},
+    **{c: "Gastrointestinal"  for c in range(251, 268)},
+    **{c: "Genitourinary"     for c in range(301, 311)},
+    **{c: "Mental Health"     for c in range(351, 361)},
+    **{c: "Neurologic"        for c in range(401, 412)},
+    **{c: "OB/GYN"            for c in range(451, 461)},
+    **{c: "Ophthalmology"     for c in range(502, 512)},
+    **{c: "Orthopedic"        for c in range(551, 560)},
+    **{c: "Respiratory"       for c in range(651, 661)},
+    **{c: "Skin"              for c in range(701, 718)},
+    **{c: "Substance Misuse"  for c in range(751, 754)},
+    **{c: "Trauma"            for c in range(801, 807)},
     **{c: "General and Minor" for c in range(851, 891)},
 }
 
@@ -275,78 +275,96 @@ _CC_GROUPED_CATS: dict[str, str] = {
     "Orthopedic":       "Trauma/Injury",
 }
 
-# Individual complaint overrides (take priority over category rule)
+# Individual complaint text overrides (case-insensitive; take priority over category rule)
 _CC_GROUPED_COMPLAINTS: dict[str, str] = {
-    "Head injury":        "Trauma/Injury",
-    "Facial trauma":      "Trauma/Injury",
-    "Neck trauma":        "Trauma/Injury",
-    "Genital trauma":     "Trauma/Injury",
-    "Eye trauma":         "Trauma/Injury",
-    "Trauma/Orthopedic":  "Trauma/Injury",
-    "Trauma/orthopedic":  "Trauma/Injury",
-    "URTI complaints":    "Respiratory",
+    "Head injury":       "Trauma/Injury",
+    "Facial trauma":     "Trauma/Injury",
+    "Neck trauma":       "Trauma/Injury",
+    "Genital trauma":    "Trauma/Injury",
+    "Eye trauma":        "Trauma/Injury",
+    "Trauma/Orthopedic": "Trauma/Injury",
+    "URTI complaints":   "Respiratory",
 }
 
-_CC_SKIP: frozenset[str] = frozenset({"follow-up visit", "unknown"})
-
-# Search columns in priority order: village → MHC ED → MHC inpatient → ANMC ED
-_CC_SEARCH_PREFIXES: list[tuple[str, str, int]] = [
-    ("village_cedis_complaint",       "village_cedis_code",       19),
-    ("mhc_ed_cedis_complaint",        "mhc_ed_cedis_code",         8),
-    ("mhc_inpatient_cedis_complaint", "mhc_inpatient_cedis_code",  5),
-    ("anmc_ed_cedis_complaint",       "anmc_ed_cedis_code",        2),
-]
 
 
-def _primary_cedis(cc_row: pd.Series) -> tuple[int | None, str | None, str | None, str | None]:
+def _cc_custom_group(complaint: str, code_int: int) -> str:
+    """Apply custom grouping to a (complaint text, CEDIS code) pair."""
+    complaint_key = next(
+        (k for k in _CC_GROUPED_COMPLAINTS if k.lower() == complaint.lower()), None
+    )
+    if complaint_key:
+        return _CC_GROUPED_COMPLAINTS[complaint_key]
+    category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
+    return _CC_GROUPED_CATS.get(category, complaint)
+
+
+# Facility phase sort priority: village complaints always take precedence,
+# then chronological order within each facility so late-entered records at
+# an earlier site still override anything from a later site.
+_CC_PHASE_ORDER: dict[str, int] = {
+    "village":       0,
+    "mhc_ed":        1,
+    "mhc_inpatient": 2,
+    "anmc_ed":       3,
+}
+
+
+def _build_definitive_cc(cc_long: pd.DataFrame) -> pd.DataFrame:
     """
-    Extract the primary CEDIS code/complaint for a journey.
+    Compute the definitive chief complaint per journey from the long-format
+    CC file (pediatric_chiefcomplaints_alternate_long.csv).
 
-    Searches village → MHC ED → MHC inpatient → ANMC ED complaint slots.
-    Skips 'follow-up visit' and 'unknown'; falls back to follow-up if all others empty.
+    Sort order: facility phase (village → mhc_ed → mhc_inpatient → anmc_ed),
+    then chronologically within each facility (EncounterStartDTS, cc_sequence).
+    This ensures a complaint entered late at an earlier site still wins over
+    one entered first at a later site (guards against registration-order errors).
 
-    Returns (code, complaint_text, cedis_category, custom_group).
-    custom_group collapses Respiratory / Gastrointestinal / Trauma to category labels;
-    all other complaints keep their individual complaint text.
+    Take the first complaint whose CEDIS code is not 888 or 999.
+    Journeys where every complaint is 888/999 → None (excluded from table).
+
+    Returns a DataFrame with columns:
+      journey_id, primary_cedis_code, primary_cedis_complaint,
+      primary_cedis_category, primary_cedis_custom_group
     """
-    follow_up: tuple[int, str | None, str, str] | None = None
+    df = cc_long.copy()
 
-    for comp_prefix, code_prefix, n_slots in _CC_SEARCH_PREFIXES:
-        for slot in range(1, n_slots + 1):
-            comp_col = f"{comp_prefix}_{slot}"
-            code_col = f"{code_prefix}_{slot}"
-            if comp_col not in cc_row.index:
-                break
-            raw_comp = cc_row.get(comp_col)
-            raw_code = cc_row.get(code_col)
-            if pd.isna(raw_comp):
-                continue
-            complaint = str(raw_comp).strip()
-            if not complaint or complaint.lower() in _CC_SKIP:
-                continue
-            try:
-                code_int = int(float(raw_code)) if pd.notna(raw_code) else 888
-            except (ValueError, TypeError):
-                code_int = 888
-            if code_int in (888, 999):
-                if follow_up is None:
-                    follow_up = (code_int, complaint, "Follow-up/Unknown", "Follow-up/Unknown")
-                continue
-            category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
-            # Custom group: complaint-level overrides first (case-insensitive),
-            # then category collapse, else keep individual complaint text
-            complaint_key = next(
-                (k for k in _CC_GROUPED_COMPLAINTS if k.lower() == complaint.lower()), None
-            )
-            if complaint_key:
-                custom_group = _CC_GROUPED_COMPLAINTS[complaint_key]
-            else:
-                custom_group = _CC_GROUPED_CATS.get(category, complaint)
-            return code_int, complaint, category, custom_group
+    def _is_skip_code(x: object) -> bool:
+        try:
+            return int(float(x)) in (888, 999)
+        except (ValueError, TypeError):
+            return False
 
-    if follow_up:
-        return follow_up
-    return None, None, None, None
+    df["_skip"]      = df["cedis_code"].map(_is_skip_code)
+    df["_phase_ord"] = df["facility_phase"].map(_CC_PHASE_ORDER).fillna(99)
+    df["_ts"]        = pd.to_datetime(df["EncounterStartDTS"], errors="coerce")
+
+    df = df.sort_values(["journey_id", "_phase_ord", "_ts", "cc_sequence"])
+
+    # Take first non-skipped complaint per journey
+    valid = df[~df["_skip"] & df["cedis_complaint"].notna() & (df["cedis_complaint"].str.strip() != "")]
+    first = valid.groupby("journey_id", sort=False).first().reset_index()
+
+    def _safe_code(x: object) -> int | None:
+        try:
+            return int(float(x))
+        except (ValueError, TypeError):
+            return None
+
+    first["_code_int"]  = first["cedis_code"].map(_safe_code)
+    first["_category"]  = first["_code_int"].map(lambda c: _CEDIS_CATEGORY_MAP.get(c, "General and Minor") if c else None)
+    first["_cg"]        = first.apply(
+        lambda r: _cc_custom_group(str(r["cedis_complaint"]).strip(), r["_code_int"] or 0)
+        if pd.notna(r["cedis_complaint"]) else None,
+        axis=1,
+    )
+
+    return first[["journey_id"]].assign(
+        primary_cedis_code         = first["_code_int"],
+        primary_cedis_complaint    = first["cedis_complaint"].str.strip(),
+        primary_cedis_category     = first["_category"],
+        primary_cedis_custom_group = first["_cg"],
+    )
 
 
 # ── Data loading ───────────────────────────────────────────────────────────────
@@ -408,7 +426,7 @@ def _village_name_for_journey(row: pd.Series) -> str:
 
 # ── Derived variable computation ───────────────────────────────────────────────
 
-def compute_derived(df: pd.DataFrame, cc: pd.DataFrame) -> pd.DataFrame:
+def compute_derived(df: pd.DataFrame, cc: pd.DataFrame | None = None) -> pd.DataFrame:
     """Add route_type, village_name, age_group, CEDIS columns to journey DataFrame."""
     df = df.copy()
 
@@ -419,16 +437,16 @@ def compute_derived(df: pd.DataFrame, cc: pd.DataFrame) -> pd.DataFrame:
     df["age_group"] = df["age_at_medevac_num"].map(age_group)
     df["age_group"] = pd.Categorical(df["age_group"], categories=AGE_GROUPS, ordered=True)
 
-    # Primary CEDIS per journey
-    if cc is not None and len(cc):
-        cc_indexed = cc.set_index("journey_id")
-        cedis_rows = df["journey_id"].map(
-            lambda jid: _primary_cedis(cc_indexed.loc[jid]) if jid in cc_indexed.index else (None, None, None, None)
-        )
-        df["primary_cedis_code"]         = [r[0] for r in cedis_rows]
-        df["primary_cedis_complaint"]    = [r[1] for r in cedis_rows]
-        df["primary_cedis_category"]     = [r[2] for r in cedis_rows]
-        df["primary_cedis_custom_group"] = [r[3] for r in cedis_rows]
+    # Primary CEDIS per journey — prefer long-format alternate file (has is_follow_up flag)
+    _cc_long_path = DATA / "pediatric_chiefcomplaints_alternate_long.csv"
+    if _cc_long_path.exists():
+        cc_long = pd.read_csv(_cc_long_path, low_memory=False)
+        cc_long["journey_id"] = cc_long["journey_id"].astype(str).str.strip()
+        cc_def = _build_definitive_cc(cc_long)
+        cc_def = cc_def.set_index("journey_id")
+        for col in ("primary_cedis_code", "primary_cedis_complaint",
+                    "primary_cedis_category", "primary_cedis_custom_group"):
+            df[col] = df["journey_id"].map(cc_def[col] if col in cc_def.columns else pd.Series(dtype="object"))
 
     return df
 
@@ -783,10 +801,8 @@ def main(synthetic: bool = False) -> None:
     print("Loading source data...")
     df_raw = load_raw()
 
-    cc = pd.read_csv(DATA / "pediatric_chiefcomplaints.csv") if (DATA / "pediatric_chiefcomplaints.csv").exists() else pd.DataFrame()
-
     print("Computing derived variables...")
-    df = compute_derived(df_raw, cc)
+    df = compute_derived(df_raw)
 
     print("Filtering primary cohort (village → MHC)...")
     mask = df.apply(_qualifies_for_primary_cohort, axis=1)
