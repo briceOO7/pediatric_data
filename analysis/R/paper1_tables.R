@@ -404,7 +404,7 @@ tbl2_patient_characteristics <- function() {
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Journey characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.")
+    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.")
 }
 
 # ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
