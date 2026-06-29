@@ -24,6 +24,7 @@ engine: knitr
 #| include: false
 library(here)
 source(here("analysis", "R", "paper1_tables.R"))
+source(here("analysis", "R", "paper1_figures.R"))
 
 cc <- cohort_counts()
 ```
@@ -69,9 +70,11 @@ tbl1_village_characteristics()
 
 ```{r}
 #| label: fig-map
-#| fig-cap: "Figure 1. Pediatric air ambulance service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = utilization rate per 1,000 pediatric residents (2020 Census)."
+#| fig-cap: "Figure 1. Approximate air ambulance service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = pediatric air ambulance utilization rate per 1,000 residents (2020 Census)."
+#| fig-width: 8.5
+#| fig-height: 6.5
 #| out-width: 100%
-knitr::include_graphics(here("outputs", "figures", "fig1_medevac_map.png"))
+fig1_choropleth_map()
 ```
 
 ```{r}
