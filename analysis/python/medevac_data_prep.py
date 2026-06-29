@@ -357,14 +357,20 @@ def load_raw() -> pd.DataFrame:
 
 
 def _village_name_for_journey(row: pd.Series) -> str:
-    """Best village name: facility_1_name if it's a village, else medevac1_from."""
+    """First village-origin location found across facility_1 and all medevac legs.
+
+    Checks all three medevac legs so journeys where the village leg is leg 2 or 3
+    (e.g. secondary transfers where facility_1 is MHC) still get the correct village
+    name rather than falling back to 'MHC'.  Returns '' if no village is found.
+    """
     f1 = str(row.get("facility_1_name", "")).strip()
     if f1 and is_village_origin(f1):
         return f1
-    m1 = str(row.get("medevac1_from", "")).strip()
-    if m1 and is_village_origin(m1):
-        return m1
-    return f1 or m1 or ""
+    for i in (1, 2, 3):
+        m = str(row.get(f"medevac{i}_from", "")).strip()
+        if m and is_village_origin(m):
+            return m
+    return ""
 
 
 # ── Derived variable computation ───────────────────────────────────────────────
