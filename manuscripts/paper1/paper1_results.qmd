@@ -115,29 +115,4 @@ tbl3a_primary_routes()
 tbl3b_secondary_routes()
 ```
 
----
-
-### Village-Level Utilization
-
-Village-level utilization rates varied substantially across the
-`r cc$n_villages` communities of the Maniilaq service area. @tbl-t4 reports
-per-village utilization after accounting for pediatric population denominators.
-
-```{r}
-#| label: tbl-t4
-#| tbl-cap: "Village-level pediatric air ambulance utilization. Rate = village → MHC journeys per 1,000 pediatric residents under 18 (2020 Census). Sorted by utilization rate, highest to lowest."
-tbl4_village_utilization()
-```
-
----
-
-### Timeliness
-
-Time intervals from air ambulance activation to MHC arrival are reported in @tbl-t5.
-
-```{r}
-#| label: tbl-t5
-#| tbl-cap: "Time intervals (minutes), village → MHC primary transports. Median (IQR)."
-tbl5_timing_minutes()
-```
 
