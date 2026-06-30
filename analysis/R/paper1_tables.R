@@ -225,24 +225,54 @@ fig_prisma_diagram <- function() {
   tbl <- tbl_wide |>
     gt(rowname_col = "Metric") |>
     tab_stubhead(label = "Metric") |>
+    # Section header rows: bold, light gray background
     tab_style(
-      style = list(cell_text(weight = "bold", color = "#2C3E50"),
-                   cell_fill(color = "#EBF5FB")),
+      style = list(cell_text(weight = "bold", color = "#000000"),
+                   cell_fill(color = "#EBEBEB")),
       locations = cells_stub(rows = Metric %in% bold_header_rows)
     ) |>
-    tab_style(style = cell_text(weight = "bold"),
+    tab_style(
+      style = cell_fill(color = "#EBEBEB"),
+      locations = cells_body(rows = Metric %in% bold_header_rows)
+    ) |>
+    # Section header shaded rows (sub-group dividers)
+    tab_style(
+      style = cell_fill(color = "#F5F5F5"),
+      locations = cells_body(rows = Metric %in% shaded_rows)
+    ) |>
+    tab_style(
+      style = cell_fill(color = "#F5F5F5"),
+      locations = cells_stub(rows = Metric %in% shaded_rows)
+    ) |>
+    # Column labels: bold black
+    tab_style(style = cell_text(weight = "bold", color = "#000000"),
               locations = cells_column_labels()) |>
+    # Overall column: bold
     tab_style(style = cell_text(weight = "bold"),
               locations = cells_body(columns = "Overall")) |>
-    tab_style(style = cell_text(color = "#555555", size = "small"),
+    tab_style(style = cell_text(weight = "bold"),
+              locations = cells_stub()) |>
+    # Indented sub-rows: slightly smaller, gray
+    tab_style(style = cell_text(color = "#444444", size = "small",
+                                weight = "normal"),
+              locations = cells_stub(rows = startsWith(Metric, "  "))) |>
+    tab_style(style = cell_text(color = "#444444", size = "small"),
               locations = cells_body(rows = startsWith(Metric, "  "))) |>
-    tab_style(style = cell_fill(color = "#F8F9FA"),
-              locations = cells_body(rows = Metric %in% shaded_rows)) |>
-    opt_stylize(style = 1) |>
+    # Clean B&W table options
     opt_table_font(font = "Arial") |>
-    tab_options(stub.font.weight = "bold",
-                column_labels.font.weight = "bold",
-                table.font.size = "small")
+    tab_options(
+      stub.font.weight          = "bold",
+      column_labels.font.weight = "bold",
+      column_labels.background.color = "#D0D0D0",
+      table.border.top.color    = "#000000",
+      table.border.top.width    = px(2),
+      table.border.bottom.color = "#000000",
+      table.border.bottom.width = px(2),
+      column_labels.border.bottom.color = "#000000",
+      column_labels.border.bottom.width = px(1),
+      stub.border.color         = "#CCCCCC",
+      table.font.size           = "small"
+    )
 
   for (fn in footnotes) {
     tbl <- tbl |> tab_footnote(footnote = fn$footnote,
@@ -260,12 +290,12 @@ tbl1_village_characteristics <- function() {
     ~metric_id,          ~Metric,
     "pediatric_pop",     "Pediatric population (under 18)",
     "n_journeys",        "Total journeys",
+    "mean_yr_str",       "Mean journeys per year (SD)",
     "n_patients",        "Total patients",
     "_header_transport", "Air ambulance transports per patient",
     "t1_str",            "  1 transport",
     "t2_str",            "  2 transports",
-    "t3p_str",           "  3+ transports",
-    "mean_yr_str",       "Mean journeys per year (SD)"
+    "t3p_str",           "  3+ transports"
   )
 
   .render_village_gt(
