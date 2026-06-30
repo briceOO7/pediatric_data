@@ -166,9 +166,9 @@ fig_prisma_diagram <- function() {
     n2  <- sum(df$n_journeys_primary == 2,  na.rm = TRUE)
     n3p <- sum(df$n_journeys_primary >= 3,  na.rm = TRUE)
     tibble(
-      t1_str  = sprintf("%d (%.0f%%)", n1,  100 * n1  / total),
-      t2_str  = sprintf("%d (%.0f%%)", n2,  100 * n2  / total),
-      t3p_str = sprintf("%d (%.0f%%)", n3p, 100 * n3p / total)
+      t1_str  = sprintf("%d (%.1f%%)", n1,  100 * n1  / total),
+      t2_str  = sprintf("%d (%.1f%%)", n2,  100 * n2  / total),
+      t3p_str = sprintf("%d (%.1f%%)", n3p, 100 * n3p / total)
     )
   }
   transport_fmt <- bind_rows(
@@ -179,7 +179,7 @@ fig_prisma_diagram <- function() {
 
   vs_fmt <- vs |> mutate(
     mean_yr_str   = sprintf("%.1f (%.1f)", mean_per_year, sd_per_year),
-    dist_str      = ifelse(!is.na(distance_miles), as.character(distance_miles), "\u2014"),
+      dist_str      = ifelse(!is.na(distance_miles), sprintf("%.1f", distance_miles), "\u2014"),
     total_ata_str = .fmt_mir(total_ata_median, total_ata_q1, total_ata_q3,
                               total_ata_lo, total_ata_hi),
     pct_act_str   = ifelse(!is.na(pct_complete_timing),
@@ -189,7 +189,7 @@ fig_prisma_diagram <- function() {
                               decision_lo, decision_hi),
     response_str  = .fmt_mir(response_median, response_q1, response_q3,
                               response_lo, response_hi),
-    util_str      = ifelse(!is.na(util_rate), as.character(util_rate), "\u2014")
+      util_str      = ifelse(!is.na(util_rate), sprintf("%.1f", util_rate), "\u2014")
   )
 
   list(vs_fmt = vs_fmt, transport_fmt = transport_fmt, col_order = col_order)
