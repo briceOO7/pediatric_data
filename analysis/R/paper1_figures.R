@@ -257,6 +257,10 @@ fig1_choropleth_map <- function() {
     bind_cols(as.data.frame(st_coordinates(hub))) |>
     rename(cx = X, cy = Y)
 
+  hub_coords <- st_coordinates(hub)
+  hub_cx <- hub_coords[1, 1]
+  hub_cy <- hub_coords[1, 2]
+
   # ── Assemble main map ────────────────────────────────────────────────────────
   p <- ggplot()
 
@@ -281,7 +285,6 @@ fig1_choropleth_map <- function() {
         color = "white", linewidth = 0.5, alpha = 0.9
       )
   } else {
-    # Fallback: just color the NW Arctic Borough
     p <- p +
       geom_sf(data = nwab, fill = "#e8e8e8", color = "#555555", linewidth = 0.8)
   }
@@ -296,12 +299,40 @@ fig1_choropleth_map <- function() {
             shape = 21, size = 2.5,
             fill = "white", color = "#1a1a1a", stroke = 1.0)
 
-  # Kotzebue (hub) — red cross marker via annotate
-  hub_coords <- st_coordinates(hub)
+  # Kotzebue / MHC — hospital icon: dark grey filled square with white "H"
   p <- p +
     annotate("point",
-             x = hub_coords[1, 1], y = hub_coords[1, 2],
-             shape = 3, size = 5, color = "#C8102E", stroke = 2)
+             x = hub_cx, y = hub_cy,
+             shape = 22, size = 7,
+             fill = "#606060", color = "#222222", stroke = 1.2) +
+    annotate("text",
+             x = hub_cx, y = hub_cy,
+             label = "H", color = "white", size = 2.8, fontface = "bold")
+
+  # Kotzebue city label + MHC sub-label
+  kotz_label <- data.frame(
+    cx = hub_cx, cy = hub_cy,
+    label = "Kotzebue\nManiilaq Health Center"
+  )
+  p <- p +
+    geom_label_repel(
+      data        = kotz_label,
+      aes(x = cx, y = cy, label = label),
+      size          = 2.8,
+      fontface      = "bold",
+      box.padding   = 0.5,
+      point.padding = 0.4,
+      label.padding = 0.25,
+      label.size    = 0.3,
+      fill          = "white",
+      color         = "#111111",
+      alpha         = 0.95,
+      seed          = 42,
+      min.segment.length = 0,
+      segment.color = "#444444",
+      segment.size  = 0.4,
+      nudge_y       = 50000
+    )
 
   # ── Color scale ───────────────────────────────────────────────────────────
   p <- p +
@@ -309,7 +340,7 @@ fig1_choropleth_map <- function() {
       option  = "plasma",
       name    = "Journeys per\n1,000 residents",
       limits  = c(0, rate_max),
-      na.value = "#cccccc",
+      na.value = "#787878",
       guide   = guide_colorbar(
         barwidth  = 0.8,
         barheight = 8,
