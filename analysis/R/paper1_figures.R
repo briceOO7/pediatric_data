@@ -299,6 +299,13 @@ fig1_choropleth_map <- function() {
               fill = "#f0f0f0", color = "#bbbbbb", linewidth = 0.2)
   }
 
+  # North Slope Borough — light grey fill (visible outside Point Hope's Voronoi zone)
+  if (!is.null(ns_bor) && nrow(ns_bor) > 0) {
+    p <- p +
+      geom_sf(data = ns_bor,
+              fill = "#E2E2E2", color = "#aaaaaa", linewidth = 0.4)
+  }
+
   # Voronoi zones colored by utilization (or fallback to borough fill)
   if (!is.null(zones)) {
     # Clip zones to NWAB + North Slope so Point Hope's service area is visible
