@@ -1,4 +1,5 @@
 # Pediatric Medevac — Analysis Project
+<!-- sync check: 2026-06-30 -->
 
 Retrospective analysis of pediatric medevac operations across the Maniilaq Association
 service area (Northwest Arctic Borough, Alaska), 2020–2024.
