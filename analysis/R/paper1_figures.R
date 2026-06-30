@@ -331,7 +331,7 @@ fig1_choropleth_map <- function() {
       min.segment.length = 0,
       segment.color = "#444444",
       segment.size  = 0.4,
-      nudge_x       = 80000,
+      nudge_x       = -80000,
       nudge_y       = 0
     )
 
