@@ -273,14 +273,14 @@ fig1_choropleth_map <- function() {
 
   # Voronoi zones colored by utilization (or fallback to borough fill)
   if (!is.null(zones)) {
-    # Clip zones to just the NW Arctic Borough for display
-    zones_nwab <- tryCatch(
-      st_intersection(zones, st_union(nwab)),
+    # Clip zones to NWAB + North Slope so Point Hope's service area is visible
+    zones_display <- tryCatch(
+      st_intersection(zones, clip_geom_single),
       error = function(e) zones
     )
     p <- p +
       geom_sf(
-        data = zones_nwab,
+        data = zones_display,
         aes(fill = util_rate),
         color = "white", linewidth = 0.5, alpha = 0.9
       )
