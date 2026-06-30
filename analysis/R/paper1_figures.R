@@ -425,9 +425,19 @@ save_fig1_choropleth <- function(width = 8.5, height = 6.5, dpi = 300) {
     bg       = "white"
   )
   message("Saved: ", out_path)
+}
 
 # ── Figure 2: Sankey / alluvial transport route diagram ─────────────────────
 
+library(ggalluvial)
+library(readr)
+
+.load_journeys_all_fig <- function() {
+  readr::read_csv(here::here("outputs", "data", "journeys_all.csv"),
+                  show_col_types = FALSE)
+}
+
+#' Build alluvial flow data from journeys_all.csv
 #'
 #' Returns a data frame with one row per village-originating journey and
 #' columns: origin, stop1, final.
