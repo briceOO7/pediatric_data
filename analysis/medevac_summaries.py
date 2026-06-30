@@ -4074,6 +4074,7 @@ def save_all_figures(df: pd.DataFrame) -> None:
         ("fig4_journey_duration_hist.png", plot_fig3_journey_duration(df)),
         ("fig5_medevacs_per_journey.png", plot_fig5_medevacs_per_journey(df)),
         ("fig6_medevacs_per_patient.png", plot_fig6_medevacs_per_patient(df)),
+        ("fig_voronoi_service_districts.png", plot_fig_voronoi_service_districts(df)),
     ]
     for name, fig in specs:
         save_kw: dict = {}

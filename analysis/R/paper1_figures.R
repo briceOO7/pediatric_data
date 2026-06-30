@@ -142,9 +142,12 @@ suppressPackageStartupMessages({
 
 # Label point inside the visible map extent (borough centroids are often off-frame).
 .borough_label_in_view <- function(bor_sf, xmin, xmax, ymin, ymax) {
-  view <- st_as_sfc(st_polygon(list(matrix(c(
-    xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax, xmin, ymin
-  ), ncol = 2, byrow = TRUE))), crs = st_crs(bor_sf))
+  view <- st_sfc(
+    st_polygon(list(matrix(c(
+      xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax, xmin, ymin
+    ), ncol = 2, byrow = TRUE))),
+    crs = st_crs(bor_sf)
+  )
   inter <- st_intersection(st_union(bor_sf), view)
   if (st_is_empty(inter)) return(c(NA_real_, NA_real_))
   parts <- tryCatch(st_cast(inter, "POLYGON"), error = function(e) inter)
@@ -158,44 +161,91 @@ suppressPackageStartupMessages({
   c(coords[1, "X"], coords[1, "Y"])
 }
 
-# Borough names straddling the shared border; falls back to in-view centroids.
+# Borough names above/below the NWAB–NSB boundary at horizontal map center.
 .borough_border_labels <- function(nwab, ns_bor, xmin, xmax, ymin, ymax) {
+  mid_x <- (xmin + xmax) / 2
+  map_w <- xmax - xmin
+  map_h <- ymax - ymin
+  label_x <- mid_x + map_w * 0.075
+  y_gap   <- max(26000, map_h * 0.028)
+  y_nudge <- max(8000, map_h * 0.008)
+
   nwab_u <- st_union(nwab)
   ns_u   <- st_union(ns_bor)
+  crs    <- st_crs(nwab)
 
-  mx <- my <- NA_real_
+  view <- st_sfc(
+    st_polygon(list(matrix(c(
+      xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax, xmin, ymin
+    ), ncol = 2, byrow = TRUE))),
+    crs = crs
+  )
+
   border <- tryCatch(
     st_intersection(st_boundary(nwab_u), st_boundary(ns_u)),
     error = function(e) NULL
   )
-  if (!is.null(border) && !st_is_empty(border)) {
-    lines <- tryCatch(st_cast(border, "LINESTRING"), error = function(e) NULL)
-    if (!is.null(lines) && nrow(lines) > 0) {
-      longest <- lines[which.max(st_length(lines)), ]
-      mid     <- st_line_sample(longest, sample = 0.5)
-      if (!st_is_empty(mid)) {
-        mc <- st_coordinates(mid)
-        mx <- mc[1, "X"]
-        my <- mc[1, "Y"]
-      }
+  if (is.null(border) || st_is_empty(border)) {
+    return(.borough_border_labels_fallback(nwab, ns_bor, xmin, xmax, ymin, ymax))
+  }
+
+  border_view <- tryCatch(st_intersection(border, view), error = function(e) border)
+  if (st_is_empty(border_view)) border_view <- border
+
+  # Where the borough dividing line crosses the label column.
+  vert <- st_sfc(
+    st_linestring(matrix(c(label_x, ymin, label_x, ymax), ncol = 2, byrow = TRUE)),
+    crs = crs
+  )
+  hit <- tryCatch(st_intersection(border_view, vert), error = function(e) NULL)
+
+  border_y <- NA_real_
+  if (!is.null(hit) && !st_is_empty(hit)) {
+    pts <- tryCatch(st_cast(hit, "POINT"), error = function(e) NULL)
+    if (!is.null(pts) && length(pts) > 0L) {
+      coords <- st_coordinates(pts)
+      border_y <- coords[which.max(coords[, "Y"]), "Y"]
     }
   }
 
-  if (!is.na(mx)) {
-    return(data.frame(
-      x     = c(mx, mx),
-      y     = c(my - 45000, my + 45000),
-      label = c("Northwest Arctic Borough", "North Slope Borough"),
-      stringsAsFactors = FALSE
-    ))
+  if (is.na(border_y)) {
+    lines <- tryCatch(st_cast(border_view, "LINESTRING"), error = function(e) NULL)
+    if (!is.null(lines) && length(lines) > 0L) {
+      mid_pt <- st_nearest_points(
+        st_sfc(st_point(c(label_x, (ymin + ymax) / 2)), crs = crs),
+        lines[which.max(st_length(lines))]
+      )[[2]]
+      border_y <- st_coordinates(mid_pt)[1, "Y"]
+    }
   }
 
-  nw_pt <- .borough_label_in_view(nwab, xmin, xmax, ymin, ymax)
-  ns_pt <- .borough_label_in_view(ns_bor, xmin, xmax, ymin, ymax)
+  if (is.na(border_y)) {
+    return(.borough_border_labels_fallback(nwab, ns_bor, xmin, xmax, ymin, ymax))
+  }
+
   data.frame(
-    x     = c(nw_pt[1], ns_pt[1]),
-    y     = c(nw_pt[2], ns_pt[2]),
+    x     = c(label_x, label_x),
+    y     = c(border_y - y_gap - y_nudge - map_h * 0.05, border_y + y_gap + y_nudge + map_h * 0.02),
     label = c("Northwest Arctic Borough", "North Slope Borough"),
+    vjust = c(0.5, 0.5),
+    stringsAsFactors = FALSE
+  )
+}
+
+# Fallback when shared-border geometry is unavailable.
+.borough_border_labels_fallback <- function(nwab, ns_bor, xmin, xmax, ymin, ymax) {
+  mid_x <- (xmin + xmax) / 2
+  mid_y <- (ymin + ymax) / 2
+  map_w <- xmax - xmin
+  map_h <- ymax - ymin
+  label_x <- mid_x + map_w * 0.075
+  y_gap   <- max(26000, map_h * 0.028)
+  y_nudge <- max(8000, map_h * 0.008)
+  data.frame(
+    x     = c(label_x, label_x),
+    y     = c(mid_y - y_gap - y_nudge - map_h * 0.05, mid_y + y_gap + y_nudge + map_h * 0.02),
+    label = c("Northwest Arctic Borough", "North Slope Borough"),
+    vjust = c(0.5, 0.5),
     stringsAsFactors = FALSE
   )
 }
@@ -347,7 +397,13 @@ fig1_choropleth_map <- function() {
   # ── Borough boundary labels (computed after map extent is set) ───────────────
   borough_labels <- NULL
   if (!is.null(ns_bor) && nrow(ns_bor) > 0) {
-    borough_labels <- .borough_border_labels(nwab, ns_bor, xmin, xmax, ymin, ymax)
+    borough_labels <- tryCatch(
+      .borough_border_labels(nwab, ns_bor, xmin, xmax, ymin, ymax),
+      error = function(e) {
+        message("Borough labels skipped: ", e$message)
+        NULL
+      }
+    )
   }
 
   # Villages whose clinic falls in North Slope Borough (Point Hope only)
@@ -429,18 +485,19 @@ fig1_choropleth_map <- function() {
       geom_sf(data = ns_bor, fill = NA, color = "#333333", linewidth = 0.8)
   }
 
-  # Borough name labels
+  # Borough name labels on the NWAB–NSB dividing line (plain text, no box)
   if (!is.null(borough_labels) && nrow(borough_labels) > 0) {
     p <- p +
-      annotate("text",
-               x        = borough_labels$x,
-               y        = borough_labels$y,
-               label    = borough_labels$label,
-               size     = 3.2,
-               fontface = "italic",
-               color    = "#333333",
-               hjust    = 0.5,
-               vjust    = 0.5)
+      geom_text(
+        data         = borough_labels,
+        aes(x = x, y = y, label = label, vjust = vjust),
+        size         = 4.5,
+        fontface     = "bold.italic",
+        color        = "#1a1a1a",
+        alpha        = 0.5,
+        lineheight   = 0.95,
+        hjust        = 0.5
+      )
   }
 
   # Village clinic points
@@ -457,7 +514,7 @@ fig1_choropleth_map <- function() {
              fill = "#606060", color = "#222222", stroke = 1.2) +
     annotate("text",
              x = hub_cx, y = hub_cy,
-             label = "H", color = "white", size = 2.8, fontface = "bold")
+             label = "H", color = "white", size = 3.4, fontface = "bold")
 
   # Kotzebue city label + MHC sub-label
   kotz_label <- data.frame(
@@ -468,19 +525,19 @@ fig1_choropleth_map <- function() {
     geom_label_repel(
       data        = kotz_label,
       aes(x = cx, y = cy, label = label),
-      size          = 2.8,
+      size          = 3.6,
       fontface      = "bold",
-      box.padding   = 0.5,
-      point.padding = 0.4,
-      label.padding = 0.25,
+      box.padding   = 0.55,
+      point.padding = 0.45,
+      label.padding = 0.32,
       label.size    = 0.3,
       fill          = "white",
       color         = "#111111",
       alpha         = 0.95,
       seed          = 42,
       min.segment.length = 0,
-      segment.color = "#444444",
-      segment.size  = 0.4,
+      segment.color = "#111111",
+      segment.size  = 0.3,
       nudge_x       = -80000,
       nudge_y       = 0
     )
@@ -489,14 +546,22 @@ fig1_choropleth_map <- function() {
   p <- p +
     scale_fill_viridis_c(
       option  = "plasma",
-      name    = "Journeys per\n1,000 residents",
+      name    = "Journeys per 1000\npediatric residents",
       limits  = c(0, rate_max),
       na.value = "#787878",
       guide   = guide_colorbar(
-        barwidth  = 0.8,
-        barheight = 8,
+        barwidth  = 0.4,
+        barheight = 4.2,
         title.position = "top",
-        title.hjust    = 0.5
+        title.hjust    = 0.5,
+        title.theme    = element_text(
+          size = 9, face = "bold",
+          margin = margin(t = 3, r = 4, b = 5, l = 4, unit = "pt")
+        ),
+        label.theme    = element_text(
+          size = 8,
+          margin = margin(t = 2, b = 2, r = 3, l = 2, unit = "pt")
+        )
       )
     )
 
@@ -505,11 +570,11 @@ fig1_choropleth_map <- function() {
     geom_label_repel(
       data = label_data,
       aes(x = cx, y = cy, label = village_name),
-      size          = 2.8,
+      size          = 3.6,
       fontface      = "plain",
-      box.padding   = 0.4,
-      point.padding = 0.3,
-      label.padding = 0.2,
+      box.padding   = 0.45,
+      point.padding = 0.35,
+      label.padding = 0.28,
       label.size    = 0.25,
       fill          = "white",
       color         = "#222222",
@@ -517,8 +582,8 @@ fig1_choropleth_map <- function() {
       max.overlaps  = 30,
       seed          = 42,
       min.segment.length = 0,
-      segment.color = "#666666",
-      segment.size  = 0.35
+      segment.color = "#222222",
+      segment.size  = 0.25
     )
 
   # ── North arrow & scale bar ───────────────────────────────────────────────
@@ -526,19 +591,21 @@ fig1_choropleth_map <- function() {
     annotation_north_arrow(
       location = "tr",
       which_north = "true",
-      height = unit(1.0, "cm"),
-      width  = unit(0.7, "cm"),
+      pad_x = unit(0.08, "npc"),
+      pad_y = unit(0.04, "npc"),
+      height = unit(0.9, "cm"),
+      width  = unit(0.65, "cm"),
       style  = north_arrow_fancy_orienteering(
         fill      = c("white", "#333333"),
         line_col  = "#333333",
         text_col  = "#333333",
-        text_size = 8
+        text_size = 9
       )
     ) +
     annotation_scale(
       location   = "br",
       width_hint = 0.18,
-      text_cex   = 0.7,
+      text_cex   = 0.85,
       line_col   = "#333333",
       text_col   = "#333333",
       bar_cols   = c("#333333", "white")
@@ -554,13 +621,17 @@ fig1_choropleth_map <- function() {
     ) +
     theme_void() +
     theme(
-      legend.position   = c(0.97, 0.55),
-      legend.justification = c(1, 0.5),
-      legend.background = element_rect(fill = "white", color = NA),
-      legend.title      = element_text(size = 8, face = "bold"),
-      legend.text       = element_text(size = 7),
-      plot.margin       = margin(4, 4, 4, 4),
-      plot.background   = element_rect(fill = "white", color = NA)
+      legend.position         = c(0.975, 0.79),
+      legend.justification    = c(1, 1),
+      legend.background       = element_rect(fill = "white", color = NA),
+      legend.box.background   = element_rect(fill = "white", color = NA),
+      legend.margin           = margin(7, 8, 7, 8, unit = "pt"),
+      legend.box.margin       = margin(1, 3, 1, 3, unit = "pt"),
+      legend.spacing.y        = unit(4, "pt"),
+      legend.title            = element_text(size = 9, face = "bold"),
+      legend.text             = element_text(size = 8),
+      plot.margin             = margin(6, 10, 6, 6, unit = "pt"),
+      plot.background         = element_rect(fill = "white", color = NA)
     )
 
   # ── Alaska context inset ─────────────────────────────────────────────────
@@ -816,52 +887,68 @@ library(readr)
   )
 }
 
-.bezier_curve_df <- function(x0, y0, x1, y1, bend = 0, n = 60, ...) {
-  cx <- (x0 + x1) / 2 + bend
-  t <- seq(0, 1, length.out = n)
-  data.frame(
-    x = (1 - t)^3 * x0 + 3 * (1 - t)^2 * t * cx + 3 * (1 - t) * t^2 * cx + t^3 * x1,
-    y = (1 - t)^3 * y0 + 3 * (1 - t)^2 * t * y0 + 3 * (1 - t) * t^2 * y1 + t^3 * y1,
-    ...
+.fig2_flow_lwd <- function(n, max_flow) {
+  if (n <= 0L) return(0)
+  1.2 + (8.5 - 1.2) * (n / max(max_flow, 1L))^0.5
+}
+
+.fig2_draw_link <- function(x0, y0, x1, y1, color, n, max_flow,
+                             curvature = 0, alpha = 0.72, lwd = NULL,
+                             lty = 1) {
+  if (is.null(lwd)) lwd <- .fig2_flow_lwd(n, max_flow)
+  if (lwd <= 0) return(invisible(NULL))
+  mx <- (x0 + x1) / 2
+  my <- (y0 + y1) / 2 + curvature
+  t  <- seq(0, 1, length.out = 80)
+  bx <- (1 - t)^2 * x0 + 2 * (1 - t) * t * mx + t^2 * x1
+  by <- (1 - t)^2 * y0 + 2 * (1 - t) * t * my + t^2 * y1
+  grid::grid.lines(
+    x = grid::unit(bx, "npc"), y = grid::unit(by, "npc"),
+    gp = grid::gpar(
+      col = grDevices::adjustcolor(color, alpha.f = alpha),
+      lwd = lwd, lty = lty, lineend = "round"
+    )
   )
 }
 
-.circle_df <- function(xc, yc, r, n = 72L) {
-  t <- seq(0, 2 * pi, length.out = n + 1L)
-  data.frame(x = xc + r * cos(t), y = yc + r * sin(t))
+.fig2_draw_ellipse <- function(x, y, w, h, fill,
+                               label = NULL, label_gp = NULL) {
+  t  <- seq(0, 2 * pi, length.out = 100)
+  ex <- x + w * cos(t)
+  ey <- y + h * sin(t)
+  grid::grid.polygon(
+    x = grid::unit(ex, "npc"), y = grid::unit(ey, "npc"),
+    gp = grid::gpar(fill = fill, col = "white", lwd = 1)
+  )
+  if (!is.null(label)) {
+    grid::grid.text(
+      label, x = grid::unit(x, "npc"), y = grid::unit(y, "npc"),
+      gp = label_gp
+    )
+  }
 }
 
-#' Village-level network flow diagram of pediatric medevac routes.
-#'
-#' Matches Python `plot_fig4_sankey_transport_routes()` layout:
-#' village clinics (left) → MHC (center) → receiving facilities (right).
-#'
-#' @return A ggplot2 object
-fig2_sankey_routes <- function() {
-  # Layout constants (normalized 0–1 coordinates)
-  X_V     <- 0.13
-  X_MHC   <- 0.48
-  X_R     <- 0.73
-  X_R_LBL <- 0.76
-  MHC_R   <- 0.055
-  LW_MIN  <- 0.6
-  LW_MAX  <- 9.0
+.fig2_draw_label_box <- function(text, x, y) {
+  grid::grid.roundrect(
+    x = grid::unit(x, "npc"), y = grid::unit(y, "npc"),
+    width = grid::unit(0.065, "npc"), height = grid::unit(0.038, "npc"),
+    r = grid::unit(0.003, "npc"),
+    gp = grid::gpar(fill = "#ffffff", col = "#cccccc", lwd = 0.8)
+  )
+  grid::grid.text(
+    text, x = grid::unit(x, "npc"), y = grid::unit(y, "npc"),
+    gp = grid::gpar(fontsize = 7.5, col = "#555555")
+  )
+}
 
-  empty_plot <- function(msg) {
-    ggplot() +
-      annotate("text", x = 0.5, y = 0.5, label = msg, size = 4.5) +
-      coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
-      theme_void()
-  }
-
-  dat <- .build_sankey_data()
-  villages <- dat$villages
-  if (length(villages) == 0) return(empty_plot("No village-origin legs found."))
-
+.build_fig2_layout <- function(dat) {
+  villages      <- dat$villages
   prim_df       <- dat$prim_df
   sec_counts    <- dat$sec_counts
   village_total <- dat$village_total
   all_right_dests <- dat$all_right_dests
+
+  if (length(villages) == 0L) return(NULL)
 
   vcolor <- setNames(
     .VILLAGE_PALETTE[seq_along(villages) %% length(.VILLAGE_PALETTE) + 1L],
@@ -876,27 +963,36 @@ fig2_sankey_routes <- function() {
   }
 
   nv <- length(villages)
-  yv_top <- 0.93; yv_bot <- 0.07
-  v_ys <- setNames(
-    yv_top - seq(0, nv - 1L) * (yv_top - yv_bot) / max(nv - 1L, 1L),
-    villages
+  y_top <- 0.88; y_bot <- 0.12
+  ys <- seq(y_top, y_bot, length.out = nv)
+
+  to_mhc <- vapply(villages, function(v) {
+    if (nrow(prim_df) == 0L) return(0L)
+    sum(prim_df$n[prim_df$village == v & prim_df$dest == "MHC"], na.rm = TRUE)
+  }, integer(1))
+  direct_anmc <- vapply(villages, function(v) {
+    if (nrow(prim_df) == 0L) return(0L)
+    sum(prim_df$n[prim_df$village == v & prim_df$dest == "ANMC"], na.rm = TRUE)
+  }, integer(1))
+
+  villages_df <- data.frame(
+    village = villages,
+    x = 0.10,
+    y = ys,
+    color = unname(vcolor[villages]),
+    n = vapply(villages, function(v) village_total[[v]], integer(1)),
+    to_mhc = to_mhc,
+    direct_to_anmc = direct_anmc,
+    stringsAsFactors = FALSE
   )
 
-  nr <- length(all_right_dests)
-  yr_top <- 0.88; yr_bot <- 0.20
-  r_ys <- if (nr > 0L) {
-    setNames(
-      yr_top - seq(0, nr - 1L) * (yr_top - yr_bot) / max(nr - 1L, 1L),
-      all_right_dests
-    )
-  } else {
-    numeric(0)
-  }
-  Y_MHC <- mean(c(yr_top, yr_bot))
-
-  max_vn <- max(vapply(villages, function(v) village_total[[v]], integer(1)))
-  V_R_MAX <- 0.020; V_R_MIN <- 0.008
-  vr <- function(n) V_R_MIN + (V_R_MAX - V_R_MIN) * (n / max_vn)^0.5
+  mhc <- data.frame(
+    x = 0.49,
+    y = mean(c(y_top, y_bot)),
+    color = "#70AD47",
+    n = sum(to_mhc),
+    stringsAsFactors = FALSE
+  )
 
   n_right <- list()
   if (nrow(prim_df) > 0L) {
@@ -908,224 +1004,223 @@ fig2_sankey_routes <- function() {
   for (d in names(sec_counts)) {
     if (d != "MHC") n_right[[d]] <- (n_right[[d]] %||% 0L) + sec_counts[[d]]
   }
-  all_right_max <- if (length(n_right) > 0L) max(unlist(n_right)) else 1L
-  R_R_MAX <- 0.032; R_R_MIN <- 0.014
-  rr <- function(n) R_R_MIN + (R_R_MAX - R_R_MIN) * (n / all_right_max)^0.5
 
-  max_flow <- if (nrow(prim_df) > 0L) max(prim_df$n) else 1L
-  lw <- function(n) if (n > 0L) LW_MIN + (LW_MAX - LW_MIN) * (n / max_flow)^0.5 else 0
-
-  # Primary flow curves (thick first for layering)
-  prim_items <- if (nrow(prim_df) > 0L) {
-    lapply(seq_len(nrow(prim_df)), function(i) {
-      list(v = prim_df$village[[i]], dest = prim_df$dest[[i]], n = prim_df$n[[i]])
-    })
+  nr <- length(all_right_dests)
+  if (nr == 0L) {
+    right_nodes <- data.frame(
+      facility = character(0), x = numeric(0), y = numeric(0),
+      color = character(0), n = integer(0), stringsAsFactors = FALSE
+    )
   } else {
-    list()
+    ry <- if (nr == 1L) 0.50 else seq(0.82, 0.18, length.out = nr)
+    right_nodes <- data.frame(
+      facility = all_right_dests,
+      x = ifelse(all_right_dests == "ANMC", 0.69, 0.708),
+      y = ry,
+      color = unname(right_colors[all_right_dests]),
+      n = vapply(all_right_dests, function(d) n_right[[d]] %||% 0L, integer(1)),
+      stringsAsFactors = FALSE
+    )
   }
-  prim_items <- prim_items[order(-vapply(prim_items, `[[`, numeric(1), "n"))]
 
-  flow_dfs <- list()
-  fi <- 0L
-  for (item in prim_items) {
-    v <- item$v; dest <- item$dest; n <- item$n
-    vy <- v_ys[[v]]; col <- vcolor[[v]]
-    vr_v <- vr(village_total[[v]])
-    if (dest == "MHC") {
-      fi <- fi + 1L
-      flow_dfs[[fi]] <- .bezier_curve_df(
-        X_V + vr_v, vy, X_MHC - MHC_R, Y_MHC,
-        group = fi, color = col, lw = lw(n), alpha = 0.72
-      )
-    } else if (dest %in% names(r_ys)) {
-      ry <- r_ys[[dest]]
-      rr_d <- rr(n_right[[dest]] %||% 1L)
-      fi <- fi + 1L
-      flow_dfs[[fi]] <- .bezier_curve_df(
-        X_V + vr_v, vy, X_R - rr_d, ry,
-        bend = 0.04, group = fi, color = col, lw = lw(n), alpha = 0.72
-      )
+  flow_ns <- c(
+    villages_df$to_mhc,
+    villages_df$direct_to_anmc,
+    unlist(sec_counts, use.names = FALSE)
+  )
+  flow_ns <- flow_ns[flow_ns > 0L]
+  max_flow <- if (length(flow_ns) > 0L) max(flow_ns) else 1L
+
+  list(
+    villages = villages_df,
+    mhc = mhc,
+    right_nodes = right_nodes,
+    sec_counts = sec_counts,
+    max_flow = max_flow,
+    total_journeys = sum(unlist(village_total))
+  )
+}
+
+.fig2_draw_grid <- function(layout) {
+  grid::grid.newpage()
+  grid::pushViewport(grid::viewport(width = 0.96, height = 0.94))
+
+  villages    <- layout$villages
+  mhc         <- layout$mhc
+  right_nodes <- layout$right_nodes
+  max_flow    <- layout$max_flow
+
+  grid::grid.text(
+    sprintf(
+      "Figure 2. Pediatric Medevac Routes by Village  (n = %d journeys)",
+      layout$total_journeys
+    ),
+    x = grid::unit(0.5, "npc"), y = grid::unit(0.975, "npc"),
+    gp = grid::gpar(fontsize = 15.5, col = "#2b2b2b")
+  )
+
+  grid::grid.text(
+    "Village Clinics", x = grid::unit(0.14, "npc"), y = grid::unit(0.915, "npc"),
+    gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#333333")
+  )
+  grid::grid.text(
+    "Maniilaq\nHealth Center", x = grid::unit(0.49, "npc"), y = grid::unit(0.915, "npc"),
+    gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#333333")
+  )
+  grid::grid.text(
+    "Receiving Facilities", x = grid::unit(0.78, "npc"), y = grid::unit(0.915, "npc"),
+    gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#333333")
+  )
+
+  # Links first so nodes sit on top.
+  for (i in seq_len(nrow(villages))) {
+    .fig2_draw_link(
+      villages$x[i] + 0.017, villages$y[i],
+      mhc$x - 0.06, mhc$y,
+      villages$color[i], villages$to_mhc[i], max_flow,
+      curvature = ifelse(villages$y[i] > mhc$y, -0.20, 0.20),
+      alpha = 0.72
+    )
+    if (villages$direct_to_anmc[i] > 0L) {
+      anmc_y <- right_nodes$y[right_nodes$facility == "ANMC"]
+      if (length(anmc_y) == 1L) {
+        .fig2_draw_link(
+          villages$x[i] + 0.017, villages$y[i],
+          0.69, anmc_y,
+          villages$color[i], villages$direct_to_anmc[i], max_flow,
+          curvature = ifelse(villages$y[i] > 0.835, -0.10, 0.16),
+          alpha = 0.70,
+          lwd = 1.2 + 0.8 * villages$direct_to_anmc[i]
+        )
+      }
     }
   }
 
-  # Secondary MHC → facility flows (grey)
-  sec_labels <- list()
-  for (dest in names(sec_counts)) {
-    n <- sec_counts[[dest]]
-    if (dest == "MHC" || !(dest %in% names(r_ys))) next
-    ry <- r_ys[[dest]]
-    rr_d <- rr(n_right[[dest]] %||% 1L)
-    fi <- fi + 1L
-    flow_dfs[[fi]] <- .bezier_curve_df(
-      X_MHC + MHC_R, Y_MHC, X_R - rr_d, ry,
-      group = fi, color = "#555555", lw = lw(n), alpha = 0.55
+  for (dest in names(layout$sec_counts)) {
+    n <- layout$sec_counts[[dest]]
+    if (dest == "MHC" || n <= 0L) next
+    row <- right_nodes[right_nodes$facility == dest, , drop = FALSE]
+    if (nrow(row) == 0L) next
+    rx <- if (dest == "ANMC") 0.69 else 0.708
+    curv <- if (row$y > mhc$y) 0.28 else if (abs(row$y - mhc$y) < 0.05) 0.00 else -0.26
+    .fig2_draw_link(
+      mhc$x + 0.06, mhc$y, rx, row$y,
+      "#8b8b8b", n, max_flow,
+      curvature = curv, alpha = 0.82,
+      lwd = .fig2_flow_lwd(n, max_flow)
     )
-    sec_labels[[length(sec_labels) + 1L]] <- data.frame(
-      x = (X_MHC + MHC_R + X_R - rr_d) / 2,
-      y = (Y_MHC + ry) / 2 + 0.03,
-      label = paste0("2\u00b0 n=", n),
-      stringsAsFactors = FALSE
+    .fig2_draw_label_box(
+      paste0("2\u00b0 n=", n),
+      (mhc$x + rx) / 2 + 0.04,
+      (mhc$y + row$y) / 2
     )
   }
-  flows_all <- if (length(flow_dfs) > 0L) do.call(rbind, flow_dfs) else NULL
-  sec_label_df <- if (length(sec_labels) > 0L) do.call(rbind, sec_labels) else NULL
 
-  # Node circles
-  village_circles <- do.call(rbind, lapply(villages, function(v) {
-    n_v <- village_total[[v]]
-    r <- vr(n_v)
-    .circle_df(X_V, v_ys[[v]], r) |>
-      mutate(node = v, fill = vcolor[[v]], r = r, n = n_v)
-  }))
-
-  mhc_prim <- sum(vapply(prim_items, function(it) if (it$dest == "MHC") it$n else 0L, integer(1)))
-  mhc_circle <- .circle_df(X_MHC, Y_MHC, MHC_R) |>
-    mutate(node = "MHC", fill = "#70AD47", r = MHC_R, n = mhc_prim)
-
-  right_circles <- if (nr > 0L) {
-    do.call(rbind, lapply(all_right_dests, function(d) {
-      .circle_df(X_R, r_ys[[d]], rr(n_right[[d]] %||% 1L)) |>
-        mutate(
-          node = d, fill = right_colors[[d]], r = rr(n_right[[d]] %||% 1L),
-          n = n_right[[d]] %||% 0L
-        )
-    }))
-  } else {
-    NULL
-  }
-
-  # Column headers
-  headers <- data.frame(
-    x = c(X_V, X_MHC, (X_R + X_R_LBL + 0.10) / 2),
-    y = 0.97,
-    label = c("Village Clinics", "Maniilaq\nHealth Center", "Receiving Facilities"),
-    stringsAsFactors = FALSE
-  )
-
-  village_labels <- data.frame(
-    x = X_V - vapply(villages, function(v) vr(village_total[[v]]), numeric(1)) - 0.010,
-    y = unname(v_ys[villages]),
-    label = vapply(villages, function(v) paste0(v, "  ", village_total[[v]]), character(1)),
-    stringsAsFactors = FALSE
-  )
-
-  right_labels <- if (nr > 0L) {
-    data.frame(
-      x = X_R_LBL,
-      y = unname(r_ys[all_right_dests]),
-      label = vapply(all_right_dests, function(d) {
-        paste0(d, "\nn = ", n_right[[d]] %||% 0L)
-      }, character(1)),
-      color = unname(right_colors[all_right_dests]),
-      stringsAsFactors = FALSE
+  for (i in seq_len(nrow(villages))) {
+    .fig2_draw_ellipse(villages$x[i], villages$y[i], 0.039, 0.038, villages$color[i])
+    grid::grid.text(
+      sprintf("%s  %d", villages$village[i], villages$n[i]),
+      x = grid::unit(villages$x[i] - 0.028, "npc"),
+      y = grid::unit(villages$y[i], "npc"),
+      just = "right",
+      gp = grid::gpar(fontsize = 8.3, col = "#333333")
     )
-  } else {
-    NULL
   }
 
-  total_journeys <- sum(unlist(village_total))
-
-  # Legend (lower center)
-  legend_ns <- sort(unique(c(1L, max_flow %/% 2L, max_flow)))
-  legend_ns <- legend_ns[legend_ns > 0L]
-  legend_x0 <- 0.28
-  legend_dx <- 0.12
-  legend_df <- data.frame(
-    x = legend_x0 + (seq_along(legend_ns) - 1L) * legend_dx,
-    y = 0.04,
-    xend = legend_x0 + (seq_along(legend_ns) - 1L) * legend_dx + 0.05,
-    yend = 0.04,
-    lw = vapply(legend_ns, lw, numeric(1)),
-    label = paste0("n = ", legend_ns),
-    stringsAsFactors = FALSE
+  .fig2_draw_ellipse(
+    mhc$x, mhc$y, 0.11, 0.105, mhc$color,
+    label = sprintf("Maniilaq\nHealth Center\nn = %d", mhc$n),
+    label_gp = grid::gpar(col = "white", fontsize = 8.7, fontface = "bold", lineheight = 0.88)
   )
-  sec_legend_x <- legend_x0 + length(legend_ns) * legend_dx + 0.02
 
-  p <- ggplot() +
-    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE, clip = "off") +
-    theme_void(base_size = 11) +
-    theme(
-      plot.title = element_text(size = 12, face = "plain", hjust = 0.5,
-                                margin = margin(t = 4, b = 8)),
-      plot.margin = margin(8, 12, 8, 12)
-    ) +
-    labs(
-      title = paste0(
-        "Figure 4. Pediatric Medevac Routes by Village  (n = ",
-        total_journeys, " journeys)"
+  for (i in seq_len(nrow(right_nodes))) {
+    w <- if (right_nodes$facility[i] == "ANMC") 0.066 else 0.033
+    h <- if (right_nodes$facility[i] == "ANMC") 0.060 else 0.030
+    .fig2_draw_ellipse(right_nodes$x[i], right_nodes$y[i], w, h, right_nodes$color[i])
+    grid::grid.text(
+      sprintf("%s\nn = %d", right_nodes$facility[i], right_nodes$n[i]),
+      x = grid::unit(right_nodes$x[i] + 0.031, "npc"),
+      y = grid::unit(right_nodes$y[i], "npc"),
+      just = "left",
+      gp = grid::gpar(
+        fontsize = 8.2, fontface = "bold", col = right_nodes$color[i],
+        lineheight = 0.88
       )
     )
-
-  if (!is.null(flows_all)) {
-    p <- p + geom_path(
-      data = flows_all,
-      aes(x = x, y = y, group = group, linewidth = lw, color = I(color), alpha = I(alpha)),
-      lineend = "round"
-    )
   }
 
-  p <- p +
-    geom_polygon(data = village_circles, aes(x = x, y = y, group = node),
-                 fill = village_circles$fill, color = "white", linewidth = 0.4) +
-    geom_polygon(data = mhc_circle, aes(x = x, y = y), fill = "#70AD47",
-                 color = "white", linewidth = 0.6)
+  legend_ns <- sort(unique(c(1L, max(1L, max_flow %/% 2L), max_flow)))
+  legend_ns <- legend_ns[legend_ns > 0L]
+  legend_lwd <- vapply(legend_ns, .fig2_flow_lwd, numeric(1), max_flow = max_flow)
+  legend_labels <- c(paste0("n = ", legend_ns), "MHC \u2192 facility\n(secondary)")
+  legend_x <- c(0.37, 0.45, 0.535, 0.625)[seq_along(legend_labels)]
+  legend_lwd_all <- c(legend_lwd, 2.2)
+  legend_y <- 0.035
 
-  if (!is.null(right_circles)) {
-    p <- p + geom_polygon(
-      data = right_circles, aes(x = x, y = y, group = node),
-      fill = right_circles$fill, color = "white", linewidth = 0.6
+  grid::grid.roundrect(
+    x = grid::unit(0.51, "npc"), y = grid::unit(0.018, "npc"),
+    width = grid::unit(0.36, "npc"), height = grid::unit(0.055, "npc"),
+    just = c("center", "bottom"),
+    r = grid::unit(0.004, "npc"),
+    gp = grid::gpar(fill = "#fbfbfb", col = "#cfcfcf", lwd = 1.2)
+  )
+  grid::grid.text(
+    "Transfer volume", x = grid::unit(0.51, "npc"), y = grid::unit(0.055, "npc"),
+    gp = grid::gpar(fontsize = 8.5, col = "#222222")
+  )
+
+  for (i in seq_along(legend_ns)) {
+    grid::grid.lines(
+      x = grid::unit(c(legend_x[i] - 0.03, legend_x[i] + 0.01), "npc"),
+      y = grid::unit(c(legend_y, legend_y), "npc"),
+      gp = grid::gpar(col = "#5c5c5c", lwd = legend_lwd_all[i], lineend = "round")
+    )
+    grid::grid.text(
+      legend_labels[i], x = grid::unit(legend_x[i] + 0.025, "npc"),
+      y = grid::unit(legend_y, "npc"), just = "left",
+      gp = grid::gpar(fontsize = 7.2, col = "#222222")
     )
   }
+  i <- length(legend_ns) + 1L
+  grid::grid.lines(
+    x = grid::unit(c(legend_x[i] - 0.03, legend_x[i] + 0.01), "npc"),
+    y = grid::unit(c(legend_y, legend_y), "npc"),
+    gp = grid::gpar(col = "#5c5c5c", lwd = legend_lwd_all[i], lty = 2, lineend = "butt")
+  )
+  grid::grid.text(
+    legend_labels[i], x = grid::unit(legend_x[i] + 0.025, "npc"),
+    y = grid::unit(legend_y, "npc"), just = "left",
+    gp = grid::gpar(fontsize = 7.2, col = "#222222", lineheight = 0.88)
+  )
 
-  p <- p +
-    geom_text(data = headers, aes(x = x, y = y, label = label),
-              fontface = "bold", size = 3.3, color = "#333333", vjust = 1) +
-    geom_text(data = village_labels, aes(x = x, y = y, label = label),
-              hjust = 1, size = 3.0, color = "#333333") +
-    annotate("text", x = X_MHC, y = Y_MHC,
-             label = paste0("Maniilaq\nHealth Center\nn = ", mhc_prim),
-             size = 3.0, fontface = "bold", color = "white", lineheight = 0.9)
+  grid::popViewport()
+}
 
-  if (!is.null(right_labels)) {
-    p <- p + geom_text(
-      data = right_labels,
-      aes(x = x, y = y, label = label, color = I(color)),
-      hjust = 0, size = 3.0, fontface = "bold", lineheight = 0.9
-    )
+#' Village-level network flow diagram of pediatric medevac routes.
+#'
+#' Grid-based layout matching Codex/Python `plot_fig4_sankey_transport_routes()`.
+#'
+#' @return A ggplot2 object wrapping the grid drawing (for knitr display)
+fig2_sankey_routes <- function() {
+  empty_plot <- function(msg) {
+    ggplot() +
+      annotate("text", x = 0.5, y = 0.5, label = msg, size = 4.5) +
+      coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
+      theme_void()
   }
 
-  if (!is.null(sec_label_df)) {
-    p <- p + geom_label(
-      data = sec_label_df, aes(x = x, y = y, label = label),
-      size = 2.3, color = "#555555", fill = alpha("white", 0.85),
-      linewidth = 0.25, label.padding = unit(0.12, "lines")
-    )
-  }
+  dat <- .build_sankey_data()
+  if (length(dat$villages) == 0L) return(empty_plot("No village-origin legs found."))
 
-  # Legend lines and labels
-  p <- p +
-    geom_segment(
-      data = legend_df,
-      aes(x = x, xend = xend, y = y, yend = yend, linewidth = lw),
-      color = "#595959", lineend = "round"
-    ) +
-    geom_text(
-      data = legend_df, aes(x = (x + xend) / 2, y = y - 0.025, label = label),
-      size = 2.3, color = "#333333"
-    ) +
-    geom_segment(
-      aes(x = sec_legend_x, xend = sec_legend_x + 0.05, y = 0.04, yend = 0.04),
-      color = "#555555", linewidth = 0.8, linetype = "dashed", lineend = "round"
-    ) +
-    annotate("text", x = sec_legend_x + 0.025, y = 0.015,
-             label = "MHC \u2192 facility\n(secondary)",
-             size = 2.3, color = "#333333", lineheight = 0.85) +
-    annotate("text",
-             x = mean(c(legend_x0, sec_legend_x + 0.08)), y = 0.075,
-             label = "Transfer volume", fontface = "bold", size = 2.6, color = "#333333") +
-    scale_linewidth_identity()
+  layout <- .build_fig2_layout(dat)
+  if (is.null(layout)) return(empty_plot("No village-origin legs found."))
 
-  p
+  grob <- grid::grid.grabExpr(.fig2_draw_grid(layout))
+  ggplot() +
+    annotation_custom(grob, xmin = 0, xmax = 1, ymin = 0, ymax = 1) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE, clip = "off") +
+    theme_void() +
+    theme(plot.margin = margin(0, 0, 0, 0))
 }
 
 #' Save Figure 2 network flow diagram to outputs/figures/fig2_sankey_routes.png
@@ -1137,8 +1232,16 @@ save_fig2_sankey <- function(width = 15, height = 9, dpi = 300) {
   out_dir <- here("outputs", "figures")
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
   out_path <- file.path(out_dir, "fig2_sankey_routes.png")
-  p <- fig2_sankey_routes()
-  ggsave(out_path, plot = p, width = width, height = height, dpi = dpi,
-         bg = "white")
+
+  dat <- .build_sankey_data()
+  if (length(dat$villages) == 0L) {
+    warning("No village-origin legs found; skipping Figure 2 save.")
+    return(invisible(NULL))
+  }
+  layout <- .build_fig2_layout(dat)
+
+  grDevices::png(out_path, width = width, height = height, units = "in", res = dpi, bg = "white")
+  .fig2_draw_grid(layout)
+  grDevices::dev.off()
   message("Saved: ", out_path)
 }
