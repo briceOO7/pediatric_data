@@ -248,6 +248,34 @@ fig1_choropleth_map <- function() {
       left_join(util, by = "village_name")
   }
 
+  # ── Borough boundary labels ──────────────────────────────────────────────────
+  # Find midpoint of shared border; place names above and below the line
+  borough_labels <- NULL
+  if (!is.null(ns_bor) && nrow(ns_bor) > 0) {
+    shared_border <- tryCatch({
+      b <- st_intersection(st_union(nwab), st_union(ns_bor))
+      b <- st_cast(b, "MULTILINESTRING")
+      b
+    }, error = function(e) NULL)
+
+    if (!is.null(shared_border) && !st_is_empty(shared_border)) {
+      mid_pt <- tryCatch(
+        st_coordinates(st_line_sample(shared_border, sample = 0.5)),
+        error = function(e) NULL
+      )
+      if (!is.null(mid_pt) && nrow(mid_pt) > 0) {
+        mx <- mid_pt[1, 1]
+        my <- mid_pt[1, 2]
+        borough_labels <- data.frame(
+          x     = c(mx, mx),
+          y     = c(my - 30000, my + 30000),
+          label = c("Northwest Arctic Borough", "North Slope Borough"),
+          stringsAsFactors = FALSE
+        )
+      }
+    }
+  }
+
   # ── Village point markers ────────────────────────────────────────────────────
   village_pts <- villages |>
     bind_cols(as.data.frame(st_coordinates(villages))) |>
@@ -292,6 +320,20 @@ fig1_choropleth_map <- function() {
   # NW Arctic Borough outline (over zones)
   p <- p +
     geom_sf(data = nwab, fill = NA, color = "#333333", linewidth = 0.8)
+
+  # Borough name labels straddling the shared border
+  if (!is.null(borough_labels)) {
+    p <- p +
+      annotate("text",
+               x        = borough_labels$x,
+               y        = borough_labels$y,
+               label    = borough_labels$label,
+               size     = 2.6,
+               fontface = "italic",
+               color    = "#444444",
+               hjust    = 0.5,
+               vjust    = 0.5)
+  }
 
   # Village clinic points
   p <- p +
