@@ -1,0 +1,15 @@
+leg_type,origin,destination,n_legs,percent
+primary,Buckland,MHC,75,24.3%
+primary,Selawik,MHC,52,16.8%
+primary,Noorvik,MHC,42,13.6%
+primary,Point Hope,MHC,37,12.0%
+primary,Kivalina,MHC,26,8.4%
+primary,Noatak,MHC,24,7.8%
+primary,Kiana,MHC,16,5.2%
+primary,Ambler,MHC,12,3.9%
+primary,Deering,MHC,10,3.2%
+primary,Shungnak,MHC,8,2.6%
+primary,Kobuk,MHC,7,2.3%
+secondary,MHC,ANMC,30,90.9%
+secondary,MHC,Providence,2,6.1%
+secondary,MHC,Alaska Regional,1,3.0%

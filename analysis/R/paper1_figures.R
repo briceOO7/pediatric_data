@@ -796,9 +796,63 @@ library(readr)
 }
 
 .load_journeys_all_fig <- function() {
-  readr::read_csv(here("outputs", "data", "journeys_all.csv"),
+  readr::read_csv(here("outputs", "data", "journeys_primary.csv"),
                   show_col_types = FALSE) |>
     distinct(journey_id, .keep_all = TRUE)
+}
+
+source(here("analysis", "R", "medevac_route_export.R"), local = TRUE)
+
+.CODEX_SANKEY_DIR <- here("vendor", "pediatric_medevac_sankey")
+.CODEX_SANKEY_SCRIPT <- file.path(.CODEX_SANKEY_DIR, "scripts", "medevac_sankey_manuscript.R")
+.CODEX_SANKEY_FIG_DIR <- file.path(.CODEX_SANKEY_DIR, "figures")
+.CODEX_SANKEY_PNG <- file.path(.CODEX_SANKEY_FIG_DIR, "figure4_medevac_routes_ggforce.png")
+
+.fig2_codex_available <- function() {
+  file.exists(.CODEX_SANKEY_SCRIPT)
+}
+
+.fig2_render_via_codex <- function(csv_path, out_png = NULL) {
+  if (!.fig2_codex_available()) return(invisible(NULL))
+
+  if (!dir.exists(.CODEX_SANKEY_FIG_DIR)) {
+    dir.create(.CODEX_SANKEY_FIG_DIR, recursive = TRUE)
+  }
+
+  rel_csv <- tryCatch(
+    normalizePath(csv_path, winslash = "/", mustWork = TRUE),
+    error = function(e) csv_path
+  )
+
+  cmd <- sprintf(
+    "cd %s && RENV_PROJECT=%s Rscript scripts/medevac_sankey_manuscript.R %s",
+    shQuote(.CODEX_SANKEY_DIR),
+    shQuote(here()),
+    shQuote(rel_csv)
+  )
+  status <- system(cmd)
+  if (!identical(status, 0L)) {
+    warning("Codex Sankey script failed (exit ", status, "). Falling back to built-in Figure 2.")
+    return(invisible(NULL))
+  }
+
+  if (!file.exists(.CODEX_SANKEY_PNG)) {
+    warning("Codex Sankey script did not write ", .CODEX_SANKEY_PNG,
+            ". Falling back to built-in Figure 2.")
+    return(invisible(NULL))
+  }
+
+  if (!is.null(out_png)) {
+    file.copy(.CODEX_SANKEY_PNG, out_png, overwrite = TRUE)
+    message("Saved (Codex): ", out_png)
+    return(invisible(out_png))
+  }
+  invisible(.CODEX_SANKEY_PNG)
+}
+
+.fig2_grob_from_png <- function(png_path) {
+  img <- png::readPNG(png_path)
+  grid::rasterGrob(img, interpolate = TRUE)
 }
 
 #' Build aggregated village-level flow counts (mirrors Python fig4 logic).
@@ -1209,6 +1263,21 @@ fig2_sankey_routes <- function() {
       theme_void()
   }
 
+  csv_path <- export_fig2_medevac_routes(format = "aggregate")
+  if (.fig2_codex_available()) {
+    codex_png <- .fig2_render_via_codex(csv_path)
+    if (!is.null(codex_png) && nzchar(codex_png) && file.exists(codex_png)) {
+      grob <- .fig2_grob_from_png(codex_png)
+      return(
+        ggplot() +
+          annotation_custom(grob, xmin = 0, xmax = 1, ymin = 0, ymax = 1) +
+          coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE, clip = "off") +
+          theme_void() +
+          theme(plot.margin = margin(0, 0, 0, 0))
+      )
+    }
+  }
+
   dat <- .build_sankey_data()
   if (length(dat$villages) == 0L) return(empty_plot("No village-origin legs found."))
 
@@ -1232,6 +1301,12 @@ save_fig2_sankey <- function(width = 15, height = 9, dpi = 300) {
   out_dir <- here("outputs", "figures")
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
   out_path <- file.path(out_dir, "fig2_sankey_routes.png")
+
+  csv_path <- export_fig2_medevac_routes(format = "aggregate")
+  if (.fig2_codex_available()) {
+    codex_out <- .fig2_render_via_codex(csv_path, out_png = out_path)
+    if (!is.null(codex_out)) return(invisible(codex_out))
+  }
 
   dat <- .build_sankey_data()
   if (length(dat$villages) == 0L) {

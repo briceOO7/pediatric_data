@@ -21,6 +21,8 @@ renv/library/
 renv/local/
 renv/cellar/
 renv/staging/
+vendor/pediatric_medevac_sankey/renv/library/
+vendor/pediatric_medevac_sankey/figures/
 
 # ── Quarto / OS ────────────────────────────────────────────────────────────────
 .quarto/
