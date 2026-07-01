@@ -3849,8 +3849,13 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     # ── Collect journey-level flows ───────────────────────────────────────────
     flow_rows: list[dict] = []
     for _, r in j.iterrows():
-        vname = str(r.get("facility_1_name") or r.get("medevac1_from") or "").strip()
-        if not vname or not is_village_medevac_origin(vname):
+        vname = ""
+        for field in ("village_name", "facility_1_name", "medevac1_from"):
+            raw = str(r.get(field, "") or "").strip()
+            if raw and is_village_medevac_origin(raw):
+                vname = raw
+                break
+        if not vname:
             continue
         legs = [_dest_label(r.get(f"medevac{i}_to")) for i in (1, 2, 3)]
         legs = [l for l in legs if l]   # drop blanks
@@ -4083,227 +4088,6 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     return fig
 
 
-def plot_fig2_alluvial_transport_routes(df_primary: pd.DataFrame) -> plt.Figure:
-    """
-    Figure 2 (alluvial): four-stage transport route diagram.
-
-    Layers: origin village → transfer location 1 → 2 → 3.
-    Uses the village-originating primary cohort (journeys_primary.csv).
-    """
-    import matplotlib.patches as mpatches
-    from matplotlib.path import Path as MplPath
-
-    j = df_primary.drop_duplicates(subset=["journey_id"]).copy()
-    if j.empty:
-        fig, ax = plt.subplots(figsize=(13, 7))
-        ax.text(0.5, 0.5, "No journey data.", ha="center", va="center", transform=ax.transAxes)
-        ax.axis("off")
-        return fig
-
-    def _is_anmc(v: object) -> bool:
-        t = str(v or "").strip()
-        tl = t.lower()
-        return (
-            t.startswith("Hub")
-            or t.upper() in ("HUB_01", "ANMC")
-            or ("alaska native" in tl and "medical" in tl)
-        )
-
-    def _dest_label(code: object) -> str:
-        if pd.isna(code) or not str(code).strip():
-            return "No further transfer"
-        if _is_mhc_cah_destination(code):
-            return "MHC"
-        if _is_anmc(code):
-            return "ANMC"
-        return _outside_facility_label(code)
-
-    def _origin_label(row: pd.Series) -> str:
-        for field in ("village_name", "facility_1_name", "medevac1_from"):
-            raw = str(row.get(field, "") or "").strip()
-            if raw and is_village_medevac_origin(raw):
-                return raw
-        return ""
-
-    j["_v"] = j.apply(_origin_label, axis=1)
-    j = j[j["_v"] != ""].copy()
-    if j.empty:
-        fig, ax = plt.subplots(figsize=(13, 7))
-        ax.text(0.5, 0.5, "No village-origin journeys found.", ha="center", va="center",
-                transform=ax.transAxes)
-        ax.axis("off")
-        return fig
-
-    j["_t1"] = j["medevac1_to"].map(_dest_label)
-    j["_t2"] = j.get("medevac2_to", pd.Series(dtype=str)).map(_dest_label)
-    j["_t3"] = j.get("medevac3_to", pd.Series(dtype=str)).map(_dest_label)
-
-    flows_01 = j.groupby(["_v", "_t1"], observed=True).size().reset_index(name="n")
-    flows_12 = j.groupby(["_t1", "_t2"], observed=True).size().reset_index(name="n")
-    flows_23 = j.groupby(["_t2", "_t3"], observed=True).size().reset_index(name="n")
-
-    layer0 = sorted(j["_v"].unique(), key=lambda v: -j[j["_v"] == v].shape[0])
-    layer1 = sorted(j["_t1"].unique(), key=lambda v: -j[j["_t1"] == v].shape[0])
-    layer2 = sorted(j["_t2"].unique(), key=lambda v: -j[j["_t2"] == v].shape[0])
-    layer3 = sorted(j["_t3"].unique(), key=lambda v: -j[j["_t3"] == v].shape[0])
-
-    layers = [layer0, layer1, layer2, layer3]
-    layer_labels = [
-        "Origin\nVillage",
-        "Transfer\nLocation 1",
-        "Transfer\nLocation 2",
-        "Transfer\nLocation 3",
-    ]
-    all_flows = [flows_01, flows_12, flows_23]
-    flow_src = ["_v", "_t1", "_t2"]
-    flow_dst = ["_t1", "_t2", "_t3"]
-
-    bar_w = 0.18
-    gap = 0.06
-    x_locs = [0.0, 0.33, 0.66, 1.0]
-    palette = sns.color_palette("tab10", n_colors=max(len(layer0), 4))
-    node_colors: dict[str, str] = {v: palette[i % len(palette)] for i, v in enumerate(layer0)}
-
-    def _node_positions(layer: list[str], flow_df: pd.DataFrame, src_col: str) -> dict[str, tuple[float, float]]:
-        totals = {n: int(flow_df.loc[flow_df[src_col] == n, "n"].sum()) for n in layer}
-        total_all = sum(totals.values()) or 1
-        pos: dict[str, tuple[float, float]] = {}
-        y = 1.0
-        for n in layer:
-            h = totals.get(n, 0) / total_all
-            pos[n] = (y, h)
-            y -= h + gap
-        return pos
-
-    pos0 = _node_positions(layer0, flows_01, "_v")
-    pos1 = _node_positions(layer1, flows_12, "_t1")
-    pos2 = _node_positions(layer2, flows_23, "_t2")
-    l3_totals = {n: int(flows_23.loc[flows_23["_t3"] == n, "n"].sum()) for n in layer3}
-    total_l3 = sum(l3_totals.values()) or 1
-    pos3: dict[str, tuple[float, float]] = {}
-    y3 = 1.0
-    for n in layer3:
-        h = l3_totals.get(n, 0) / total_l3
-        pos3[n] = (y3, h)
-        y3 -= h + gap
-
-    all_pos = [pos0, pos1, pos2, pos3]
-
-    fig, ax = plt.subplots(figsize=(13, 7))
-    ax.set_xlim(-0.1, 1.15)
-    ax.set_ylim(-0.15, 1.1)
-    ax.axis("off")
-
-    def _bar_color(node: str, layer_idx: int) -> str:
-        return node_colors.get(node, "#aaaaaa")
-
-    for x_loc, layer, pos in zip(x_locs, layers, all_pos):
-        for node in layer:
-            if node not in pos:
-                continue
-            y_top, h = pos[node]
-            color = _bar_color(node, 0)
-            rect = mpatches.FancyBboxPatch(
-                (x_loc - bar_w / 2, y_top - h),
-                bar_w,
-                h,
-                boxstyle="square,pad=0",
-                facecolor=color,
-                edgecolor="white",
-                linewidth=0.6,
-                alpha=0.88,
-            )
-            ax.add_patch(rect)
-            label = node.replace(" Health Center", "\nHealth Center").replace("No further", "No further\n")
-            ax.text(
-                x_loc + bar_w / 2 + 0.01,
-                y_top - h / 2,
-                label,
-                va="center",
-                ha="left",
-                fontsize=7,
-                color="#333333",
-            )
-
-    def _draw_flow(
-        ax,
-        x0: float,
-        x1: float,
-        y0_top: float,
-        y0_h: float,
-        y1_top: float,
-        y1_h: float,
-        color: str,
-        alpha: float = 0.35,
-    ) -> None:
-        y0_bot = y0_top - y0_h
-        y1_bot = y1_top - y1_h
-        verts = [
-            (x0, y0_top),
-            (x0 + (x1 - x0) * 0.5, y0_top),
-            (x0 + (x1 - x0) * 0.5, y1_top),
-            (x1, y1_top),
-            (x1, y1_bot),
-            (x0 + (x1 - x0) * 0.5, y1_bot),
-            (x0 + (x1 - x0) * 0.5, y0_bot),
-            (x0, y0_bot),
-            (x0, y0_top),
-        ]
-        codes = [
-            MplPath.MOVETO,
-            MplPath.CURVE4,
-            MplPath.CURVE4,
-            MplPath.CURVE4,
-            MplPath.LINETO,
-            MplPath.CURVE4,
-            MplPath.CURVE4,
-            MplPath.CURVE4,
-            MplPath.CLOSEPOLY,
-        ]
-        path = MplPath(verts, codes)
-        ax.add_patch(mpatches.PathPatch(path, facecolor=color, edgecolor="none", alpha=alpha))
-
-    for fi, (flows, src_col, dst_col) in enumerate(zip(all_flows, flow_src, flow_dst)):
-        x0 = x_locs[fi] + bar_w / 2
-        x1 = x_locs[fi + 1] - bar_w / 2
-        pos_src = all_pos[fi]
-        pos_dst = all_pos[fi + 1]
-        dst_consumed: dict[str, float] = {n: 0.0 for n in pos_dst}
-        src_consumed: dict[str, float] = {n: 0.0 for n in pos_src}
-        total_flow = flows["n"].sum() or 1
-
-        for _, row in flows.sort_values("n", ascending=False).iterrows():
-            s, d, n = row[src_col], row[dst_col], int(row["n"])
-            if s not in pos_src or d not in pos_dst:
-                continue
-            sy_top, sh = pos_src[s]
-            dy_top, dh = pos_dst[d]
-            src_total = flows.loc[flows[src_col] == s, "n"].sum() or 1
-            dst_total = flows.loc[flows[dst_col] == d, "n"].sum() or 1
-            src_frac = n / src_total
-            dst_frac = n / dst_total
-            sy0 = sy_top - src_consumed.get(s, 0.0)
-            dy0 = dy_top - dst_consumed.get(d, 0.0)
-            flow_h_src = sh * (n / total_flow)
-            flow_h_dst = dh * (n / total_flow)
-            color = _bar_color(s, fi)
-            _draw_flow(ax, x0, x1, sy0, flow_h_src, dy0, flow_h_dst, color)
-            src_consumed[s] = src_consumed.get(s, 0.0) + sh * src_frac
-            dst_consumed[d] = dst_consumed.get(d, 0.0) + dh * dst_frac
-
-    for x_loc, label in zip(x_locs, layer_labels):
-        ax.text(x_loc, 1.07, label, ha="center", va="bottom", fontsize=9, fontweight="bold", color="#333333")
-
-    ax.set_title(
-        f"Figure 2. Pediatric Medevac Transport Routes (n = {len(j)} journeys)",
-        fontsize=12,
-        fontweight="bold",
-        pad=14,
-    )
-    fig.tight_layout()
-    return fig
-
-
 def save_all_figures(df: pd.DataFrame) -> None:
     OUT_FIGS.mkdir(parents=True, exist_ok=True)
     specs = [
@@ -4331,10 +4115,14 @@ def save_all_figures(df: pd.DataFrame) -> None:
 
     jp = load_journeys_primary_prepared()
     if not jp.empty:
-        fig_alluv = plot_fig2_alluvial_transport_routes(jp)
-        fig_alluv.savefig(OUT_FIGS / "fig2_alluvial_transport_routes.png", bbox_inches="tight")
-        plt.close(fig_alluv)
-        print(f"Wrote {OUT_FIGS / 'fig2_alluvial_transport_routes.png'}")
+        fig_sankey = plot_fig4_sankey_transport_routes(jp)
+        fig_sankey.savefig(
+            OUT_FIGS / "fig4_sankey_transport_routes.png",
+            bbox_inches="tight",
+            pad_inches=0.05,
+        )
+        plt.close(fig_sankey)
+        print(f"Wrote {OUT_FIGS / 'fig4_sankey_transport_routes.png'}")
 
 
 def main():
