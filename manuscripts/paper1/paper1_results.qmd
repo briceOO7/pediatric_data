@@ -163,8 +163,10 @@ knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 
 Time intervals from air ambulance activation through MHC arrival — including
 decision-making and response components — are reported by village in @tbl-t4.
-The median transport time reflects the operational tempo of fixed-wing air
-ambulance across a geographically dispersed Arctic region.
+Response and transfer times exclude observations below the per-village
+round-trip flight-time floor (2 × median one-way flight time). The median
+transport time reflects the operational tempo of fixed-wing air ambulance
+across a geographically dispersed Arctic region.
 
 ```{r}
 #| label: tbl-t4

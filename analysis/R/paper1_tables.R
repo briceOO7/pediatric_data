@@ -195,7 +195,44 @@ fig_prisma_diagram <- function() {
   list(vs_fmt = vs_fmt, transport_fmt = transport_fmt, col_order = col_order)
 }
 
+.village_column_labels <- function(vs_fmt, col_order) {
+  labels <- vapply(col_order, function(vname) {
+    row <- vs_fmt |> filter(village_name == vname)
+    n <- if (nrow(row) == 0 || is.na(row$n_journeys[1])) 0L else as.integer(row$n_journeys[1])
+    label <- if (vname == "Overall") "Overall" else vname
+    sprintf("**%s**  \nN = %d", label, n)
+  }, character(1))
+  setNames(as.list(labels), col_order)
+}
+
 # Render a transposed village gt table from a metric_rows tibble + data list
+.paper1_gt_theme <- function(tbl) {
+  tbl |>
+    opt_row_striping() |>
+    opt_table_font(
+      font = c(
+        "system-ui", "Segoe UI", "Roboto", "Helvetica", "Arial",
+        "sans-serif"
+      )
+    ) |>
+    tab_options(
+      table.border.top.color         = "#A8A8A8",
+      table.border.top.width         = px(2),
+      table.border.bottom.color      = "#A8A8A8",
+      table.border.bottom.width      = px(2),
+      column_labels.background.color = "#FFFFFF",
+      column_labels.border.bottom.color = "#D3D3D3",
+      column_labels.border.bottom.width = px(2),
+      table_body.border.top.color    = "#D3D3D3",
+      table_body.border.top.width    = px(2),
+      table_body.border.bottom.color = "#D3D3D3",
+      table_body.border.bottom.width = px(2),
+      stub.background.color          = "#FFFFFF",
+      row_group.background.color     = "#FFFFFF",
+      table.font.size                = px(14)
+    )
+}
+
 .render_village_gt <- function(metric_rows, dat, bold_header_rows = character(0),
                                shaded_rows = character(0), footnotes = list()) {
   vs_fmt        <- dat$vs_fmt
@@ -221,9 +258,11 @@ fig_prisma_diagram <- function() {
     tbl_wide[[cn]] <- sapply(metric_rows$metric_id, function(m) get_val(cn, m))
   }
   tbl_wide <- tbl_wide |> select(-metric_id)
+  col_labels <- .village_column_labels(vs_fmt, col_order)
 
   tbl <- tbl_wide |>
     gt(rowname_col = "Metric") |>
+    cols_label(!!!col_labels) |>
     tab_stubhead(label = "Metric") |>
     # Section header rows: bold, light gray background
     tab_style(
@@ -258,21 +297,7 @@ fig_prisma_diagram <- function() {
               locations = cells_stub(rows = startsWith(Metric, "  "))) |>
     tab_style(style = cell_text(color = "#444444", size = "small"),
               locations = cells_body(rows = startsWith(Metric, "  "))) |>
-    # Clean B&W table options
-    opt_table_font(font = "Arial") |>
-    tab_options(
-      stub.font.weight          = "bold",
-      column_labels.font.weight = "bold",
-      column_labels.background.color = "#D0D0D0",
-      table.border.top.color    = "#000000",
-      table.border.top.width    = px(2),
-      table.border.bottom.color = "#000000",
-      table.border.bottom.width = px(2),
-      column_labels.border.bottom.color = "#000000",
-      column_labels.border.bottom.width = px(1),
-      stub.border.color         = "#CCCCCC",
-      table.font.size           = "small"
-    )
+    .paper1_gt_theme()
 
   for (fn in footnotes) {
     tbl <- tbl |> tab_footnote(footnote = fn$footnote,
@@ -289,7 +314,6 @@ tbl1_village_characteristics <- function() {
   metric_rows <- tribble(
     ~metric_id,          ~Metric,
     "pediatric_pop",     "Pediatric population (under 18)",
-    "n_journeys",        "Total journeys",
     "mean_yr_str",       "Mean journeys per year (SD)",
     "n_patients",        "Total patients",
     "_header_transport", "Air ambulance transports per patient",
@@ -300,7 +324,7 @@ tbl1_village_characteristics <- function() {
 
   .render_village_gt(
     metric_rows, dat,
-    bold_header_rows = c("Pediatric population (under 18)", "Total journeys",
+    bold_header_rows = c("Pediatric population (under 18)",
                          "Air ambulance transports per patient"),
     shaded_rows      = "Air ambulance transports per patient"
   )
@@ -314,11 +338,11 @@ tbl4_timing_by_village <- function() {
   metric_rows <- tribble(
     ~metric_id,      ~Metric,
     "dist_str",      "Distance to Kotzebue (miles)",
-    "total_ata_str", "Total air ambulance time (village activation \u2192 MHC arrival), min \u2014 Median (IQR); Range",
+    "total_ata_str", "Total air ambulance time, min \u2014 Median (IQR); Range",
     "_header_act",   "Air Ambulance Activation",
     "pct_act_str",   "  % with complete timing data (n)",
     "decision_str",  "  Decision-making time, min \u2014 Median (IQR); Range",
-    "response_str",  "  Response and transfer time, min \u2014 Median (IQR); Range\u1d43",
+    "response_str",  "  Response and transfer time, min \u2014 Median (IQR); Range",
     "util_str",      "Utilization rate per 1,000 pediatric residents"
   )
 
@@ -328,12 +352,12 @@ tbl4_timing_by_village <- function() {
     shaded_rows      = "Air Ambulance Activation",
     footnotes = list(
       list(
-        footnote  = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
-        locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
+        footnote  = html("Total air ambulance time = village activation \u2192 MHC arrival."),
+        locations = cells_stub(rows = Metric == "Total air ambulance time, min \u2014 Median (IQR); Range")
       ),
       list(
-        footnote  = html("Activation \u2192 MHC arrival excludes observations below the per-village round-trip flight-time floor (2 \u00d7 median one-way flight time)."),
-        locations = cells_stub(rows = endsWith(Metric, "\u1d43"))
+        footnote  = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
+        locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
       )
     )
   )
@@ -428,7 +452,7 @@ tbl2_patient_characteristics <- function() {
   jp_sel <- jp |> select(all_of(c(include_vars, "age_group")))
 
   all_labels <- list(
-    age_at_medevac_num         ~ "Age at transport, yr",
+    age_at_medevac_num         ~ "Age, years - Median (IQR)",
     female                     ~ "Sex",
     ai_an                      ~ "Race",
     insurance_cat              ~ "Insurance type",
@@ -446,12 +470,18 @@ tbl2_patient_characteristics <- function() {
         age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
         all_categorical()  ~ "{n} ({p}%)"
       ),
+      digits = list(
+        age_at_medevac_num ~ 1,
+        all_categorical()  ~ c(0, 1)
+      ),
       missing = "no"
     ) |>
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.")
+    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.") |>
+    as_gt() |>
+    .paper1_gt_theme()
 }
 
 # ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
@@ -484,7 +514,7 @@ tbl3_route_comparison <- function() {
     nrow()
 
   if (nrow(village_journeys) == 0) {
-    return(gt(tibble(Note = "No data available.")))
+    return(gt(tibble(Note = "No data available.")) |> .paper1_gt_theme())
   }
 
   # Sex
@@ -569,7 +599,9 @@ tbl3_route_comparison <- function() {
         "excluded from comparative analysis due to small n. "
       ) else "",
       "p-values: Wilcoxon rank-sum (age); chi-square (categorical)."
-    ))
+    )) |>
+    as_gt() |>
+    .paper1_gt_theme()
 }
 
 # ── Table 3a: Primary legs (village → any destination) ────────────────────────
@@ -600,7 +632,7 @@ tbl3a_primary_routes <- function() {
       style = cell_text(weight = "bold"),
       locations = cells_body(rows = origin == "All primary legs")
     ) |>
-    opt_stylize(style = 1)
+    .paper1_gt_theme()
 }
 
 # ── Table 3b: Secondary legs (MHC → tertiary) ─────────────────────────────────
@@ -615,7 +647,7 @@ tbl3b_secondary_routes <- function() {
     mutate(pct = sprintf("%.1f%%", 100 * n_legs / sum(n_legs)))
 
   if (nrow(mhc_legs) == 0) {
-    return(gt(tibble(Note = "No secondary (MHC-origin) legs found.")))
+    return(gt(tibble(Note = "No secondary (MHC-origin) legs found.")) |> .paper1_gt_theme())
   }
 
   total_row <- tibble(destination_label = "All secondary legs",
@@ -632,7 +664,7 @@ tbl3b_secondary_routes <- function() {
       style = cell_text(weight = "bold"),
       locations = cells_body(rows = destination_label == "All secondary legs")
     ) |>
-    opt_stylize(style = 1)
+    .paper1_gt_theme()
 }
 
 # ── Table 4: Village utilization ───────────────────────────────────────────────
@@ -700,7 +732,7 @@ tbl4_village_utilization <- function() {
     ) |>
     fmt_missing(columns = "rate", missing_text = "—") |>
     tab_footnote("Rate = village → MHC journeys per 1,000 pediatric residents under 18 (2020 Census).") |>
-    opt_stylize(style = 1)
+    .paper1_gt_theme()
 }
 
 # ── Table 5: Timing (continuous, minutes) ─────────────────────────────────────
@@ -729,7 +761,9 @@ tbl5_timing_minutes <- function() {
     ) |>
     bold_labels() |>
     modify_header(label ~ "**Time interval**") |>
-    modify_caption("**Table 5.** Time intervals (minutes), village → MHC primary transports. Median (IQR).")
+    modify_caption("**Table 5.** Time intervals (minutes), village → MHC primary transports. Median (IQR).") |>
+    as_gt() |>
+    .paper1_gt_theme()
 }
 
 # ── Temporal pattern stats (inline narrative) ─────────────────────────────────
@@ -774,9 +808,19 @@ temporal_stats <- function() {
   "HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp", "GCS/AVPU"
 )
 
-.completeness_gt <- function(df) {
-  gt(df) |>
-    cols_label(Measure = "Measure") |>
+.completeness_column_labels <- function(jp) {
+  labels <- vapply(.completeness_age_cols, function(x) {
+    age_label <- x[[2]]
+    sub <- if (is.na(age_label)) jp else jp[jp$age_group == age_label, , drop = FALSE]
+    sprintf("**%s**  \nN = %d", x[[1]], nrow(sub))
+  }, character(1))
+  setNames(as.list(labels), vapply(.completeness_age_cols, `[[`, character(1), 1))
+}
+
+.completeness_gt <- function(df, col_labels = NULL) {
+  tbl <- gt(df) |> cols_label(Measure = "Measure", !!!col_labels)
+
+  tbl |>
     tab_style(
       style = cell_text(weight = "bold"),
       locations = cells_body(
@@ -791,7 +835,7 @@ temporal_stats <- function() {
         rows = Measure %in% c("Complete PEWS data", "Timing data")
       )
     ) |>
-    opt_stylize(style = 1)
+    .paper1_gt_theme()
 }
 
 tbl_completeness_vitals_pews <- function() {
@@ -802,8 +846,9 @@ tbl_completeness_vitals_pews <- function() {
   }
 
   jp <- get_journeys_primary()
+  col_labels <- .completeness_column_labels(jp)
   if (nrow(jp) == 0) {
-    return(.completeness_gt(as_tibble(empty_row())))
+    return(.completeness_gt(as_tibble(empty_row()), col_labels))
   }
 
   journeys_for <- function(age_label) {
@@ -880,5 +925,5 @@ tbl_completeness_vitals_pews <- function() {
     df <- bind_rows(df, row_from_values(paste0("  ", vital_label), miss_vals))
   }
 
-  .completeness_gt(df)
+  .completeness_gt(df, col_labels)
 }
