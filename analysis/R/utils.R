@@ -142,18 +142,22 @@ pews_proxy_score <- function(row, cm, gcs_col) {
   as.integer(s_rr + s_hr + s_sbp + s_temp + s_cns)
 }
 
-vital_present_sets <- function(vit, cm) {
+vital_present_sets <- function(vit, cm, gcs_col = NULL) {
   present_for <- function(col) {
     unique(vit$mrn_k[.value_present(vit[[col]])])
   }
   bp_ok <- .value_present(vit[[cm$bp_sys]]) & .value_present(vit[[cm$bp_dia]])
-  list(
+  out <- list(
     HR = present_for(cm$hr),
     `O2 sat` = present_for(cm$o2),
     `BP (systolic+diastolic)` = unique(vit$mrn_k[bp_ok]),
     RR = present_for(cm$rr),
     Temp = present_for(cm$temp)
   )
+  if (!is.null(gcs_col)) {
+    out[["GCS/AVPU"]] <- present_for(gcs_col)
+  }
+  out
 }
 
 pews_ready_mrns <- function(vit, cm, gcs_col, cohort_mrns) {

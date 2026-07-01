@@ -194,7 +194,7 @@ for each pre-transport vital sign, overall and by age group.
 
 ```{r}
 #| label: tbl-completeness
-#| tbl-cap: "Clinical data completeness (n = 309 village-originating journeys). Complete PEWS data and timing data report n (%) with sufficient data; vital-sign rows report missing n (%)."
+#| tbl-cap: "Clinical data completeness (n = 309 village-originating journeys). Timing data and complete PEWS data report n (%) with sufficient data; vital-sign rows (including GCS/AVPU for PEWS consciousness) report missing n (%)."
 tbl_completeness_vitals_pews()
 ```
 

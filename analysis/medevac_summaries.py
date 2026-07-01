@@ -1994,6 +1994,7 @@ _COMPLETENESS_VITAL_LABELS = (
     "BP (systolic+diastolic)",
     "RR",
     "Temp",
+    "GCS/AVPU",
 )
 
 
@@ -2053,6 +2054,9 @@ def build_table_completeness_vitals_pews(df: pd.DataFrame) -> pd.DataFrame:
         vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
         present = _vital_present_sets(vit, cm)
         if gcs_col:
+            p = _value_present_series(vit[gcs_col])
+            present["GCS/AVPU"] = set(vit.loc[p, "_mrn_k"])
+        if gcs_col:
             sub = vit.copy()
             sub["_pews_ready"] = sub.apply(
                 lambda r: _pews_proxy_score_row(r, cm, gcs_col) is not None,
@@ -2084,16 +2088,20 @@ def build_table_completeness_vitals_pews(df: pd.DataFrame) -> pd.DataFrame:
         nd = len(mrns)
         if nd == 0:
             return "—"
+        if vital_label == "GCS/AVPU" and not gcs_col:
+            return "— (not available)"
+        if vital_label not in present:
+            return "— (not available)"
         return fmt_n_pct(len(mrns - present[vital_label]), nd)
 
     rows: list[dict[str, str]] = [
         {
-            "Measure": "Complete PEWS data",
-            **{label: pews_cell(patient_set(key)) for label, key in _COMPLETENESS_AGE_COLS},
-        },
-        {
             "Measure": "Timing data",
             **{label: timing_cell(journeys_for(key)) for label, key in _COMPLETENESS_AGE_COLS},
+        },
+        {
+            "Measure": "Complete PEWS data",
+            **{label: pews_cell(patient_set(key)) for label, key in _COMPLETENESS_AGE_COLS},
         },
         {"Measure": "Vital Signs Missing", **{label: "" for label in col_names}},
     ]

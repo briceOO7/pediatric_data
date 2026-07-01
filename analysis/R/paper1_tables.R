@@ -771,7 +771,7 @@ temporal_stats <- function() {
 )
 
 .completeness_vital_labels <- c(
-  "HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp"
+  "HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp", "GCS/AVPU"
 )
 
 .completeness_gt <- function(df) {
@@ -831,9 +831,8 @@ tbl_completeness_vitals_pews <- function() {
     vit <- vitals$vitals
     cm <- vitals$colmap
     vit <- vit[vit$mrn_k %in% cohort_mrns, , drop = FALSE]
-    present <- vital_present_sets(vit, cm)
+    present <- vital_present_sets(vit, cm, vitals$gcs_col)
     ready_mrns <- pews_ready_mrns(vit, cm, vitals$gcs_col, cohort_mrns)
-    if (is.null(vitals$gcs_col)) vitals_note <- "missing GCS"
   }
 
   patient_set <- function(age_label) {
@@ -845,7 +844,7 @@ tbl_completeness_vitals_pews <- function() {
     if (!is.null(vitals$error)) return(sprintf("Unable to compute (%s)", vitals$error))
     nd <- length(mrns)
     if (nd == 0) return("—")
-    if (identical(vitals_note, "missing GCS")) return("— (missing GCS)")
+    if (is.null(vitals$gcs_col)) return("— (missing GCS)")
     fmt_n_pct(length(intersect(mrns, ready_mrns)), nd)
   }
 
@@ -853,6 +852,8 @@ tbl_completeness_vitals_pews <- function() {
     if (!is.null(vitals$error)) return(sprintf("Unable to compute (%s)", vitals$error))
     nd <- length(mrns)
     if (nd == 0) return("—")
+    if (vital_label == "GCS/AVPU" && is.null(vitals$gcs_col)) return("— (not available)")
+    if (is.null(present[[vital_label]])) return("— (not available)")
     n_miss <- nd - length(intersect(mrns, present[[vital_label]]))
     fmt_n_pct(n_miss, nd)
   }
@@ -865,8 +866,8 @@ tbl_completeness_vitals_pews <- function() {
   timing_vals <- vapply(.completeness_age_cols, function(x) timing_cell(journeys_for(x[[2]])), character(1))
 
   df <- bind_rows(
-    row_from_values("Complete PEWS data", pews_vals),
     row_from_values("Timing data", timing_vals),
+    row_from_values("Complete PEWS data", pews_vals),
     row_from_values("Vital Signs Missing", rep("", length(col_names)))
   )
 
