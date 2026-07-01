@@ -3578,6 +3578,12 @@ _VILLAGE_PALETTE = [
     "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
     "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf","#aec7e8",
 ]
+# Figure 2 route map: left→right care-pathway colors (villages → MHC → tertiary)
+_ROUTE_MHC_COLOR = "#158749"
+_ROUTE_ANMC_COLOR = "#D94801"
+_ROUTE_VILLAGE_CMAP_LO = 0.35
+_ROUTE_VILLAGE_CMAP_HI = 0.82
+_ROUTE_TERTIARY_OTHER = ["#CB181D", "#A50F15", "#7F2704"]
 _AGE_PALETTE = ["#4C72B0","#DD8452","#55A868","#C44E52"]
 _AGE_ORDER   = ["<1 year","1–<5 years","5–12 years","13–18 years"]
 
@@ -3817,6 +3823,8 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     ANMC detection covers both PHI encoded values ("Hub_01", values that
     start with "Hub") and the synthetic/plain-text label "ANMC".
     """
+    import matplotlib.cm as cm
+    import matplotlib.colors as mcolors
     import matplotlib.patches as mpatches
     from matplotlib.path import Path as MplPath
     import numpy as np
@@ -3905,19 +3913,23 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
 
     villages = sorted(village_total, key=lambda v: -village_total[v])
 
-    # ── Colour palettes ───────────────────────────────────────────────────────
+    # ── Colour palettes (village blues → MHC green → tertiary warm) ───────────
+    blues = cm.get_cmap("Blues")
+    nv = len(villages)
     vcolor: dict[str, str] = {
-        v: _VILLAGE_PALETTE[i % len(_VILLAGE_PALETTE)]
+        v: mcolors.to_hex(
+            blues(
+                _ROUTE_VILLAGE_CMAP_LO
+                + (_ROUTE_VILLAGE_CMAP_HI - _ROUTE_VILLAGE_CMAP_LO)
+                * i
+                / max(nv - 1, 1)
+            )
+        )
         for i, v in enumerate(villages)
     }
-    right_colors = {
-        "ANMC": "#ED7D31",
-        "MHC":  "#70AD47",
-    }
-    outside_palette = ["#4472C4", "#9467BD", "#8C564B", "#E377C2",
-                       "#17BECF", "#BCBD22", "#7F7F7F"]
-    for i, d in enumerate(d for d in all_right_dests if d not in right_colors):
-        right_colors[d] = outside_palette[i % len(outside_palette)]
+    right_colors: dict[str, str] = {"ANMC": _ROUTE_ANMC_COLOR}
+    for i, d in enumerate(d for d in all_right_dests if d != "ANMC"):
+        right_colors[d] = _ROUTE_TERTIARY_OTHER[i % len(_ROUTE_TERTIARY_OTHER)]
 
     # ── Layout constants ──────────────────────────────────────────────────────
     X_V   = 0.13    # village column x-centre
@@ -3925,15 +3937,15 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     X_R   = 0.73    # right column dot x-centre (ANMC + outside)
     R_LABEL_GAP = 0.032  # horizontal gap between dot edge and label
 
-    # Village y positions
+    # Village y positions (keep top row below multi-line column headers)
     nv = len(villages)
-    yv_top, yv_bot = 0.93, 0.07
+    yv_top, yv_bot = 0.875, 0.07
     v_ys = {v: yv_top - i * (yv_top - yv_bot) / max(nv - 1, 1)
             for i, v in enumerate(villages)}
 
     # Right-column nodes: evenly spaced, top to bottom
     nr = len(all_right_dests)
-    yr_top, yr_bot = 0.88, 0.20
+    yr_top, yr_bot = 0.855, 0.20
     r_ys = {d: yr_top - i * (yr_top - yr_bot) / max(nr - 1, 1)
             for i, d in enumerate(all_right_dests)}
     Y_MHC = float(np.mean([yr_top, yr_bot]))   # MHC centres vertically
@@ -3957,6 +3969,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
 
     all_right_max = max(n_right.values()) if n_right else 1
     R_R_MAX, R_R_MIN = 0.032, 0.014   # dot radius for right-column nodes
+    X_R_HDR = X_R                 # header centered over tertiary dots (not labels)
 
     def _rr(n: int) -> float:
         return R_R_MIN + (R_R_MAX - R_R_MIN) * (n / all_right_max) ** 0.5
@@ -4011,13 +4024,14 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
             continue
         ry = r_ys[dest]
         rr = _rr(n_right.get(dest, 1))
+        dest_col = right_colors.get(dest, "#555555")
         _curve(X_MHC + MHC_R, Y_MHC, X_R - rr, ry,
-               lw=_lw(n), color="#555555", alpha=0.55, zorder=3)
+               lw=_lw(n), color=dest_col, alpha=0.62, zorder=3)
 
     # ── MHC node ──────────────────────────────────────────────────────────────
     n_mhc_total = sum(n for (_, d), n in prim_counts.items() if d == "MHC")
     ax.add_patch(plt.Circle((X_MHC, Y_MHC), MHC_R,
-                             facecolor="#70AD47", edgecolor="white",
+                             facecolor=_ROUTE_MHC_COLOR, edgecolor="white",
                              linewidth=1.5, zorder=5))
     ax.text(X_MHC, Y_MHC,
             f"Maniilaq\nHealth Center\nn = {n_mhc_total}",
@@ -4052,9 +4066,9 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
 
     # ── Column headers ────────────────────────────────────────────────────────
     for xc, lbl in [(X_V, "Village Clinics"),
-                    (X_MHC, "Maniilaq\nHealth Center"),
-                    ((X_R + R_R_MAX + R_LABEL_GAP + 0.10) / 2, "Receiving Facilities")]:
-        ax.text(xc, 0.97, lbl, ha="center", va="top",
+                    (X_MHC, "Regional Critical\nAccess Hospital"),
+                    (X_R_HDR, "Tertiary Referral\nHospital")]:
+        ax.text(xc, 0.985, lbl, ha="center", va="top",
                 fontsize=13, fontweight="bold", color="#333333")
 
     # ── Legend ────────────────────────────────────────────────────────────────
@@ -4073,7 +4087,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
         f"Figure 2. Pediatric Air Ambulance Routes by Village  (n = {total_journeys} journeys)",
         fontsize=14, pad=12,
     )
-    fig.subplots_adjust(left=0.18, right=0.97, top=0.94, bottom=0.04)
+    fig.subplots_adjust(left=0.18, right=0.97, top=0.96, bottom=0.04)
     return fig
 
 

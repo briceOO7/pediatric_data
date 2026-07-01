@@ -108,7 +108,7 @@ tbl3_route_comparison()
 
 ```{r}
 #| label: fig-routes-village
-#| fig-cap: "Figure 2. Pediatric air ambulance routes by village (n = 309 journeys). Village clinics (left) connect to Maniilaq Health Center (center) and receiving facilities (right); line width is proportional to transfer volume. Grey dashed flows denote secondary MHC-to-facility transfers."
+#| fig-cap: "Figure 2. Pediatric air ambulance routes by village (n = 309 journeys). Village clinics (left) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
 ```
