@@ -760,33 +760,124 @@ temporal_stats <- function() {
   )
 }
 
-# ── Pipeline CSV tables (vitals / PEWS completeness) ──────────────────────────
+# ── Table: Clinical data completeness (PEWS, timing, vitals) ───────────────────
 
-.load_pipeline_gt <- function(name, caption = NULL) {
-  path <- here("outputs", "tables", paste0(name, ".csv"))
-  if (!file.exists(path)) {
-    return(gt(tibble(
-      Note = sprintf(
-        "Table `%s.csv` not found — run `python3 scripts/run_full_pipeline.py`.",
-        name
+.completeness_age_cols <- list(
+  c("Overall", NA_character_),
+  c("<1 yr", "<1 yr"),
+  c("1–<5 yr", "1–<5 yr"),
+  c("5–12 yr", "5–12 yr"),
+  c("13–18 yr", "13–18 yr")
+)
+
+.completeness_vital_labels <- c(
+  "HR", "O2 sat", "BP (systolic+diastolic)", "RR", "Temp"
+)
+
+.completeness_gt <- function(df) {
+  gt(df) |>
+    cols_label(Measure = "Measure") |>
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        columns = Measure,
+        rows = Measure == "Vital Signs Missing"
       )
-    )))
+    ) |>
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        columns = Measure,
+        rows = Measure %in% c("Complete PEWS data", "Timing data")
+      )
+    ) |>
+    opt_stylize(style = 1)
+}
+
+tbl_completeness_vitals_pews <- function() {
+  col_names <- vapply(.completeness_age_cols, `[[`, character(1), 1)
+  empty_row <- function(label = "—") {
+    as.list(setNames(rep(label, length(col_names)), col_names)) |>
+      c(Measure = "—", .)
   }
-  tbl <- read_csv(path, show_col_types = FALSE) |> gt()
-  if (!is.null(caption)) tbl <- tbl |> tab_header(title = md(caption))
-  tbl |> opt_stylize(style = 1)
-}
 
-tbl_vitals_missingness <- function() {
-  .load_pipeline_gt(
-    "table2_1_vitals_missingness",
-    "**Vital sign completeness.** Proportion of cohort patients missing each pre-transport vital sign at the village clinic visit."
-  )
-}
+  jp <- get_journeys_primary()
+  if (nrow(jp) == 0) {
+    return(.completeness_gt(as_tibble(empty_row())))
+  }
 
-tbl_pews_by_age <- function() {
-  .load_pipeline_gt(
-    "table3_pews_data_availability_by_age",
-    "**PEWS-proxy data availability by age group.** Proportion of patients with sufficient vital sign data to compute a pediatric early warning score proxy."
+  journeys_for <- function(age_label) {
+    if (is.na(age_label)) return(jp)
+    jp |> filter(age_group == age_label)
+  }
+
+  timing_cell <- function(sub) {
+    nd <- nrow(sub)
+    if (nd == 0) return("—")
+    if (!"time_to_activate_quality" %in% names(sub)) return("— (not available)")
+    n_ok <- sum(sub$time_to_activate_quality == "real", na.rm = TRUE)
+    fmt_n_pct(n_ok, nd)
+  }
+
+  first <- first_cohort_patients(jp)
+  cohort_mrns <- first$mrn_k
+  vitals <- load_vitals_for_cohort()
+
+  present <- list()
+  ready_mrns <- character(0)
+  vitals_note <- vitals$error
+
+  if (is.null(vitals_note)) {
+    vit <- vitals$vitals
+    cm <- vitals$colmap
+    vit <- vit[vit$mrn_k %in% cohort_mrns, , drop = FALSE]
+    present <- vital_present_sets(vit, cm)
+    ready_mrns <- pews_ready_mrns(vit, cm, vitals$gcs_col, cohort_mrns)
+    if (is.null(vitals$gcs_col)) vitals_note <- "missing GCS"
+  }
+
+  patient_set <- function(age_label) {
+    if (is.na(age_label)) return(cohort_mrns)
+    first$mrn_k[first$age_group == age_label]
+  }
+
+  pews_cell <- function(mrns) {
+    if (!is.null(vitals$error)) return(sprintf("Unable to compute (%s)", vitals$error))
+    nd <- length(mrns)
+    if (nd == 0) return("—")
+    if (identical(vitals_note, "missing GCS")) return("— (missing GCS)")
+    fmt_n_pct(length(intersect(mrns, ready_mrns)), nd)
+  }
+
+  miss_cell <- function(mrns, vital_label) {
+    if (!is.null(vitals$error)) return(sprintf("Unable to compute (%s)", vitals$error))
+    nd <- length(mrns)
+    if (nd == 0) return("—")
+    n_miss <- nd - length(intersect(mrns, present[[vital_label]]))
+    fmt_n_pct(n_miss, nd)
+  }
+
+  row_from_values <- function(measure, values) {
+    tibble(Measure = measure, !!!setNames(values, col_names))
+  }
+
+  pews_vals <- vapply(.completeness_age_cols, function(x) pews_cell(patient_set(x[[2]])), character(1))
+  timing_vals <- vapply(.completeness_age_cols, function(x) timing_cell(journeys_for(x[[2]])), character(1))
+
+  df <- bind_rows(
+    row_from_values("Complete PEWS data", pews_vals),
+    row_from_values("Timing data", timing_vals),
+    row_from_values("Vital Signs Missing", rep("", length(col_names)))
   )
+
+  for (vital_label in .completeness_vital_labels) {
+    miss_vals <- vapply(
+      .completeness_age_cols,
+      function(x) miss_cell(patient_set(x[[2]]), vital_label),
+      character(1)
+    )
+    df <- bind_rows(df, row_from_values(paste0("  ", vital_label), miss_vals))
+  }
+
+  .completeness_gt(df)
 }

@@ -99,7 +99,6 @@ additional journey was classified as a **direct tertiary** transport
 (village → ANMC, bypassing MHC entirely); given the single case, further
 comparative analysis of this route type is deferred. @tbl-t3 compares patient
 age, sex, and chief complaint between primary and secondary route groups.
-@tbl-t3a and @tbl-t3b detail leg-level routing patterns.
 
 ```{r}
 #| label: tbl-t3
@@ -112,18 +111,6 @@ tbl3_route_comparison()
 #| fig-cap: "Figure 2. Pediatric air ambulance routes by village (n = 309 journeys). Village clinics (left) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
-```
-
-```{r}
-#| label: tbl-t3a
-#| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
-tbl3a_primary_routes()
-```
-
-```{r}
-#| label: tbl-t3b
-#| tbl-cap: "Secondary transfers: MHC-originating escalation legs. Percent denominator = all secondary legs."
-tbl3b_secondary_routes()
 ```
 
 ---
@@ -202,20 +189,13 @@ records, with patterns varying by originating village and by time of day. These
 gaps constrain retrospective outcomes research and prospective applications such
 as machine-learning–assisted triage.
 
-@tbl-vitals reports patient-level completeness for each vital sign. @tbl-pews
-reports the proportion of patients with sufficient data to compute a pediatric
-early warning score proxy, stratified by age group.
+@tbl-completeness reports complete PEWS-proxy data and patient-level missingness
+for each pre-transport vital sign, overall and by age group.
 
 ```{r}
-#| label: tbl-vitals
-#| tbl-cap: "Vital sign completeness: proportion of cohort patients missing each pre-transport vital sign at the village clinic visit."
-tbl_vitals_missingness()
-```
-
-```{r}
-#| label: tbl-pews
-#| tbl-cap: "PEWS-proxy data availability by age group: proportion of patients with sufficient vital sign data to compute a pediatric early warning score."
-tbl_pews_by_age()
+#| label: tbl-completeness
+#| tbl-cap: "Clinical data completeness (n = 309 village-originating journeys). Complete PEWS data and timing data report n (%) with sufficient data; vital-sign rows report missing n (%)."
+tbl_completeness_vitals_pews()
 ```
 
 

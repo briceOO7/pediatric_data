@@ -1981,6 +1981,135 @@ def build_table2_1_vitals_missingness(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+_COMPLETENESS_AGE_COLS: list[tuple[str, str | None]] = [
+    ("Overall", None),
+    ("<1 yr", "b0"),
+    ("1–<5 yr", "b1"),
+    ("5–12 yr", "b2"),
+    ("13–18 yr", "b3"),
+]
+_COMPLETENESS_VITAL_LABELS = (
+    "HR",
+    "O2 sat",
+    "BP (systolic+diastolic)",
+    "RR",
+    "Temp",
+)
+
+
+def build_table_completeness_vitals_pews(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Combined data completeness: PEWS-ready patients, timing data, and missing vitals,
+    columns = Overall + age groups.
+    """
+    col_names = [label for label, _ in _COMPLETENESS_AGE_COLS]
+    empty_cols = {label: "—" for label in col_names}
+    age_group_by_key = {
+        "b0": "<1 yr",
+        "b1": "1–<5 yr",
+        "b2": "5–12 yr",
+        "b3": "13–18 yr",
+    }
+
+    j = df.drop_duplicates(subset=["journey_id"]).copy()
+    if j.empty:
+        return pd.DataFrame([{"Measure": "—", **empty_cols}])
+
+    def journeys_for(age_key: str | None) -> pd.DataFrame:
+        if age_key is None:
+            return j
+        if "age_group" in j.columns:
+            label = age_group_by_key.get(age_key)
+            if label:
+                return j[j["age_group"] == label]
+        age = pd.to_numeric(j.get("age_at_medevac"), errors="coerce")
+        ag = age.map(_age_bucket_key)
+        return j.loc[ag == age_key]
+
+    def timing_cell(sub: pd.DataFrame) -> str:
+        nd = len(sub)
+        if nd == 0:
+            return "—"
+        if "time_to_activate_quality" not in sub.columns:
+            return "— (not available)"
+        n_ok = int((sub["time_to_activate_quality"] == "real").sum())
+        return fmt_n_pct(n_ok, nd)
+
+    first = _first_cohort_patients(df)
+    cohort_mrns = set(first["_mrn_k"]) if len(first) else set()
+
+    vit, cm, err = _load_vitals_for_cohort()
+    present: dict[str, set[object]] = {}
+    ready_mrns: set[object] = set()
+    gcs_col: str | None = None
+    vitals_note: str | None = None
+
+    if err is not None or vit is None or cm is None:
+        vitals_note = f"Unable to compute ({err})"
+    elif not cohort_mrns:
+        vitals_note = "No cohort patients"
+    else:
+        gcs_col = _pick_vitals_col(vit, _GCS_ALIASES)
+        vit = vit[vit["_mrn_k"].isin(cohort_mrns)].copy()
+        present = _vital_present_sets(vit, cm)
+        if gcs_col:
+            sub = vit.copy()
+            sub["_pews_ready"] = sub.apply(
+                lambda r: _pews_proxy_score_row(r, cm, gcs_col) is not None,
+                axis=1,
+            )
+            ready_mrns = set(sub.loc[sub["_pews_ready"], "_mrn_k"])
+
+    age = pd.to_numeric(first.get("age_at_medevac"), errors="coerce")
+    ag = age.map(_age_bucket_key)
+
+    def patient_set(age_key: str | None) -> set[object]:
+        if age_key is None:
+            return cohort_mrns
+        return set(first.loc[ag == age_key, "_mrn_k"])
+
+    def pews_cell(mrns: set[object]) -> str:
+        if vitals_note:
+            return vitals_note
+        nd = len(mrns)
+        if nd == 0:
+            return "—"
+        if not gcs_col:
+            return "— (missing GCS)"
+        return fmt_n_pct(len(mrns & ready_mrns), nd)
+
+    def miss_cell(mrns: set[object], vital_label: str) -> str:
+        if vitals_note:
+            return vitals_note
+        nd = len(mrns)
+        if nd == 0:
+            return "—"
+        return fmt_n_pct(len(mrns - present[vital_label]), nd)
+
+    rows: list[dict[str, str]] = [
+        {
+            "Measure": "Complete PEWS data",
+            **{label: pews_cell(patient_set(key)) for label, key in _COMPLETENESS_AGE_COLS},
+        },
+        {
+            "Measure": "Timing data",
+            **{label: timing_cell(journeys_for(key)) for label, key in _COMPLETENESS_AGE_COLS},
+        },
+        {"Measure": "Vital Signs Missing", **{label: "" for label in col_names}},
+    ]
+    for vital_label in _COMPLETENESS_VITAL_LABELS:
+        rows.append(
+            {
+                "Measure": f"  {vital_label}",
+                **{
+                    label: miss_cell(patient_set(key), vital_label)
+                    for label, key in _COMPLETENESS_AGE_COLS
+                },
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def build_table2_2_vitals_repeated(df: pd.DataFrame) -> pd.DataFrame:
     """
     Table 2.2: n(%) of cohort patients with >1 value for each vital at village visit.
