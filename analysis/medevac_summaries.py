@@ -3801,7 +3801,7 @@ def plot_fig2b_annual_by_age(
 
 def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     """
-    Figure 4: Network flow diagram — village-level medevac routing.
+    Figure 2: Network flow diagram — village-level air ambulance routing.
 
     Layout
     ------
@@ -3923,7 +3923,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     X_V   = 0.13    # village column x-centre
     X_MHC = 0.48    # MHC node x-centre
     X_R   = 0.73    # right column dot x-centre (ANMC + outside)
-    X_R_LBL = 0.76  # label starts here (to the right of dot)
+    R_LABEL_GAP = 0.032  # horizontal gap between dot edge and label
 
     # Village y positions
     nv = len(villages)
@@ -3941,7 +3941,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     # Node radii
     all_n = [village_total[v] for v in villages]
     max_vn = max(all_n) if all_n else 1
-    MHC_R  = 0.055
+    MHC_R  = 0.062
     V_R_MAX, V_R_MIN = 0.020, 0.008
 
     def _vr(n: int) -> float:
@@ -4013,13 +4013,6 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
         rr = _rr(n_right.get(dest, 1))
         _curve(X_MHC + MHC_R, Y_MHC, X_R - rr, ry,
                lw=_lw(n), color="#555555", alpha=0.55, zorder=3)
-        # label the secondary arrow
-        mx = (X_MHC + MHC_R + X_R - rr) / 2
-        my = (Y_MHC + ry) / 2 + 0.03
-        ax.text(mx, my, f"2° n={n}", fontsize=6.5, ha="center",
-                va="center", color="#555555",
-                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                          edgecolor="0.75", linewidth=0.4, alpha=0.85))
 
     # ── MHC node ──────────────────────────────────────────────────────────────
     n_mhc_total = sum(n for (_, d), n in prim_counts.items() if d == "MHC")
@@ -4028,7 +4021,7 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
                              linewidth=1.5, zorder=5))
     ax.text(X_MHC, Y_MHC,
             f"Maniilaq\nHealth Center\nn = {n_mhc_total}",
-            ha="center", va="center", fontsize=8,
+            ha="center", va="center", fontsize=12,
             fontweight="bold", color="white", zorder=6)
 
     # ── Right-column nodes (dot + right-side label) ───────────────────────────
@@ -4039,9 +4032,9 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
         ax.add_patch(plt.Circle((X_R, ry), rr,
                                  facecolor=col, edgecolor="white",
                                  linewidth=1.5, zorder=5))
-        ax.text(X_R_LBL, ry,
+        ax.text(X_R + rr + R_LABEL_GAP, ry,
                 f"{d}\nn = {n_right.get(d, 0)}",
-                ha="left", va="center", fontsize=8,
+                ha="left", va="center", fontsize=12,
                 fontweight="bold", color=col, zorder=6)
 
     # ── Village nodes ─────────────────────────────────────────────────────────
@@ -4053,16 +4046,16 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
         ax.add_patch(plt.Circle((X_V, vy), r,
                                  facecolor=col, edgecolor="white",
                                  linewidth=0.8, zorder=5))
-        ax.text(X_V - r - 0.010, vy,
+        ax.text(X_V - r - 0.012, vy,
                 f"{v}  {n_v}",
-                ha="right", va="center", fontsize=8, color="#333333", zorder=6)
+                ha="right", va="center", fontsize=12, color="#333333", zorder=6)
 
     # ── Column headers ────────────────────────────────────────────────────────
     for xc, lbl in [(X_V, "Village Clinics"),
                     (X_MHC, "Maniilaq\nHealth Center"),
-                    ((X_R + X_R_LBL + 0.10) / 2, "Receiving Facilities")]:
+                    ((X_R + R_R_MAX + R_LABEL_GAP + 0.10) / 2, "Receiving Facilities")]:
         ax.text(xc, 0.97, lbl, ha="center", va="top",
-                fontsize=9, fontweight="bold", color="#333333")
+                fontsize=13, fontweight="bold", color="#333333")
 
     # ── Legend ────────────────────────────────────────────────────────────────
     from matplotlib.lines import Line2D
@@ -4071,20 +4064,16 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
         Line2D([0], [0], color="0.35", lw=_lw(n), label=f"n = {n}")
         for n in legend_ns if n > 0
     ]
-    handles += [
-        Line2D([0], [0], color="#555555", lw=2.0, linestyle="--",
-               label="MHC → facility\n(secondary)"),
-    ]
-    ax.legend(handles=handles, loc="lower center", fontsize=7.5,
-              title="Transfer volume", title_fontsize=8,
+    ax.legend(handles=handles, loc="lower center", fontsize=11,
+              title="Transfer volume", title_fontsize=12,
               framealpha=0.92, handlelength=4, ncol=len(handles))
 
     total_journeys = sum(village_total.values())
     ax.set_title(
-        f"Figure 4. Pediatric Medevac Routes by Village  (n = {total_journeys} journeys)",
-        fontsize=12, pad=12,
+        f"Figure 2. Pediatric Air Ambulance Routes by Village  (n = {total_journeys} journeys)",
+        fontsize=14, pad=12,
     )
-    fig.subplots_adjust(left=0.16, right=0.97, top=0.94, bottom=0.03)
+    fig.subplots_adjust(left=0.18, right=0.97, top=0.94, bottom=0.04)
     return fig
 
 
