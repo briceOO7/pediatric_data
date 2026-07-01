@@ -116,6 +116,13 @@ fig2_sankey_routes()
 ```
 
 ```{r}
+#| label: fig-alluvial
+#| fig-cap: "Figure 2 (continued). Pediatric medevac transport routes as a four-stage alluvial diagram (n = 309 village-originating journeys). Ribbon width is proportional to journey volume across the origin village and up to three transfer locations."
+#| out-width: 100%
+knitr::include_graphics(here("outputs", "figures", "fig2_alluvial_transport_routes.png"))
+```
+
+```{r}
 #| label: fig-monthly-village
 #| fig-cap: "Figure 3a. Monthly air ambulance journeys by village of origin (2020–2024)."
 #| out-width: 100%
