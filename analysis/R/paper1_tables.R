@@ -731,3 +731,62 @@ tbl5_timing_minutes <- function() {
     modify_header(label ~ "**Time interval**") |>
     modify_caption("**Table 5.** Time intervals (minutes), village → MHC primary transports. Median (IQR).")
 }
+
+# ── Temporal pattern stats (inline narrative) ─────────────────────────────────
+
+temporal_stats <- function() {
+  jp <- get_journeys_primary()
+  yr <- jp$journey_start_year[jp$journey_start_year >= 2020L & jp$journey_start_year <= 2024L]
+  mo <- jp$journey_start_month
+  mo <- mo[!is.na(mo) & mo >= 1L & mo <= 12L]
+
+  yr_ct <- as.integer(table(yr))
+  mo_ct <- as.integer(table(mo))
+  mo_names <- c(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  )
+  mo_idx <- function(which_fn) {
+    as.integer(names(mo_ct)[which_fn(mo_ct)])
+  }
+
+  list(
+    peak_yr  = as.integer(names(yr_ct)[which.max(yr_ct)]),
+    peak_n   = max(yr_ct),
+    high_mo  = mo_names[mo_idx(which.max)],
+    high_n   = max(mo_ct),
+    low_mo   = mo_names[mo_idx(which.min)],
+    low_n    = min(mo_ct)
+  )
+}
+
+# ── Pipeline CSV tables (vitals / PEWS completeness) ──────────────────────────
+
+.load_pipeline_gt <- function(name, caption = NULL) {
+  path <- here("outputs", "tables", paste0(name, ".csv"))
+  if (!file.exists(path)) {
+    return(gt(tibble(
+      Note = sprintf(
+        "Table `%s.csv` not found — run `python3 scripts/run_full_pipeline.py`.",
+        name
+      )
+    )))
+  }
+  tbl <- read_csv(path, show_col_types = FALSE) |> gt()
+  if (!is.null(caption)) tbl <- tbl |> tab_header(title = md(caption))
+  tbl |> opt_stylize(style = 1)
+}
+
+tbl_vitals_missingness <- function() {
+  .load_pipeline_gt(
+    "table2_1_vitals_missingness",
+    "**Vital sign completeness.** Proportion of cohort patients missing each pre-transport vital sign at the village clinic visit."
+  )
+}
+
+tbl_pews_by_age <- function() {
+  .load_pipeline_gt(
+    "table3_pews_data_availability_by_age",
+    "**PEWS-proxy data availability by age group.** Proportion of patients with sufficient vital sign data to compute a pediatric early warning score proxy."
+  )
+}

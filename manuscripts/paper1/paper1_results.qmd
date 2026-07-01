@@ -27,6 +27,7 @@ source(here("analysis", "R", "paper1_tables.R"))
 source(here("analysis", "R", "paper1_figures.R"))
 
 cc <- cohort_counts()
+ts <- temporal_stats()
 ```
 
 ## Results
@@ -114,6 +115,34 @@ knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes
 ```
 
 ```{r}
+#| label: tbl-t3a
+#| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
+tbl3a_primary_routes()
+```
+
+```{r}
+#| label: tbl-t3b
+#| tbl-cap: "Secondary transfers: MHC-originating escalation legs. Percent denominator = all secondary legs."
+tbl3b_secondary_routes()
+```
+
+---
+
+### Temporal Patterns
+
+Annual pediatric air ambulance volume peaked in `r ts$peak_yr`
+(n = `r ts$peak_n`). The highest-volume month was `r ts$high_mo`
+(n = `r ts$high_n`) and the lowest was `r ts$low_mo`
+(n = `r ts$low_n`), consistent with spring break-up constraints on
+ice-runway operations. The 2022 surge was concentrated in respiratory
+presentations, consistent with the post-pandemic "tripledemic" of RSV,
+influenza, and SARS-CoV-2 affecting Arctic pediatric populations.
+
+@fig-monthly-village and @fig-monthly-age present monthly volume by village
+and by age group; @fig-annual-village and @fig-annual-age present annual
+volume by the same stratifications.
+
+```{r}
 #| label: fig-monthly-village
 #| fig-cap: "Figure 3a. Monthly air ambulance journeys by village of origin (2020–2024)."
 #| out-width: 100%
@@ -141,22 +170,52 @@ knitr::include_graphics(here("outputs", "figures", "fig2a_annual_by_village.png"
 knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 ```
 
+---
+
+### Timeliness
+
+Time intervals from air ambulance activation through MHC arrival — including
+decision-making and response components — are reported by village in @tbl-t4.
+The median transport time reflects the operational tempo of fixed-wing air
+ambulance across a geographically dispersed Arctic region.
+
 ```{r}
 #| label: tbl-t4
 #| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Times in minutes: Median (IQR); Range."
 tbl4_timing_by_village()
 ```
 
+---
+
+### Data Completeness
+
+Operational destination data were complete for
+`r cc$n_complete_dest_cohort` of `r cc$n_journeys` village-originating journeys
+(`r sprintf("%.0f%%", round(100 * cc$n_complete_dest_cohort / cc$n_journeys))`).
+Timing data sufficient for activation-interval analysis were available for
+`r cc$n_complete_timing_cohort` journeys
+(`r sprintf("%.0f%%", round(100 * cc$n_complete_timing_cohort / cc$n_journeys))`).
+
+Clinical handoff fields — including pre-flight vital signs and data needed to
+compute a PEWS-like severity score — were missing in a substantial minority of
+records, with patterns varying by originating village and by time of day. These
+gaps constrain retrospective outcomes research and prospective applications such
+as machine-learning–assisted triage.
+
+@tbl-vitals reports patient-level completeness for each vital sign. @tbl-pews
+reports the proportion of patients with sufficient data to compute a pediatric
+early warning score proxy, stratified by age group.
+
 ```{r}
-#| label: tbl-t3a
-#| tbl-cap: "Primary transfers: village-originating air ambulance legs. Percent denominator = all primary legs."
-tbl3a_primary_routes()
+#| label: tbl-vitals
+#| tbl-cap: "Vital sign completeness: proportion of cohort patients missing each pre-transport vital sign at the village clinic visit."
+tbl_vitals_missingness()
 ```
 
 ```{r}
-#| label: tbl-t3b
-#| tbl-cap: "Secondary transfers: MHC-originating escalation legs. Percent denominator = all secondary legs."
-tbl3b_secondary_routes()
+#| label: tbl-pews
+#| tbl-cap: "PEWS-proxy data availability by age group: proportion of patients with sufficient vital sign data to compute a pediatric early warning score."
+tbl_pews_by_age()
 ```
 
 
