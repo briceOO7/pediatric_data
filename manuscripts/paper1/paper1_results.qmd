@@ -89,19 +89,14 @@ tbl2_patient_characteristics()
 ### Route Typology
 
 Transports were classified by facility sequence. Overall,
-`r cc$n_managed_at_mhc` of `r cc$n_village_to_mhc` village-originating transfers
-to MHC were managed definitively at the regional hospital without further air
-evacuation; only a minority (n = `r cc$n_secondary`) were transferred onward to
-ANMC or other tertiary facilities. **Primary only** journeys (village → MHC, no
-further transfer) accounted for this pattern (n = `r cc$n_primary_only`),
-reflecting MHC's role as the regional stabilization hub. **Secondary** transfers
-(village → MHC → tertiary facility) represented the escalation pathway for
-patients whose acuity exceeded MHC's capabilities; of these, 30 proceeded to ANMC, 2 to
-Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. Only
-`r cc$n_direct_tertiary` of `r cc$n_journeys` journeys were routed directly from
-the village to ANMC, bypassing MHC; this route type was excluded from comparative
-analysis in @tbl-t3 due to small n. @tbl-t3 compares patient age, sex, and chief
-complaint between primary and secondary route groups.
+`r cc$route_village_mhc_str` of journeys were village → MHC,
+`r cc$route_mhc_tertiary_str` were MHC → tertiary hub, and
+`r cc$route_direct_tertiary_str` was direct village → tertiary hub, bypassing MHC.
+Of the `r cc$n_secondary` journeys with secondary transfer, 30 proceeded to ANMC,
+2 to Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. The
+direct tertiary route was excluded from comparative analysis in @tbl-t3 due to
+small n. @tbl-t3 compares patient age, sex, and chief complaint between primary
+and secondary route groups.
 
 ```{r}
 #| label: tbl-t3

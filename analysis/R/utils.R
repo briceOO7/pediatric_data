@@ -277,6 +277,21 @@ fmt_pct_n <- function(n, denom, digits = 1) {
   out
 }
 
+#' Format XX.X% (n of total) for inline cohort narrative
+fmt_pct_of_n <- function(n, total, digits = 1) {
+  n <- as.integer(n)
+  total <- as.integer(total)
+  if (length(n) != 1L || length(total) != 1L || is.na(total) || total <= 0L) {
+    return("\u2014")
+  }
+  sprintf(
+    "%s%% (%d of %d)",
+    formatC(100 * n / total, digits = digits, format = "f"),
+    n,
+    total
+  )
+}
+
 # ── gtsummary theme ────────────────────────────────────────────────────────────
 
 #' Apply a consistent clinical research theme to gtsummary tables

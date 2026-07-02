@@ -70,6 +70,7 @@ cohort_counts <- function() {
   n_primary_only    <- sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE)
   n_secondary       <- sum(jp$route_type == "Secondary transfer", na.rm = TRUE)
   n_direct_tertiary <- sum(grepl("tertiary", jp$route_type, ignore.case = TRUE), na.rm = TRUE)
+  n_journeys_coh    <- n_distinct(jp$journey_id)
   n_village_to_mhc  <- n_primary_only + n_secondary
   n_managed_at_mhc  <- n_primary_only
   pct_managed_at_mhc <- if (n_village_to_mhc > 0) {
@@ -80,7 +81,7 @@ cohort_counts <- function() {
 
   list(
     # Primary cohort
-    n_journeys           = n_distinct(jp$journey_id),
+    n_journeys           = n_journeys_coh,
     n_patients           = n_distinct(jp$MRN),
     n_villages           = n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""]),
     # DB totals (for PRISMA context)
@@ -93,6 +94,9 @@ cohort_counts <- function() {
     n_village_to_mhc   = n_village_to_mhc,
     n_managed_at_mhc     = n_managed_at_mhc,
     pct_managed_at_mhc   = pct_managed_at_mhc,
+    route_village_mhc_str      = fmt_pct_of_n(n_primary_only, n_journeys_coh),
+    route_mhc_tertiary_str     = fmt_pct_of_n(n_secondary, n_journeys_coh),
+    route_direct_tertiary_str  = fmt_pct_of_n(n_direct_tertiary, n_journeys_coh),
     # Flight leg breakdown (village-originating journeys only)
     n_legs_total         = sum(lb$n_legs),
     n_legs_village_mhc   = n_legs_village_mhc,
