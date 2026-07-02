@@ -196,13 +196,13 @@ fig_prisma_diagram <- function() {
 }
 
 .village_column_labels <- function(vs_fmt, col_order) {
-  labels <- vapply(col_order, function(vname) {
+  labels <- lapply(col_order, function(vname) {
     row <- vs_fmt |> filter(village_name == vname)
     n <- if (nrow(row) == 0 || is.na(row$n_journeys[1])) 0L else as.integer(row$n_journeys[1])
     label <- if (vname == "Overall") "Overall" else vname
-    sprintf("**%s**  \nN = %d", label, n)
-  }, character(1))
-  setNames(as.list(labels), col_order)
+    md(sprintf("**%s**  \nN = %d", label, n))
+  })
+  setNames(labels, col_order)
 }
 
 # Render a transposed village gt table from a metric_rows tibble + data list
@@ -809,12 +809,14 @@ temporal_stats <- function() {
 )
 
 .completeness_column_labels <- function(jp) {
-  labels <- vapply(.completeness_age_cols, function(x) {
+  col_names <- vapply(.completeness_age_cols, `[[`, character(1), 1)
+  labels <- lapply(seq_along(.completeness_age_cols), function(i) {
+    x <- .completeness_age_cols[[i]]
     age_label <- x[[2]]
     sub <- if (is.na(age_label)) jp else jp[jp$age_group == age_label, , drop = FALSE]
-    sprintf("**%s**  \nN = %d", x[[1]], nrow(sub))
-  }, character(1))
-  setNames(as.list(labels), vapply(.completeness_age_cols, `[[`, character(1), 1))
+    md(sprintf("**%s**  \nN = %d", x[[1]], nrow(sub)))
+  })
+  setNames(labels, col_names)
 }
 
 .completeness_gt <- function(df, col_labels = NULL) {
