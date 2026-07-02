@@ -3725,29 +3725,95 @@ _AGE_PALETTE = ["#4C72B0","#DD8452","#55A868","#C44E52"]
 _AGE_ORDER   = ["<1 year","1–<5 years","5–12 years","13–18 years"]
 
 
-def _prep_stacked(
-    df: pd.DataFrame,
-    group_col: str,
-    group_order: list[str],
-    palette: list[str],
-    start_year: int = 2020,
-    end_year:   int = 2024,
-) -> tuple[pd.DataFrame, dict[str, str]]:
-    """Filter to study period and pivot to stacked-bar format."""
+_PRIMARY_ROUTE_LABEL = "Primary (village → MHC)"
+
+
+def _add_calendar_ym(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive calendar year/month from activation timestamps (fallback to journey_start_*)."""
     d = df.copy()
-    yr = pd.to_numeric(d.get("journey_start_year", pd.Series([], dtype=float)), errors="coerce")
-    d = d[yr.between(start_year, end_year, inclusive="both")]
-    color_map = {g: palette[i % len(palette)] for i, g in enumerate(group_order)}
-    return d, color_map
+    yr = pd.Series(pd.NA, index=d.index, dtype="object")
+    mo = pd.Series(pd.NA, index=d.index, dtype="object")
+    for col in ("medevac1_dts", "origin_datetime", "medevac1_date", "journey_start_date"):
+        if col not in d.columns:
+            continue
+        dt = pd.to_datetime(d[col], errors="coerce")
+        yr = yr.where(yr.notna(), dt.dt.year)
+        mo = mo.where(mo.notna(), dt.dt.month)
+    if "journey_start_year" in d.columns:
+        yr = yr.where(yr.notna(), pd.to_numeric(d["journey_start_year"], errors="coerce"))
+    if "journey_start_month" in d.columns:
+        mo = mo.where(mo.notna(), pd.to_numeric(d["journey_start_month"], errors="coerce"))
+    d["_cal_year"] = pd.to_numeric(yr, errors="coerce").astype("Int64")
+    d["_cal_month"] = pd.to_numeric(mo, errors="coerce").astype("Int64")
+    return d
+
+
+def _temporal_cohort_df(
+    df: pd.DataFrame | None = None,
+    start_year: int = 2020,
+    end_year: int = 2024,
+    primary_only: bool = True,
+) -> pd.DataFrame:
+    """
+    Journeys for Paper 1 temporal volume figures.
+
+    Defaults to the prepared primary cohort (village → MHC, no secondary transfer)
+    in the study window, using medevac1_dts-derived calendar dates when available.
+    """
+    if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+        d = load_journeys_primary_prepared()
+    else:
+        d = df.drop_duplicates(subset=["journey_id"]).copy()
+
+    if d.empty:
+        return d
+
+    d = _add_calendar_ym(d)
+    in_window = d["_cal_year"].between(start_year, end_year) & d["_cal_month"].between(1, 12)
+    d = d[in_window].copy()
+
+    if primary_only and "route_type" in d.columns:
+        d = d[d["route_type"] == _PRIMARY_ROUTE_LABEL].copy()
+
+    if "village_name" in d.columns:
+        d["_village"] = d["village_name"].astype(str).str.strip()
+        if "facility_1_name" in d.columns:
+            d["_village"] = d["_village"].where(d["_village"].ne(""), d["facility_1_name"])
+    elif "facility_1_name" in d.columns:
+        d["_village"] = d["facility_1_name"].astype(str).str.strip()
+    else:
+        d["_village"] = ""
+
+    age_col = "age_at_medevac_num" if "age_at_medevac_num" in d.columns else "age_at_medevac"
+    age = pd.to_numeric(d.get(age_col), errors="coerce")
+    d["_age_grp"] = age.map(_age_bucket_label)
+    return d
+
+
+def _stacked_color_map(group_order: list[str], palette: list[str]) -> dict[str, str]:
+    return {g: palette[i % len(palette)] for i, g in enumerate(group_order)}
 
 
 def _add_total_labels(ax: plt.Axes, totals: pd.Series, x_positions) -> None:
     """Place total-n labels above each bar."""
-    for xi, total in zip(x_positions, totals):
+    totals_list = [int(v) for v in totals]
+    max_total = max(totals_list) if totals_list else 0
+    label_pad = max(0.6, max_total * 0.04)
+    for xi, total in zip(x_positions, totals_list):
         ax.text(
-            xi, total + 0.3, str(int(total)),
+            xi, total + label_pad, str(total),
             ha="center", va="bottom", fontsize=9, fontweight="bold", color="#333333",
         )
+    ax.set_ylim(0, max(max_total * 1.18 + label_pad, 1))
+
+
+def _empty_temporal_figure(title: str, message: str = "No journeys in selected cohort.") -> plt.Figure:
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.axis("off")
+    ax.set_title(title, fontsize=12, fontweight="bold")
+    ax.text(0.5, 0.5, message, ha="center", va="center", transform=ax.transAxes)
+    fig.tight_layout()
+    return fig
 
 
 def plot_fig1a_monthly_by_village(
@@ -3756,20 +3822,25 @@ def plot_fig1a_monthly_by_village(
     end_year:   int = 2024,
 ) -> plt.Figure:
     """Figure 1A: Monthly medevac volume, stacked by village (2020–2024)."""
+    title = f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
+    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = d[d["_village"].astype(str).str.strip().ne("")].copy()
+    if d.empty:
+        return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
+
     village_order = (
-        df.groupby("facility_1_name")["journey_id"].count()
-        .sort_values(ascending=False).index.tolist()
+        d.groupby("_village")["journey_id"]
+        .count()
+        .sort_values(ascending=False)
+        .index.tolist()
     )
-    d, cmap = _prep_stacked(df, "facility_1_name", village_order, _VILLAGE_PALETTE, start_year, end_year)
+    cmap = _stacked_color_map(village_order, _VILLAGE_PALETTE)
     n_total = len(d)
 
-    mon = pd.to_numeric(d["journey_start_month"], errors="coerce")
-    d = d[mon.notna()].copy()
-    d["_month"] = mon[mon.notna()].astype(int)
-
     pivot = (
-        d.groupby(["_month", "facility_1_name"])
-        .size().unstack(fill_value=0)
+        d.groupby(["_cal_month", "_village"])
+        .size()
+        .unstack(fill_value=0)
         .reindex(columns=village_order, fill_value=0)
         .reindex(range(1, 13), fill_value=0)
     )
@@ -3805,18 +3876,19 @@ def plot_fig1b_monthly_by_age(
     end_year:   int = 2024,
 ) -> plt.Figure:
     """Figure 1B: Monthly medevac volume, stacked by age group (2020–2024)."""
-    d, cmap = _prep_stacked(df, "_age_grp", _AGE_ORDER, _AGE_PALETTE, start_year, end_year)
+    title = f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
+    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = d[d["_age_grp"].notna()].copy()
+    if d.empty:
+        return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
+
+    cmap = _stacked_color_map(_AGE_ORDER, _AGE_PALETTE)
     n_total = len(d)
 
-    age = pd.to_numeric(d["age_at_medevac"], errors="coerce")
-    d["_age_grp"] = age.map(_age_bucket_label)
-    mon = pd.to_numeric(d["journey_start_month"], errors="coerce")
-    d = d[mon.notna() & d["_age_grp"].notna()].copy()
-    d["_month"] = mon[d.index].astype(int)
-
     pivot = (
-        d.groupby(["_month", "_age_grp"])
-        .size().unstack(fill_value=0)
+        d.groupby(["_cal_month", "_age_grp"])
+        .size()
+        .unstack(fill_value=0)
         .reindex(columns=_AGE_ORDER, fill_value=0)
         .reindex(range(1, 13), fill_value=0)
     )
@@ -3852,21 +3924,26 @@ def plot_fig2a_annual_by_village(
     end_year:   int = 2024,
 ) -> plt.Figure:
     """Figure 2A: Annual medevac volume, stacked by village (2020–2024)."""
-    village_order = (
-        df.groupby("facility_1_name")["journey_id"].count()
-        .sort_values(ascending=False).index.tolist()
-    )
-    d, cmap = _prep_stacked(df, "facility_1_name", village_order, _VILLAGE_PALETTE, start_year, end_year)
-    n_total = len(d)
+    title = f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
+    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = d[d["_village"].astype(str).str.strip().ne("")].copy()
+    if d.empty:
+        return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
 
-    yr = pd.to_numeric(d["journey_start_year"], errors="coerce")
-    d = d[yr.notna()].copy()
-    d["_year"] = yr[yr.notna()].astype(int)
+    village_order = (
+        d.groupby("_village")["journey_id"]
+        .count()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+    cmap = _stacked_color_map(village_order, _VILLAGE_PALETTE)
+    n_total = len(d)
 
     years = list(range(start_year, end_year + 1))
     pivot = (
-        d.groupby(["_year", "facility_1_name"])
-        .size().unstack(fill_value=0)
+        d.groupby(["_cal_year", "_village"])
+        .size()
+        .unstack(fill_value=0)
         .reindex(columns=village_order, fill_value=0)
         .reindex(years, fill_value=0)
     )
@@ -3901,19 +3978,20 @@ def plot_fig2b_annual_by_age(
     end_year:   int = 2024,
 ) -> plt.Figure:
     """Figure 2B: Annual medevac volume, stacked by age group (2020–2024)."""
-    d, cmap = _prep_stacked(df, "_age_grp", _AGE_ORDER, _AGE_PALETTE, start_year, end_year)
-    n_total = len(d)
+    title = f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
+    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = d[d["_age_grp"].notna()].copy()
+    if d.empty:
+        return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
 
-    age = pd.to_numeric(d["age_at_medevac"], errors="coerce")
-    d["_age_grp"] = age.map(_age_bucket_label)
-    yr = pd.to_numeric(d["journey_start_year"], errors="coerce")
-    d = d[yr.notna() & d["_age_grp"].notna()].copy()
-    d["_year"] = yr[d.index].astype(int)
+    cmap = _stacked_color_map(_AGE_ORDER, _AGE_PALETTE)
+    n_total = len(d)
 
     years = list(range(start_year, end_year + 1))
     pivot = (
-        d.groupby(["_year", "_age_grp"])
-        .size().unstack(fill_value=0)
+        d.groupby(["_cal_year", "_age_grp"])
+        .size()
+        .unstack(fill_value=0)
         .reindex(columns=_AGE_ORDER, fill_value=0)
         .reindex(years, fill_value=0)
     )
@@ -4255,6 +4333,17 @@ def save_all_figures(df: pd.DataFrame) -> None:
 
     jp = load_journeys_primary_prepared()
     if not jp.empty:
+        temporal_specs = [
+            ("fig1a_monthly_by_village.png", plot_fig1a_monthly_by_village(jp)),
+            ("fig1b_monthly_by_age.png", plot_fig1b_monthly_by_age(jp)),
+            ("fig2a_annual_by_village.png", plot_fig2a_annual_by_village(jp)),
+            ("fig2b_annual_by_age.png", plot_fig2b_annual_by_age(jp)),
+        ]
+        for name, fig in temporal_specs:
+            fig.savefig(OUT_FIGS / name, bbox_inches="tight", pad_inches=0.05)
+            plt.close(fig)
+            print(f"Wrote {OUT_FIGS / name}")
+
         fig_sankey = plot_fig4_sankey_transport_routes(jp)
         fig_sankey.savefig(
             OUT_FIGS / "fig4_sankey_transport_routes.png",

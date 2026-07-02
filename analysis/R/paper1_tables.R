@@ -769,8 +769,13 @@ tbl5_timing_minutes <- function() {
 # ── Temporal pattern stats (inline narrative) ─────────────────────────────────
 
 temporal_stats <- function() {
-  jp <- get_journeys_primary()
-  yr <- jp$journey_start_year[jp$journey_start_year >= 2020L & jp$journey_start_year <= 2024L]
+  jp <- get_journeys_primary() |>
+    filter(
+      route_type == "Primary (village \u2192 MHC)",
+      journey_start_year >= 2020L,
+      journey_start_year <= 2024L
+    )
+  yr <- jp$journey_start_year
   mo <- jp$journey_start_month
   mo <- mo[!is.na(mo) & mo >= 1L & mo <= 12L]
 
