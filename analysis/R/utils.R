@@ -261,6 +261,22 @@ fmt_n_pct <- function(n, denom, digits = 1) {
   sprintf("%d (%s%%)", n, formatC(100 * n / denom, digits = digits, format = "f"))
 }
 
+#' Format % (n) — matches Paper 1 gtsummary tables (e.g. Table 3)
+fmt_pct_n <- function(n, denom, digits = 1) {
+  n <- as.integer(n)
+  denom <- as.integer(denom)
+  out <- rep("\u2014", length(n))
+  ok <- !is.na(n) & !is.na(denom) & denom > 0L
+  if (any(ok)) {
+    out[ok] <- sprintf(
+      "%s%% (%d)",
+      formatC(100 * n[ok] / denom[ok], digits = digits, format = "f"),
+      n[ok]
+    )
+  }
+  out
+}
+
 # ── gtsummary theme ────────────────────────────────────────────────────────────
 
 #' Apply a consistent clinical research theme to gtsummary tables

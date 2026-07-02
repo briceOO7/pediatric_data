@@ -65,7 +65,7 @@ and destination:
 
 ```{r}
 #| label: tbl-t1
-#| tbl-cap: "Air ambulance characteristics by village. Sorted by utilization rate (highest to lowest). Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
+#| tbl-cap: "Table 1. Air ambulance characteristics by village. Sorted by utilization rate (highest to lowest). Transport counts are % (n) of patients within each village column. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
 tbl1_village_characteristics()
 ```
 
@@ -80,7 +80,7 @@ fig1_choropleth_map()
 
 ```{r}
 #| label: tbl-t2
-#| tbl-cap: "Air ambulance patient characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column."
+#| tbl-cap: "Air ambulance patient characteristics by age group (n = 309 village-originating journeys). % (n) within each age-group column."
 tbl2_patient_characteristics()
 ```
 
@@ -88,21 +88,24 @@ tbl2_patient_characteristics()
 
 ### Route Typology
 
-Transports were classified by facility sequence. **Primary only** journeys
-(village → MHC, no further transfer) accounted for the large majority
-(n = `r cc$n_primary_only`), reflecting MHC's role as the regional
-stabilization hub. **Secondary** transfers (village → MHC → tertiary facility)
-represented the escalation pathway for patients whose acuity exceeded MHC's
-capabilities (n = `r cc$n_secondary`); of these, 30 proceeded to ANMC, 2 to
-Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. One
-additional journey was classified as a **direct tertiary** transport
-(village → ANMC, bypassing MHC entirely); given the single case, further
-comparative analysis of this route type is deferred. @tbl-t3 compares patient
-age, sex, and chief complaint between primary and secondary route groups.
+Transports were classified by facility sequence. Overall,
+`r cc$n_managed_at_mhc` of `r cc$n_village_to_mhc` village-originating transfers
+to MHC were managed definitively at the regional hospital without further air
+evacuation; only a minority (n = `r cc$n_secondary`) were transferred onward to
+ANMC or other tertiary facilities. **Primary only** journeys (village → MHC, no
+further transfer) accounted for this pattern (n = `r cc$n_primary_only`),
+reflecting MHC's role as the regional stabilization hub. **Secondary** transfers
+(village → MHC → tertiary facility) represented the escalation pathway for
+patients whose acuity exceeded MHC's capabilities; of these, 30 proceeded to ANMC, 2 to
+Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. Only
+`r cc$n_direct_tertiary` of `r cc$n_journeys` journeys were routed directly from
+the village to ANMC, bypassing MHC; this route type was excluded from comparative
+analysis in @tbl-t3 due to small n. @tbl-t3 compares patient age, sex, and chief
+complaint between primary and secondary route groups.
 
 ```{r}
 #| label: tbl-t3
-#| tbl-cap: "Patient characteristics by transport route type. p-values: Kruskal-Wallis (age); chi-square (categorical)."
+#| tbl-cap: "Table 3. Patient characteristics by transport route type. % (n) within each route column. p-values: Wilcoxon rank-sum (age); chi-square (categorical)."
 tbl3_route_comparison()
 ```
 
@@ -170,7 +173,7 @@ across a geographically dispersed Arctic region.
 
 ```{r}
 #| label: tbl-t4
-#| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Times in minutes: Median (IQR); Range."
+#| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Complete timing row is % (n). Other times: Median (IQR); Range."
 tbl4_timing_by_village()
 ```
 
@@ -196,7 +199,7 @@ for each pre-transport vital sign, overall and by age group.
 
 ```{r}
 #| label: tbl-completeness
-#| tbl-cap: "Clinical data completeness (n = 309 village-originating journeys). Timing data and complete PEWS data report n (%) with sufficient data; vital-sign rows (including GCS/AVPU for PEWS consciousness) report missing n (%)."
+#| tbl-cap: "Table 5. Clinical data completeness (n = 309 village-originating journeys). Timing data and complete PEWS data report % (n) with sufficient data; vital-sign rows (including GCS/AVPU for PEWS consciousness) report missing % (n)."
 tbl_completeness_vitals_pews()
 ```
 

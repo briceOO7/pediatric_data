@@ -67,6 +67,17 @@ cohort_counts <- function() {
   n_legs_mhc_anmc      <- sum(lb$n_legs[is_mhc_from &  is_anmc_to])
   n_legs_mhc_other     <- sum(lb$n_legs[is_mhc_from & !is_anmc_to])
 
+  n_primary_only    <- sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE)
+  n_secondary       <- sum(jp$route_type == "Secondary transfer", na.rm = TRUE)
+  n_direct_tertiary <- sum(grepl("tertiary", jp$route_type, ignore.case = TRUE), na.rm = TRUE)
+  n_village_to_mhc  <- n_primary_only + n_secondary
+  n_managed_at_mhc  <- n_primary_only
+  pct_managed_at_mhc <- if (n_village_to_mhc > 0) {
+    round(100 * n_managed_at_mhc / n_village_to_mhc)
+  } else {
+    NA_integer_
+  }
+
   list(
     # Primary cohort
     n_journeys           = n_distinct(jp$journey_id),
@@ -76,8 +87,12 @@ cohort_counts <- function() {
     n_db_total           = as.integer(all_row$n_journeys),
     n_mhc_presenting     = as.integer(excl_row$n_journeys),
     # Route breakdown within cohort
-    n_primary_only       = sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE),
-    n_secondary          = sum(jp$route_type == "Secondary transfer", na.rm = TRUE),
+    n_primary_only       = n_primary_only,
+    n_secondary          = n_secondary,
+    n_direct_tertiary    = n_direct_tertiary,
+    n_village_to_mhc   = n_village_to_mhc,
+    n_managed_at_mhc     = n_managed_at_mhc,
+    pct_managed_at_mhc   = pct_managed_at_mhc,
     # Flight leg breakdown (village-originating journeys only)
     n_legs_total         = sum(lb$n_legs),
     n_legs_village_mhc   = n_legs_village_mhc,
@@ -166,9 +181,9 @@ fig_prisma_diagram <- function() {
     n2  <- sum(df$n_journeys_primary == 2,  na.rm = TRUE)
     n3p <- sum(df$n_journeys_primary >= 3,  na.rm = TRUE)
     tibble(
-      t1_str  = sprintf("%d (%.1f%%)", n1,  100 * n1  / total),
-      t2_str  = sprintf("%d (%.1f%%)", n2,  100 * n2  / total),
-      t3p_str = sprintf("%d (%.1f%%)", n3p, 100 * n3p / total)
+      t1_str  = fmt_pct_n(n1,  total),
+      t2_str  = fmt_pct_n(n2,  total),
+      t3p_str = fmt_pct_n(n3p, total)
     )
   }
   transport_fmt <- bind_rows(
@@ -182,8 +197,8 @@ fig_prisma_diagram <- function() {
       dist_str      = ifelse(!is.na(distance_miles), sprintf("%.1f", distance_miles), "\u2014"),
     total_ata_str = .fmt_mir(total_ata_median, total_ata_q1, total_ata_q3,
                               total_ata_lo, total_ata_hi),
-    pct_act_str   = ifelse(!is.na(pct_complete_timing),
-                            sprintf("%.1f%% (n=%d)", pct_complete_timing, n_complete_timing),
+    pct_act_str   = ifelse(!is.na(n_complete_timing) & !is.na(n_journeys) & n_journeys > 0,
+                            fmt_pct_n(n_complete_timing, n_journeys),
                             "\u2014"),
     decision_str  = .fmt_mir(decision_median, decision_q1, decision_q3,
                               decision_lo, decision_hi),
@@ -314,7 +329,7 @@ tbl1_village_characteristics <- function() {
   metric_rows <- tribble(
     ~metric_id,          ~Metric,
     "pediatric_pop",     "Pediatric population (under 18)",
-    "mean_yr_str",       "Mean journeys per year (SD)",
+    "mean_yr_str",       "Journeys per year, mean (SD)",
     "n_patients",        "Total patients",
     "_header_transport", "Air ambulance transports per patient",
     "t1_str",            "  1 transport",
@@ -415,11 +430,16 @@ tbl2_patient_characteristics <- function() {
     )
   }
 
-  # Insurance categories (Commercial / Government / IHS / Self-Pay / Other)
+  # Insurance categories: overall frequency high → low; Other always last
   if ("insurance_cat" %in% names(jp)) {
+    ins_order <- jp |>
+      filter(!is.na(insurance_cat)) |>
+      count(insurance_cat, sort = TRUE) |>
+      pull(insurance_cat)
+    ins_order <- c(setdiff(ins_order, "Other"), intersect("Other", ins_order))
+
     jp <- jp |> mutate(
-      insurance_cat = factor(insurance_cat,
-        levels = c("Commercial", "Government", "IHS", "Self-Pay", "Other"))
+      insurance_cat = factor(insurance_cat, levels = ins_order)
     )
   }
 
@@ -468,18 +488,18 @@ tbl2_patient_characteristics <- function() {
       label   = active_labels,
       statistic = list(
         age_at_medevac_num ~ "{median} ({p25}\u2013{p75})",
-        all_categorical()  ~ "{n} ({p}%)"
+        all_categorical()  ~ "{p}% ({n})"
       ),
       digits = list(
         age_at_medevac_num ~ 1,
-        all_categorical()  ~ c(0, 1)
+        all_categorical()  ~ c(1, 0)
       ),
       missing = "no"
     ) |>
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). n (%) within each age-group column.") |>
+    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). % (n) within each age-group column.") |>
     as_gt() |>
     .paper1_gt_theme()
 }
@@ -563,6 +583,18 @@ tbl3_route_comparison <- function() {
     sapply(all_labels, function(x) as.character(x[[2]]) %in% include_vars)
   ]
 
+  cat_test_vars <- intersect(
+    c("age_group", "female", "primary_cedis_custom_group"),
+    include_vars
+  )
+  test_spec <- lapply(
+    cat_test_vars,
+    function(v) stats::as.formula(paste0(v, ' ~ "chisq.test"'))
+  )
+  if ("age_at_medevac_num" %in% include_vars) {
+    test_spec <- c(list(age_at_medevac_num ~ "wilcox.test"), test_spec)
+  }
+
   village_journeys |>
     select(route_label, all_of(include_vars)) |>
     tbl_summary(
@@ -576,18 +608,16 @@ tbl3_route_comparison <- function() {
       digits  = list(all_categorical() ~ c(1, 0)),
       missing = "no"
     ) |>
-    add_p(
-      test = c(
-        list(age_at_medevac_num ~ "wilcox.test"),
-        lapply(
-          intersect(c("age_group", "female", "primary_cedis_custom_group"), include_vars),
-          function(v) as.formula(paste0(v, ' ~ "chisq.test"'))
-        )
-      )
-    ) |>
     add_overall(last = FALSE) |>
+    add_p(
+      test = test_spec,
+      pvalue_fun = ~style_pvalue(.x, digits = 3)
+    ) |>
     bold_labels() |>
-    modify_header(label ~ "**Characteristic**") |>
+    modify_header(
+      label   ~ "**Characteristic**",
+      p.value ~ "**p-value**"
+    ) |>
     modify_caption(paste0(
       "**Table 3.** Patient characteristics by transport route type ",
       "(n\u00a0=\u00a0", nrow(village_journeys), " journeys). ",
@@ -867,7 +897,7 @@ tbl_completeness_vitals_pews <- function() {
     if (nd == 0) return("—")
     if (!"time_to_activate_quality" %in% names(sub)) return("— (not available)")
     n_ok <- sum(sub$time_to_activate_quality == "real", na.rm = TRUE)
-    fmt_n_pct(n_ok, nd)
+    fmt_pct_n(n_ok, nd)
   }
 
   first <- first_cohort_patients(jp)
@@ -896,7 +926,7 @@ tbl_completeness_vitals_pews <- function() {
     nd <- length(mrns)
     if (nd == 0) return("—")
     if (is.null(vitals$gcs_col)) return("— (missing GCS)")
-    fmt_n_pct(length(intersect(mrns, ready_mrns)), nd)
+    fmt_pct_n(length(intersect(mrns, ready_mrns)), nd)
   }
 
   miss_cell <- function(mrns, vital_label) {
@@ -906,7 +936,7 @@ tbl_completeness_vitals_pews <- function() {
     if (vital_label == "GCS/AVPU" && is.null(vitals$gcs_col)) return("— (not available)")
     if (is.null(present[[vital_label]])) return("— (not available)")
     n_miss <- nd - length(intersect(mrns, present[[vital_label]]))
-    fmt_n_pct(n_miss, nd)
+    fmt_pct_n(n_miss, nd)
   }
 
   row_from_values <- function(measure, values) {
