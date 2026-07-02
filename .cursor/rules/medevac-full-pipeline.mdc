@@ -17,4 +17,6 @@ python3 scripts/run_full_pipeline.py
 
 **Outputs to review:** `_quarto_output/medevac_report.html` (open in browser), plus `outputs/tables/*.csv` and `outputs/figures/*.png`.
 
+**Do not commit** `outputs/figures/` or `outputs/data/` — they are gitignored and regenerated locally (synthetic vs PHI). Never use `git add -f` on pipeline PNGs.
+
 When the user asks to “see the data” or refresh the report, prefer this command unless they specify otherwise.
