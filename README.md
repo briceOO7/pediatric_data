@@ -116,8 +116,19 @@ python scripts/run_full_pipeline.py --skip-analysis
 **Never commit:**
 - `data/` — PHI patient data
 - `outputs/data/` — generated artifacts (reproducible from pipeline)
-- `outputs/figures/` — generated artifacts
+- `outputs/figures/*.png` — generated artifacts (see `outputs/figures/README.md`)
 - `renv/library/` — binary packages (machine-specific)
+
+### Syncing code on PHI (without PNG pull conflicts)
+
+Figure PNGs used to be tracked in git; they are **not** anymore. If `git pull` stalls or conflicts on `outputs/figures/`, use:
+
+```bash
+bash scripts/git_pull.sh
+python3 scripts/run_full_pipeline.py
+```
+
+Or manually: `git fetch origin && git restore outputs/figures && git merge --ff-only origin/main`
 
 **Always commit:**
 - `renv.lock` — R package versions
