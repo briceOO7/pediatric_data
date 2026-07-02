@@ -423,19 +423,19 @@ tbl2_patient_characteristics <- function() {
     )
   }
 
-  # Chief complaint: keep top 10 by overall frequency, sorted high → low
+  # Chief complaint: groups with ≥10 journeys overall, sorted high → low
   if ("primary_cedis_custom_group" %in% names(jp)) {
-    top10_cc <- jp |>
+    reported_cc <- jp |>
       filter(!is.na(primary_cedis_custom_group)) |>
       count(primary_cedis_custom_group, sort = TRUE) |>
-      slice_head(n = 10) |>
+      filter(n >= 10) |>
       pull(primary_cedis_custom_group)
 
     jp <- jp |> mutate(
       primary_cedis_custom_group = factor(
-        ifelse(primary_cedis_custom_group %in% top10_cc,
+        ifelse(primary_cedis_custom_group %in% reported_cc,
                primary_cedis_custom_group, NA_character_),
-        levels = top10_cc
+        levels = reported_cc
       )
     )
   }
@@ -528,11 +528,11 @@ tbl3_route_comparison <- function() {
     )
   }
 
-  # Top 10 chief complaints by overall frequency, sorted high → low
-  top10_cc <- village_journeys |>
+  # Chief complaints with ≥10 journeys overall, sorted high → low
+  reported_cc <- village_journeys |>
     filter(!is.na(primary_cedis_custom_group)) |>
     count(primary_cedis_custom_group, sort = TRUE) |>
-    slice_head(n = 10) |>
+    filter(n >= 10) |>
     pull(primary_cedis_custom_group)
 
   village_journeys <- village_journeys |>
@@ -540,9 +540,9 @@ tbl3_route_comparison <- function() {
       age_group = factor(age_group,
         levels = c("<1 yr", "1\u2013<5 yr", "5\u201312 yr", "13\u201318 yr")),
       primary_cedis_custom_group = factor(
-        ifelse(primary_cedis_custom_group %in% top10_cc,
+        ifelse(primary_cedis_custom_group %in% reported_cc,
                primary_cedis_custom_group, NA_character_),
-        levels = top10_cc
+        levels = reported_cc
       )
     )
 
@@ -771,7 +771,6 @@ tbl5_timing_minutes <- function() {
 temporal_stats <- function() {
   jp <- get_journeys_primary() |>
     filter(
-      route_type == "Primary (village \u2192 MHC)",
       journey_start_year >= 2020L,
       journey_start_year <= 2024L
     )

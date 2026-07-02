@@ -126,34 +126,33 @@ presentations, consistent with the post-pandemic "tripledemic" of RSV,
 influenza, and SARS-CoV-2 affecting Arctic pediatric populations.
 
 @fig-monthly-village and @fig-monthly-age present monthly volume by village
-and by age group for primary transfers only (village → MHC, no secondary
-escalation); @fig-annual-village and @fig-annual-age present annual volume by
-the same stratifications.
+and by age group for all village-originating journeys; @fig-annual-village and
+@fig-annual-age present annual volume by the same stratifications.
 
 ```{r}
 #| label: fig-monthly-village
-#| fig-cap: "Figure 3a. Monthly primary air ambulance journeys by village of origin (2020–2024; village → MHC only)."
+#| fig-cap: "Figure 3a. Monthly pediatric air ambulance journeys by village of origin (2020–2024; n = 309 village-originating journeys)."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1a_monthly_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-monthly-age
-#| fig-cap: "Figure 3b. Monthly primary air ambulance journeys by age group (2020–2024; village → MHC only)."
+#| fig-cap: "Figure 3b. Monthly pediatric air ambulance journeys by age group (2020–2024; n = 309 village-originating journeys)."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1b_monthly_by_age.png"))
 ```
 
 ```{r}
 #| label: fig-annual-village
-#| fig-cap: "Figure 4a. Annual primary air ambulance journeys by village of origin (2020–2024; village → MHC only)."
+#| fig-cap: "Figure 4a. Annual pediatric air ambulance journeys by village of origin (2020–2024; n = 309 village-originating journeys)."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig2a_annual_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-annual-age
-#| fig-cap: "Figure 4b. Annual primary air ambulance journeys by age group (2020–2024; village → MHC only)."
+#| fig-cap: "Figure 4b. Annual pediatric air ambulance journeys by age group (2020–2024; n = 309 village-originating journeys)."
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 ```

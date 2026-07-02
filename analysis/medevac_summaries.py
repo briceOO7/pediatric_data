@@ -1180,16 +1180,15 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
     bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
     n_overall_cc = len(cc)
 
-    top20 = (
+    reported_cc = (
         valid_cc.groupby("cc_definitive_custom_grouping", dropna=False)
         .size()
         .sort_values(ascending=False)
-        .head(10)
-        .index.tolist()
     )
+    reported_cc = reported_cc[reported_cc >= 10].index.tolist()
 
     cc_rows = [["Chief Complaints (CEDIS):"] + [""] * (len(col_order) - 1)]
-    for grp in top20:
+    for grp in reported_cc:
         n_ov = int((valid_cc["cc_definitive_custom_grouping"] == grp).sum())
         row = [f"  {grp}", fmt_pct_n(n_ov, n_overall_cc)]
         for _, bk in AGE_GROUPS:
@@ -2756,8 +2755,16 @@ def _chief_complaint_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     return base
 
 
-def _top10_chief_complaints(cc_df: pd.DataFrame, denominator_journeys: int) -> pd.DataFrame:
-    """Top 10 CEDIS complaints; output rank, Chief Complaint, n(%)."""
+def _top10_chief_complaints(
+    cc_df: pd.DataFrame,
+    denominator_journeys: int,
+    min_overall: int | None = None,
+) -> pd.DataFrame:
+    """CEDIS complaints; output rank, Chief Complaint, n(%).
+
+    If min_overall is set, include all complaints with n >= min_overall (sorted by n).
+    Otherwise return the top 10 by frequency.
+    """
     valid = cc_df[
         cc_df["cedis_code"].notna()
         & (cc_df["cedis_code"].astype(str).str.strip() != "")
@@ -2794,8 +2801,11 @@ def _top10_chief_complaints(cc_df: pd.DataFrame, denominator_journeys: int) -> p
         .size()
         .reset_index(name="n")
         .sort_values(["n", "cedis_code", "cedis_complaint"], ascending=[False, True, True])
-        .head(10)
     )
+    if min_overall is not None:
+        top = top[top["n"] >= min_overall]
+    else:
+        top = top.head(10)
     rows = []
     for i, r in enumerate(top.itertuples(index=False), 1):
         n = int(r.n)
@@ -2911,16 +2921,17 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
     cc_j = cc_j.merge(j[["journey_id","_grp"]], on="journey_id", how="inner")
     valid_cc = cc_j[cc_j["cc_definitive_custom_grouping"] != "Undefined"]
 
-    top10_cc = (
+    reported_cc = (
         valid_cc.groupby("cc_definitive_custom_grouping")
-        .size().sort_values(ascending=False).head(10).index.tolist()
+        .size().sort_values(ascending=False)
     )
+    reported_cc = reported_cc[reported_cc >= 10].index.tolist()
 
-    # Chi-square across all top-10 categories
+    # Chi-square across reported categories (≥10 overall)
     ct_cc = pd.DataFrame(
         {g: valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"].value_counts()
          for g in groups_order}
-    ).fillna(0).reindex(top10_cc, fill_value=0)
+    ).fillna(0).reindex(reported_cc, fill_value=0)
     try:
         _, p_cc, *_ = _stats.chi2_contingency(ct_cc.values)
         p_cc_str = f"{p_cc:.3f}" if p_cc >= 0.001 else "<0.001"
@@ -2928,7 +2939,7 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
         p_cc_str = "—"
 
     rows.append(["Chief Complaint (CEDIS), n (%)"] + [""] * len(groups_order) + [p_cc_str])
-    for cc_grp in top10_cc:
+    for cc_grp in reported_cc:
         cells = [fmt_pct_n(
             int((valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"] == cc_grp).sum()),
             ns[g]
@@ -2942,12 +2953,12 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
 
 def build_table3_cedis_chief_complaints(
     df: pd.DataFrame,
-    top_n: int = 10,
+    min_overall: int = 10,
 ) -> pd.DataFrame:
     """
-    Table 3: Top-N CEDIS chief complaints by age group (wide format).
+    Table 3: CEDIS chief complaints by age group (wide format).
 
-    Rows = top_n complaints ranked by overall frequency.
+    Rows = complaints with overall frequency ≥ min_overall, sorted high → low.
     Columns = Chief Complaint | Overall | <1 year | 1 to <5 years | 5–12 years | 13–18 years
     Each cell = n (%) where % is out of that column's journey total.
 
@@ -2969,14 +2980,13 @@ def build_table3_cedis_chief_complaints(
         & (cc["cedis_code"].astype(str).str.strip() != "")
     ].copy()
 
-    # Determine top_n complaints by overall frequency
-    top_complaints = (
+    # Complaints with ≥ min_overall journeys overall
+    overall_counts = (
         valid.groupby("cedis_complaint", dropna=False)
         .size()
         .sort_values(ascending=False)
-        .head(top_n)
-        .index.tolist()
     )
+    top_complaints = overall_counts[overall_counts >= min_overall].index.tolist()
 
     def _cell(sub: pd.DataFrame, complaint: str, denom: int) -> str:
         n = int((sub["cedis_complaint"] == complaint).sum())
@@ -3001,9 +3011,9 @@ def build_table3_cedis_chief_complaints(
 
 
 def build_table3_chief_complaints_overall(df: pd.DataFrame) -> pd.DataFrame:
-    """Top 10 village CEDIS chief complaints across village→MHC journeys."""
+    """Village CEDIS chief complaints with ≥10 journeys overall."""
     cc = _chief_complaint_per_journey(df)
-    return _top10_chief_complaints(cc, len(cc))
+    return _top10_chief_complaints(cc, len(cc), min_overall=10)
 
 
 def build_table3_chief_complaints_by_age(
@@ -3752,13 +3762,14 @@ def _temporal_cohort_df(
     df: pd.DataFrame | None = None,
     start_year: int = 2020,
     end_year: int = 2024,
-    primary_only: bool = True,
+    primary_only: bool = False,
 ) -> pd.DataFrame:
     """
     Journeys for Paper 1 temporal volume figures.
 
-    Defaults to the prepared primary cohort (village → MHC, no secondary transfer)
-    in the study window, using medevac1_dts-derived calendar dates when available.
+    Defaults to all village-originating journeys (n ≈ 309) in the study window,
+    using medevac1_dts-derived calendar dates when available.
+    Set primary_only=True to restrict to route_type Primary (village → MHC) only.
     """
     if df is None or (isinstance(df, pd.DataFrame) and df.empty):
         d = load_journeys_primary_prepared()
@@ -3823,7 +3834,7 @@ def plot_fig1a_monthly_by_village(
 ) -> plt.Figure:
     """Figure 1A: Monthly medevac volume, stacked by village (2020–2024)."""
     title = f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
-    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = _temporal_cohort_df(df, start_year, end_year)
     d = d[d["_village"].astype(str).str.strip().ne("")].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
@@ -3877,7 +3888,7 @@ def plot_fig1b_monthly_by_age(
 ) -> plt.Figure:
     """Figure 1B: Monthly medevac volume, stacked by age group (2020–2024)."""
     title = f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
-    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = _temporal_cohort_df(df, start_year, end_year)
     d = d[d["_age_grp"].notna()].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
@@ -3925,7 +3936,7 @@ def plot_fig2a_annual_by_village(
 ) -> plt.Figure:
     """Figure 2A: Annual medevac volume, stacked by village (2020–2024)."""
     title = f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
-    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = _temporal_cohort_df(df, start_year, end_year)
     d = d[d["_village"].astype(str).str.strip().ne("")].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
@@ -3979,7 +3990,7 @@ def plot_fig2b_annual_by_age(
 ) -> plt.Figure:
     """Figure 2B: Annual medevac volume, stacked by age group (2020–2024)."""
     title = f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
-    d = _temporal_cohort_df(df, start_year, end_year, primary_only=True)
+    d = _temporal_cohort_df(df, start_year, end_year)
     d = d[d["_age_grp"].notna()].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
@@ -4131,12 +4142,13 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
     # ── Colour palettes (village blues → MHC green → tertiary warm) ───────────
     blues = cm.get_cmap("Blues")
     nv = len(villages)
+    # Villages sorted high→low volume: darkest blue (Buckland) → lightest (Kobuk)
     vcolor: dict[str, str] = {
         v: mcolors.to_hex(
             blues(
                 _ROUTE_VILLAGE_CMAP_LO
                 + (_ROUTE_VILLAGE_CMAP_HI - _ROUTE_VILLAGE_CMAP_LO)
-                * i
+                * (nv - 1 - i)
                 / max(nv - 1, 1)
             )
         )
