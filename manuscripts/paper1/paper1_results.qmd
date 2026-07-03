@@ -23,6 +23,7 @@ engine: knitr
 ```{r}
 #| include: false
 library(here)
+library(broom)
 source(here("analysis", "R", "paper1_tables.R"))
 source(here("analysis", "R", "paper1_figures.R"))
 
@@ -100,7 +101,7 @@ and secondary route groups.
 
 ```{r}
 #| label: tbl-t3
-#| tbl-cap: "Table 3. Patient characteristics by transport route type. % (n) within each route column. p-values: Wilcoxon rank-sum (age); chi-square (categorical)."
+#| tbl-cap: "Table 3. Patient characteristics by transport route type."
 tbl3_route_comparison()
 ```
 

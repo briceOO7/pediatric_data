@@ -532,11 +532,6 @@ tbl3_route_comparison <- function() {
     ) |>
     filter(!is.na(route_label))
 
-  n_excluded_dt <- ja |>
-    filter(!is.na(village_name), village_name != "",
-           grepl("tertiary", route_type, ignore.case = TRUE)) |>
-    nrow()
-
   if (nrow(village_journeys) == 0) {
     return(gt(tibble(Note = "No data available.")) |> .paper1_gt_theme())
   }
@@ -624,17 +619,25 @@ tbl3_route_comparison <- function() {
     ) |>
     modify_caption(paste0(
       "**Table 3.** Patient characteristics by transport route type ",
-      "(n\u00a0=\u00a0", nrow(village_journeys), " journeys). ",
-      "Primary only = village \u2192 MHC, no further transfer. ",
-      "Secondary = village \u2192 MHC \u2192 ANMC or outside facility. ",
-      if (n_excluded_dt > 0) paste0(
-        "\u2020\u00a0", n_excluded_dt,
-        " direct tertiary journey(s) (village \u2192 ANMC, bypassing MHC) ",
-        "excluded from comparative analysis due to small n. "
-      ) else "",
-      "p-values: Wilcoxon rank-sum (age); chi-square (categorical)."
+      "(n\u00a0=\u00a0", nrow(village_journeys), " journeys)."
     )) |>
     as_gt() |>
+    tab_footnote(
+      footnote = "Primary only: village \u2192 MHC, no further transfer.",
+      locations = cells_column_labels(columns = stat_1)
+    ) |>
+    tab_footnote(
+      footnote = "Secondary: village \u2192 MHC \u2192 ANMC or outside facility.",
+      locations = cells_column_labels(columns = stat_2)
+    ) |>
+    tab_footnote(
+      footnote = "% (n) within each route column.",
+      locations = cells_column_labels(columns = label)
+    ) |>
+    tab_footnote(
+      footnote = "p-values: Wilcoxon rank-sum (age); chi-square (categorical).",
+      locations = cells_column_labels(columns = p.value)
+    ) |>
     .paper1_gt_theme()
 }
 
