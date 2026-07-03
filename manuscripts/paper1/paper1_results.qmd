@@ -23,7 +23,6 @@ engine: knitr
 ```{r}
 #| include: false
 library(here)
-library(broom)
 source(here("analysis", "R", "paper1_tables.R"))
 source(here("analysis", "R", "paper1_figures.R"))
 

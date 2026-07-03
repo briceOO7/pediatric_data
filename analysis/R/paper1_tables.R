@@ -582,18 +582,6 @@ tbl3_route_comparison <- function() {
     sapply(all_labels, function(x) as.character(x[[2]]) %in% include_vars)
   ]
 
-  cat_test_vars <- intersect(
-    c("age_group", "female", "primary_cedis_custom_group"),
-    include_vars
-  )
-  test_spec <- lapply(
-    cat_test_vars,
-    function(v) stats::as.formula(paste0(v, ' ~ "chisq.test"'))
-  )
-  if ("age_at_medevac_num" %in% include_vars) {
-    test_spec <- c(list(age_at_medevac_num ~ "wilcox.test"), test_spec)
-  }
-
   village_journeys |>
     select(route_label, all_of(include_vars)) |>
     tbl_summary(
@@ -608,15 +596,8 @@ tbl3_route_comparison <- function() {
       missing = "no"
     ) |>
     add_overall(last = FALSE) |>
-    add_p(
-      test = test_spec,
-      pvalue_fun = ~style_pvalue(.x, digits = 3)
-    ) |>
     bold_labels() |>
-    modify_header(
-      label   ~ "**Characteristic**",
-      p.value ~ "**p-value**"
-    ) |>
+    modify_header(label ~ "**Characteristic**") |>
     modify_caption(paste0(
       "**Table 3.** Patient characteristics by transport route type ",
       "(n\u00a0=\u00a0", nrow(village_journeys), " journeys)."
@@ -633,10 +614,6 @@ tbl3_route_comparison <- function() {
     tab_footnote(
       footnote = "% (n) within each route column.",
       locations = cells_column_labels(columns = label)
-    ) |>
-    tab_footnote(
-      footnote = "p-values: Wilcoxon rank-sum (age); chi-square (categorical).",
-      locations = cells_column_labels(columns = p.value)
     ) |>
     .paper1_gt_theme()
 }
