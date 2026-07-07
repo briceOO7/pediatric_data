@@ -1207,8 +1207,21 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     """
     Compute timing quality-control statistics for the village→MHC cohort.
 
+    Validity determinations come directly from columns computed upstream in
+    medevac_pipeline_project (src/utils/create_medevac_timing.py):
+      time_to_activate_valid, activate_to_arrive_valid, total_travel_valid,
+      activation_complete, timing_suspect_reason
+    This function does NOT re-derive the per-village round-trip flight floor
+    or direction-error thresholds itself — it only counts/reports the
+    pipeline's flags, so "is this journey's timing usable" stays identical
+    everywhere this dataset is consumed (see
+    medevac_pipeline_project/data/reference/village_medevac_timing_floors.csv
+    for the auditable floor values themselves).
+
     Returns a dict with:
-      floors           : {village_name: floor_minutes}  (2 × median one-way flight)
+      floors           : {village_name: floor_minutes}  (informational only —
+                          2 × median per-village reference flight time, for
+                          display; NOT used to compute any count below)
       n_total          : total unique journeys
       --- activate_to_arrive_min (interval 2) ---
       n_ata_raw        : journeys with non-null activate_to_arrive_min
@@ -1227,69 +1240,57 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     j = df.drop_duplicates(subset=["journey_id"]).copy()
     vcol = "facility_1_name"
 
-    # ── Per-village floor from reference flight times ─────────────────────────
-    # flight_time_min is sourced from a reference CSV (typical flight times by
-    # village), NOT measured from individual medevac encounters.  It is used
-    # ONLY here to define an impossibility floor for activate_to_arrive_min.
-    # Floor = 2 × per-village median reference flight time
-    #   (plane must fly TO the village and then back with the patient).
+    def _bool_col(name: str) -> pd.Series:
+        return j[name].fillna(False).astype(bool) if name in j.columns else pd.Series(False, index=j.index)
+
+    # ── Per-village floor: informational only (display in narrative/audit) ────
+    # flight_time_min is the pipeline's merged reference value (same number
+    # for every journey from a given village); median-per-village here just
+    # recovers that constant for reporting. The actual floor used to compute
+    # activate_to_arrive_valid lives in the pipeline's
+    # village_medevac_timing_floors.csv, not here.
     ft = pd.to_numeric(j.get("flight_time_min", pd.Series(dtype=float, index=j.index)),
                        errors="coerce")
-    j["_ft"] = ft
     floors: dict[str, float] = {}
     if ft.notna().any() and vcol in j.columns:
         floors = (
-            j[j[vcol].notna()]
+            j.assign(_ft=ft)[j[vcol].notna()]
             .groupby(vcol)["_ft"]
             .apply(lambda x: x.dropna().median() * 2.0)
             .dropna()
             .to_dict()
         )
 
+    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
+    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
+    bad_dir_mask = dest.notna() & orig.notna() & (dest < orig)  # tautological, not a "refined" threshold
+
     # ── activate_to_arrive_min (interval 2) ───────────────────────────────────
     ata = pd.to_numeric(j.get("activate_to_arrive_min", pd.Series(dtype=float, index=j.index)),
                         errors="coerce")
-    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
-    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
-
-    # Direction check: any journey where destination precedes origin
-    bad_dir_mask = dest.notna() & orig.notna() & (dest < orig)
-    n_ata_direction = int(bad_dir_mask.sum())
-
-    # Below-floor check: per-village reference floor
-    below_floor_mask = pd.Series(False, index=j.index)
-    if floors and vcol in j.columns:
-        for v, floor in floors.items():
-            v_mask = (j[vcol] == v) & ata.notna() & ~bad_dir_mask
-            below_floor_mask |= v_mask & (ata < floor)
-    n_ata_below_floor = int(below_floor_mask.sum())
-
+    _reason = j.get("timing_suspect_reason", pd.Series("", index=j.index)).fillna("")
+    n_ata_direction = int(_reason.str.contains("direction_error").sum())
+    n_ata_below_floor = int(_reason.str.contains("below_floor").sum())
     n_ata_raw   = int(ata.notna().sum())
-    n_ata_final = int((ata.notna() & ~bad_dir_mask & ~below_floor_mask).sum())
+    n_ata_final = int(_bool_col("activate_to_arrive_valid").sum())
 
     # ── time_to_activate_min (interval 1) ─────────────────────────────────────
     tta = pd.to_numeric(j.get("time_to_activate_min", pd.Series(dtype=float, index=j.index)),
                         errors="coerce")
     n_tta_raw   = int(tta.notna().sum())
     n_tta_neg   = int((tta < 0).sum())
-    n_tta_final = int((tta >= 0).sum())
+    n_tta_final = int(_bool_col("time_to_activate_valid").sum())
 
     # Journeys with COMPLETE activation timing (both intervals valid)
-    orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
-    dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
-    total_min_all = (dest - orig).dt.total_seconds() / 60
-    valid_tta = tta.notna() & (tta >= 0) & (tta <= total_min_all.fillna(float("inf")))
-    valid_ata = ata.notna() & ~bad_dir_mask & ~below_floor_mask
-    n_activation_complete = int((valid_tta & valid_ata).sum())
+    n_activation_complete = int(_bool_col("activation_complete").sum())
 
     # ── Total travel (interval 3): origin_datetime → destination_datetime ─────
-    total_min = (dest - orig).dt.total_seconds() / 60
     n_miss_origin = int(orig.isna().sum())
     n_miss_dest   = int(dest.isna().sum())
     n_miss_either = int((orig.isna() | dest.isna()).sum())
     n_total_raw       = int((orig.notna() & dest.notna()).sum())
     n_total_direction = int(bad_dir_mask.sum())
-    n_total_final     = int((total_min > 0).sum())
+    n_total_final     = int(_bool_col("total_travel_valid").sum())
 
     return dict(
         floors=floors,
@@ -1527,10 +1528,6 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             pass  # shapefile unavailable — distances shown as "—"
 
-    # ── Timing QC: floors, exclusion masks ────────────────────────────────────
-    qc = _compute_timing_qc(df)
-    floors = qc["floors"]          # {village: floor_minutes}
-
     # ── Study period ──────────────────────────────────────────────────────────
     j = df.drop_duplicates(subset=["journey_id"]).copy()
     village_col = "facility_1_name"
@@ -1541,18 +1538,22 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     yr = pd.to_numeric(j[yr_col], errors="coerce").dropna()
     study_years = max(1.0, float(yr.nunique()))
 
-    # Build journey-level exclusion masks (aligned to j.index)
-    _ata_all  = pd.to_numeric(j.get("activate_to_arrive_min",
-                                     pd.Series(dtype=float, index=j.index)), errors="coerce")
+    # ── Timing validity (from medevac_pipeline_project's create_medevac_timing.py) ──
+    # activate_to_arrive_valid / time_to_activate_valid / activation_complete /
+    # total_travel_valid are computed upstream (per-village round-trip flight
+    # floor + direction checks) and consumed here directly, so this table's
+    # exclusion criteria stay identical to every other consumer of this
+    # dataset instead of re-deriving its own thresholds.
+    _ata_all = pd.to_numeric(j.get("activate_to_arrive_min",
+                                    pd.Series(dtype=float, index=j.index)), errors="coerce")
     _orig_all = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
     _dest_all = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
-    _bad_dir  = _dest_all.notna() & _orig_all.notna() & (_dest_all < _orig_all)
-    # Per-village floor from reference flight times (same logic as _compute_timing_qc)
-    _below_floor = pd.Series(False, index=j.index)
-    if floors and village_col in j.columns:
-        for _v, _flr in floors.items():
-            _vm = (j[village_col] == _v) & _ata_all.notna() & ~_bad_dir
-            _below_floor |= _vm & (_ata_all < _flr)
+
+    def _bool_col(name: str) -> pd.Series:
+        return j[name].fillna(False).astype(bool) if name in j.columns else pd.Series(False, index=j.index)
+
+    _total_valid_all = _bool_col("total_travel_valid")
+    _act_complete_all = _bool_col("activation_complete")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _med_iqr_range_n(series: pd.Series) -> tuple[str, int]:
@@ -1599,12 +1600,11 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
         _orig = _orig_all.reindex(sub.index)
         _dest = _dest_all.reindex(sub.index)
         _total_min = (_dest - _orig).dt.total_seconds() / 60
-        _bad_sub = _bad_dir.reindex(sub.index, fill_value=False)
-        _total_valid = _total_min[~_bad_sub & (_total_min > 0)]
-        total_str, _ = _med_iqr_range_n(_total_valid)
+        _total_valid_sub = _total_valid_all.reindex(sub.index, fill_value=False)
+        total_str, _ = _med_iqr_range_n(_total_min[_total_valid_sub])
 
         # ── Valid activation subset ─────────────────────────────────────────
-        # Requires ALL of:
+        # activation_complete (from the pipeline) requires BOTH:
         #   1. time_to_activate_min non-null, >= 0, falls before MHC arrival
         #   2. activate_to_arrive_min non-null AND above the per-village floor
         # Both intervals must be valid so the header n= equals both sub-rows.
@@ -1612,20 +1612,8 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
             sub.get("time_to_activate_min", pd.Series(dtype=float, index=sub.index)),
             errors="coerce",
         ).reindex(sub.index)
-        _valid_tta = (
-            _tta.notna()
-            & (_tta >= 0)
-            & (_tta <= _total_min.fillna(float("inf")))
-        )
-
         _ata = _ata_all.reindex(sub.index)
-        _excl = (
-            _bad_dir.reindex(sub.index, fill_value=False)
-            | _below_floor.reindex(sub.index, fill_value=False)
-        )
-        _valid_ata = _ata.notna() & ~_excl
-
-        _valid_act = _valid_tta & _valid_ata
+        _valid_act = _act_complete_all.reindex(sub.index, fill_value=False)
         n_act = int(_valid_act.sum())
         pct_act = f"{n_act / n_journeys * 100:.1f}% (n={n_act})" if n_journeys else "—"
 

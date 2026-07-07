@@ -1,10 +1,17 @@
 """
-Timing diagnostic: identify journeys with suspect activate_to_arrive_min values.
+Timing diagnostic: surface journeys the pipeline flagged as suspect timing.
 
-Flags three categories of data quality issues:
-  1. same_timestamp   — medevac_datetime == destination_datetime (arrival = activation, impossible)
-  2. below_flight_time — activate_to_arrive_min < flight_time_min (faster than the flight itself)
-  3. short_< 120min   — activate_to_arrive_min < 120 min (plausible floor given flight + ground time)
+The actual suspect-timing determination (direction_error, below_floor) is
+made upstream in medevac_pipeline_project (src/utils/create_medevac_timing.py)
+using the per-village round-trip flight floor from
+medevac_pipeline_project/data/reference/village_medevac_timing_floors.csv.
+This script does NOT re-derive its own thresholds — it reads the pipeline's
+timing_suspect / timing_suspect_reason columns directly and reports on them,
+so this diagnostic always matches what was actually excluded downstream.
+
+Flag categories (parsed from timing_suspect_reason):
+  1. direction_error — destination_datetime precedes origin_datetime (impossible)
+  2. below_floor     — activate_to_arrive_min < per-village round-trip flight floor
 
 Outputs:
   outputs/diagnostics/timing_suspect_journeys.csv   — full row detail
@@ -63,26 +70,14 @@ for col in ("medevac_datetime", "destination_datetime"):
         df[col] = pd.to_datetime(df[col], errors="coerce")
 
 act  = pd.to_numeric(df["activate_to_arrive_min"], errors="coerce")
-flt  = pd.to_numeric(df["flight_time_min"],         errors="coerce")
 
-# ── Flag conditions ────────────────────────────────────────────────────────────
-df["flag_same_timestamp"] = (
-    df["medevac_datetime"].notna()
-    & df["destination_datetime"].notna()
-    & (df["medevac_datetime"] == df["destination_datetime"])
-)
+# ── Flag conditions (read from the pipeline's timing_suspect_reason) ───────────
+_reason = df.get("timing_suspect_reason", pd.Series("", index=df.index)).fillna("")
 
-df["flag_below_flight_time"] = (
-    act.notna() & flt.notna() & (act < flt)
-)
+df["flag_direction_error"] = _reason.str.contains("direction_error")
+df["flag_below_floor"] = _reason.str.contains("below_floor")
 
-df["flag_short_lt120"] = act.notna() & (act < 120)
-
-df["flag_any"] = (
-    df["flag_same_timestamp"]
-    | df["flag_below_flight_time"]
-    | df["flag_short_lt120"]
-)
+df["flag_any"] = df.get("timing_suspect", pd.Series(False, index=df.index)).fillna(False).astype(bool)
 
 # ── Detail report ──────────────────────────────────────────────────────────────
 detail_cols = [
@@ -99,7 +94,7 @@ detail_cols = [
     "activate_to_arrive_min", "time_to_activate_min", "flight_time_min",
     "medevac_datetime", "destination_datetime",
     "origin_imputed", "destination_imputed", "medevac_imputed",
-    "flag_same_timestamp", "flag_below_flight_time", "flag_short_lt120",
+    "timing_suspect_reason", "flag_direction_error", "flag_below_floor",
 ]
 detail_cols = [c for c in detail_cols if c in df.columns]
 
@@ -133,19 +128,17 @@ if n_mismatch:
 else:
     print(f"\n  Merge integrity check passed: all {len(suspect)} suspect rows match raw timing CSV")
 print(f"\n  Suspect journeys: {len(suspect)}")
-print(f"    same_timestamp:    {df['flag_same_timestamp'].sum()}")
-print(f"    below_flight_time: {df['flag_below_flight_time'].sum()}")
-print(f"    short_lt120:       {df['flag_short_lt120'].sum()}")
+print(f"    direction_error: {df['flag_direction_error'].sum()}")
+print(f"    below_floor:     {df['flag_below_floor'].sum()}")
 
 # ── Summary by village ─────────────────────────────────────────────────────────
 summary = (
     df[df["flag_any"]]
     .groupby("facility_1_name", dropna=False)
     .agg(
-        n_suspect        = ("journey_id", "count"),
-        n_same_timestamp = ("flag_same_timestamp", "sum"),
-        n_below_flight   = ("flag_below_flight_time", "sum"),
-        n_short_lt120    = ("flag_short_lt120", "sum"),
+        n_suspect          = ("journey_id", "count"),
+        n_direction_error  = ("flag_direction_error", "sum"),
+        n_below_floor      = ("flag_below_floor", "sum"),
         min_activate_to_arrive = ("activate_to_arrive_min", "min"),
         median_activate_to_arrive = ("activate_to_arrive_min", "median"),
     )
@@ -181,7 +174,7 @@ dist.to_csv(OUT / "timing_distribution.csv", index=False)
 # ── Console summary ────────────────────────────────────────────────────────────
 print("\n── By village ────────────────────────────────────────────")
 print(summary[["village","n_total","n_suspect","pct_suspect",
-               "n_same_timestamp","n_below_flight","n_short_lt120",
+               "n_direction_error","n_below_floor",
                "min_activate_to_arrive","median_activate_to_arrive"]].to_string(index=False))
 
 print("\n── Overall distribution of activate_to_arrive_min (minutes) ──")

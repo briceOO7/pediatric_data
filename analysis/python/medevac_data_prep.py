@@ -587,10 +587,15 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
     """
     Per-village (+ Overall) summary statistics for Table 1.
 
-    Timing QC:
-      - Total ATA: origin_datetime → destination_datetime (direction check applied)
-      - Activation subset: both time_to_activate_min and activate_to_arrive_min valid
-        - Excludes: direction errors, values below per-village 2× reference flight floor
+    Timing validity (time_to_activate_valid, activate_to_arrive_valid,
+    total_travel_valid, activation_complete) is computed upstream in
+    medevac_pipeline_project (src/utils/create_medevac_timing.py) — the
+    per-village round-trip flight floor and direction-error checks are read
+    directly from those columns here, not re-derived, so this table's
+    exclusion criteria stay identical to every other consumer of this
+    dataset. See
+    medevac_pipeline_project/data/reference/village_medevac_timing_floors.csv
+    for the auditable floor values themselves.
     """
     j = df_primary.drop_duplicates("journey_id").copy()
     vcol = "village_name"   # computed by medevac_data_prep, always correct
@@ -604,16 +609,8 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
 
     dist_map = _village_distances()
 
-    # ── Timing QC setup ────────────────────────────────────────────────────────
-    ft = pd.to_numeric(j.get("flight_time_min", pd.Series(dtype=float, index=j.index)), errors="coerce")
-    j["_ft"] = ft
-    floors: dict[str, float] = {}
-    if ft.notna().any() and vcol in j.columns:
-        floors = (
-            j[j[vcol].notna()].groupby(vcol)["_ft"]
-            .apply(lambda x: x.dropna().median() * 2.0)
-            .dropna().to_dict()
-        )
+    def _bool_col(name: str) -> pd.Series:
+        return j[name].fillna(False).astype(bool) if name in j.columns else pd.Series(False, index=j.index)
 
     ata  = pd.to_numeric(j.get("activate_to_arrive_min", pd.Series(dtype=float, index=j.index)), errors="coerce")
     tta  = pd.to_numeric(j.get("time_to_activate_min",   pd.Series(dtype=float, index=j.index)), errors="coerce")
@@ -621,17 +618,8 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
     dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
     total_min = (dest - orig).dt.total_seconds() / 60
 
-    bad_dir = dest.notna() & orig.notna() & (dest < orig)
-    below_floor = pd.Series(False, index=j.index)
-    if floors and vcol in j.columns:
-        for v, floor in floors.items():
-            vmask = (j[vcol] == v) & ata.notna() & ~bad_dir
-            below_floor |= vmask & (ata < floor)
-
-    valid_ata = ata.notna() & ~bad_dir & ~below_floor
-    valid_tta = tta.notna() & (tta >= 0) & (tta <= total_min.fillna(float("inf")))
-    valid_act = valid_tta & valid_ata
-    total_valid = total_min[(total_min > 0) & ~bad_dir]
+    valid_act        = _bool_col("activation_complete")
+    total_valid_mask = _bool_col("total_travel_valid")
 
     # ── Study period ───────────────────────────────────────────────────────────
     yr = pd.to_numeric(j.get("journey_start_year"), errors="coerce")
@@ -650,7 +638,7 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
         else:
             mean_yr, sd_yr = n_j / max(len(yr_range), 1), 0.0
 
-        total_stats = _med_iqr_range(total_min[mask & (total_min > 0) & ~bad_dir])
+        total_stats = _med_iqr_range(total_min[mask & total_valid_mask])
         act_total   = int(valid_act[mask].sum())
         pct_act     = round(100 * act_total / n_j, 1) if n_j else None
         dec_stats   = _med_iqr_range(tta[mask & valid_act])
