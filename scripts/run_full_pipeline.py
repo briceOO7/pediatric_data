@@ -55,9 +55,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--quarto-to",
-        default="html",
-        choices=("html", "pdf", "default"),
-        help="'html' (recommended on PHI), 'pdf' (needs LaTeX), or 'default' (all formats in .qmd YAML).",
+        default="default",
+        choices=("html", "pdf", "docx", "default"),
+        help="'default' (all formats in .qmd YAML — html + pdf + docx), or a single format.",
     )
     parser.add_argument(
         "-synthetic",

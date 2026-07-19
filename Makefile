@@ -40,9 +40,9 @@ figures: data
 
 # ── Step 4: Quarto render ──────────────────────────────────────────────────────
 # Reads outputs/data/ + outputs/stats/ + outputs/figures/
-# Produces manuscripts/paper1/paper1_results_r.html (+ .pdf and .docx)
+# Produces paper1_results_r.html + .pdf + .docx (all formats in YAML)
 render: stats figures
-	quarto render $(QMD) --to html
+	quarto render $(QMD)
 
 # Individual format targets
 render-html: stats figures
@@ -67,8 +67,8 @@ clean:
 # ── Help ───────────────────────────────────────────────────────────────────────
 help:
 	@echo "Usage:"
-	@echo "  make all              Full pipeline → HTML (real data)"
-	@echo "  make all SYNTHETIC=1  Full pipeline → HTML (de-identified synthetic data)"
+	@echo "  make all              Full pipeline → HTML + PDF + docx (real data)"
+	@echo "  make all SYNTHETIC=1  Full pipeline → HTML + PDF + docx (de-identified)"
 	@echo "  make render-html      Render HTML only (assumes outputs/ up to date)"
 	@echo "  make render-pdf       Render PDF only"
 	@echo "  make render-docx      Render Word (.docx) only"
