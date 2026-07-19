@@ -29,7 +29,7 @@ from pathlib import Path
 
 # Quarto sets this when rendering a project; otherwise assume cwd is repo root
 _proj = Path(os.environ.get("QUARTO_PROJECT_DIR", Path.cwd())).resolve()
-sys.path.insert(0, str(_proj / "analysis"))
+sys.path.insert(0, str(_proj / "analysis" / "python"))
 
 import matplotlib.pyplot as plt
 import pandas as pd

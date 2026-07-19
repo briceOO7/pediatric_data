@@ -215,13 +215,39 @@ fig_prisma_diagram <- function() {
 }
 
 .village_column_labels <- function(vs_fmt, col_order) {
+  is_pdf <- .output_format() == "pdf"
   labels <- lapply(col_order, function(vname) {
     row <- vs_fmt |> filter(village_name == vname)
     n <- if (nrow(row) == 0 || is.na(row$n_journeys[1])) 0L else as.integer(row$n_journeys[1])
     label <- if (vname == "Overall") "Overall" else vname
-    md(sprintf("**%s**  \nN = %d", label, n))
+    if (is_pdf) {
+      # LaTeX tables don't handle md() linebreaks; use plain text
+      sprintf("%s (N=%d)", label, n)
+    } else {
+      md(sprintf("**%s**  \nN = %d", label, n))
+    }
   })
   setNames(labels, col_order)
+}
+# ── Format-aware output helpers ───────────────────────────────────────────────
+
+# Returns "docx", "pdf", or "html" based on the active Quarto/knitr render target.
+.output_format <- function() {
+  fmt <- tryCatch(knitr::pandoc_to(), error = function(e) NULL)
+  if (is.null(fmt) || !nzchar(fmt)) return("html")
+  if (grepl("docx|odt|rtf|word", fmt, ignore.case = TRUE)) return("docx")
+  if (grepl("pdf|latex|beamer",  fmt, ignore.case = TRUE)) return("pdf")
+  "html"
+}
+
+# For gtsummary objects: use flextable (Word-native) when rendering to docx,
+# gt with house theme otherwise. Pass the gtsummary object (before as_gt()).
+.as_gt_or_flex <- function(gts_obj) {
+  if (.output_format() == "docx") {
+    gts_obj |> as_flex_table()
+  } else {
+    gts_obj |> as_gt() |> .paper1_gt_theme()
+  }
 }
 
 # Render a transposed village gt table from a metric_rows tibble + data list
@@ -504,8 +530,7 @@ tbl2_patient_characteristics <- function() {
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
     modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). % (n) within each age-group column.") |>
-    as_gt() |>
-    .paper1_gt_theme()
+    .as_gt_or_flex()
 }
 
 # ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
@@ -582,7 +607,7 @@ tbl3_route_comparison <- function() {
     sapply(all_labels, function(x) as.character(x[[2]]) %in% include_vars)
   ]
 
-  village_journeys |>
+  gts_obj <- village_journeys |>
     select(route_label, all_of(include_vars)) |>
     tbl_summary(
       by      = route_label,
@@ -600,8 +625,16 @@ tbl3_route_comparison <- function() {
     modify_header(label ~ "**Characteristic**") |>
     modify_caption(paste0(
       "**Table 3.** Patient characteristics by transport route type ",
-      "(n\u00a0=\u00a0", nrow(village_journeys), " journeys)."
-    )) |>
+      "(n\u00a0=\u00a0", nrow(village_journeys), " journeys). ",
+      "Primary only: village \u2192 MHC, no further transfer. ",
+      "Secondary: village \u2192 MHC \u2192 ANMC or outside facility."
+    ))
+
+  if (.output_format() == "docx") {
+    return(gts_obj |> as_flex_table())
+  }
+
+  gts_obj |>
     as_gt() |>
     tab_footnote(
       footnote = "Primary only: village \u2192 MHC, no further transfer.",
@@ -776,8 +809,7 @@ tbl5_timing_minutes <- function() {
     bold_labels() |>
     modify_header(label ~ "**Time interval**") |>
     modify_caption("**Table 5.** Time intervals (minutes), village → MHC primary transports. Median (IQR).") |>
-    as_gt() |>
-    .paper1_gt_theme()
+    .as_gt_or_flex()
 }
 
 # ── Temporal pattern stats (inline narrative) ─────────────────────────────────
@@ -828,11 +860,16 @@ temporal_stats <- function() {
 
 .completeness_column_labels <- function(jp) {
   col_names <- vapply(.completeness_age_cols, `[[`, character(1), 1)
+  is_pdf <- .output_format() == "pdf"
   labels <- lapply(seq_along(.completeness_age_cols), function(i) {
     x <- .completeness_age_cols[[i]]
     age_label <- x[[2]]
     sub <- if (is.na(age_label)) jp else jp[jp$age_group == age_label, , drop = FALSE]
-    md(sprintf("**%s**  \nN = %d", x[[1]], nrow(sub)))
+    if (is_pdf) {
+      sprintf("%s (N=%d)", x[[1]], nrow(sub))
+    } else {
+      md(sprintf("**%s**  \nN = %d", x[[1]], nrow(sub)))
+    }
   })
   setNames(labels, col_names)
 }

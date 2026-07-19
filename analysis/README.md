@@ -9,7 +9,7 @@ bash scripts/run_full_pipeline.sh               # auto-creates/uses .venv, insta
 bash scripts/run_full_pipeline.sh -synthetic    # local de-ID + village codebook
 ```
 
-This runs **`analysis/medevac_summaries.py`** (all `outputs/tables/*.csv` and `outputs/figures/*.png`, including Figure 1 map) then **`quarto render medevac_report.qmd --to html`**. Uses **headless Matplotlib** (`MPLBACKEND=Agg`) if no display.
+This runs **`analysis/python/medevac_summaries.py`** (all `outputs/tables/*.csv` and `outputs/figures/*.png`, including Figure 1 map) then **`quarto render medevac_report.qmd --to html`**. Uses **headless Matplotlib** (`MPLBACKEND=Agg`) if no display.
 
 If you prefer manual activation instead of the wrapper:
 
@@ -87,7 +87,7 @@ From the project root:
 
 ```bash
 pip install -r requirements.txt
-python analysis/medevac_summaries.py
+python analysis/python/medevac_summaries.py
 ```
 
 ## PHI diagnostics (schema + pipeline readiness)

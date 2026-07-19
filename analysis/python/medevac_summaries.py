@@ -11,7 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 # Paths
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 # Pediatric CSV source directory.
 # On the PHI machine the medevac_pipeline_project produces all pediatric CSVs in
@@ -368,6 +368,29 @@ def fmt_pct_n(count: int, denominator: int, digits: int = 1) -> str:
         return "—"
     pct = 100.0 * count / denominator
     return f"{pct:.{digits}f}% ({count})"
+
+
+def _load_pvalues(name: str) -> dict[str, str]:
+    """Read outputs/stats/<name>.csv → {test: formatted p-value string}.
+
+    Returns an empty dict if the file doesn't exist (p-values show as '—').
+    Produced by analysis/R/paper1_stats.R (or equivalent).
+    """
+    path = ROOT / "outputs" / "stats" / f"{name}.csv"
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path)
+    result: dict[str, str] = {}
+    for _, row in df.iterrows():
+        raw = row.get("p_value")
+        p = float(raw) if pd.notna(raw) else None
+        if p is None:
+            result[str(row["test"])] = "—"
+        elif p < 0.001:
+            result[str(row["test"])] = "<0.001"
+        else:
+            result[str(row["test"])] = f"{p:.3f}"
+    return result
 
 
 def _table0_destination_label(to_raw: str) -> str:
@@ -2818,8 +2841,10 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
 
     Rows: Age (median IQR), Age group (%), Chief Complaint top 10 (%)
     Extra column: p-value (Kruskal-Wallis for continuous; chi-square for categorical)
+    P-values are loaded from outputs/stats/paper1_table3_pvalues.csv (written by
+    analysis/R/paper1_stats.R).  If that file is absent, all p-values show as '—'.
     """
-    from scipy import stats as _stats
+    _pv = _load_pvalues("paper1_table3_pvalues")
 
     j = df_all.drop_duplicates("journey_id").copy()
 
@@ -2863,11 +2888,7 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
         return f"{s.median():.1f} ({s.quantile(0.25):.1f}–{s.quantile(0.75):.1f})"
 
     _age_nonempty = [age_series[g] for g in groups_order if len(age_series[g]) > 0]
-    try:
-        kw = _stats.kruskal(*_age_nonempty) if len(_age_nonempty) >= 2 else None
-        kw_p = (f"{kw.pvalue:.3f}" if kw.pvalue >= 0.001 else "<0.001") if kw else "—"
-    except Exception:
-        kw_p = "—"
+    kw_p = _pv.get("kruskal_age", "—")
     rows.append(
         ["Age, years — Median (IQR)"]
         + [_med_iqr(age_series[g]) for g in groups_order]
@@ -2889,15 +2910,11 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
         grp_data[g] = grp_data[g].copy()
         grp_data[g]["_ab"] = pd.to_numeric(grp_data[g]["age_at_medevac"], errors="coerce").map(_age_bucket)
 
-    # Chi-square on age group contingency table
+    # Chi-square on age group contingency table (p-value from R paper1_stats.R)
     ct = pd.DataFrame(
         {g: grp_data[g]["_ab"].value_counts() for g in groups_order}
     ).fillna(0).reindex(["b0","b1","b2","b3"], fill_value=0)
-    try:
-        chi2_age, p_age, *_ = _stats.chi2_contingency(ct.values)
-        p_age_str = f"{p_age:.3f}" if p_age >= 0.001 else "<0.001"
-    except Exception:
-        p_age_str = "—"
+    p_age_str = _pv.get("chi_age_group", "—")
 
     rows.append(["Age group, n (%)"] + [""] * len(groups_order) + [p_age_str])
     for lbl, bk in AGE_GROUPS:
@@ -2920,11 +2937,7 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
         {g: valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"].value_counts()
          for g in groups_order}
     ).fillna(0).reindex(reported_cc, fill_value=0)
-    try:
-        _, p_cc, *_ = _stats.chi2_contingency(ct_cc.values)
-        p_cc_str = f"{p_cc:.3f}" if p_cc >= 0.001 else "<0.001"
-    except Exception:
-        p_cc_str = "—"
+    p_cc_str = _pv.get("chi_chief_complaint", "—")
 
     rows.append(["Chief Complaint (CEDIS), n (%)"] + [""] * len(groups_order) + [p_cc_str])
     for cc_grp in reported_cc:

@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Full pipeline (Python data engineering → Python figures → Quarto/R tables).
+Full pipeline (Python data engineering → R stats → Python figures → Quarto/R tables).
 
 Architecture:
   Step 1 (data):    analysis/python/medevac_data_prep.py
-                    → outputs/data/*.csv  (analysis-ready CSVs for R)
-  Step 2 (figures): analysis/medevac_summaries.py  (existing figure pipeline)
+                    → outputs/data/*.csv  (analysis-ready CSVs)
+  Step 1b (export): analysis/python/export_analysis_data.py
+                    → outputs/data/paper1_route_comparison.csv  (for R stats)
+  Step 2 (figures): analysis/python/medevac_summaries.py
                     → outputs/figures/*.png
+  Step 2b (stats):  analysis/R/paper1_stats.R  (optional; skips if Rscript not found)
+                    → outputs/stats/paper1_table3_pvalues.csv
   Step 3 (quarto):  quarto render  (R reads outputs/data/, builds gtsummary tables)
 
 Usage (from repo root or anywhere):
@@ -108,10 +112,31 @@ def main() -> int:
         if r.returncode != 0:
             return r.returncode
 
-        print("==> Step 2: Figures (analysis/medevac_summaries.py → outputs/figures/)")
-        r = subprocess.run([py, str(root / "analysis" / "medevac_summaries.py")], cwd=root)
+        print("==> Step 1b: Export analysis inputs for R (export_analysis_data.py)")
+        r = subprocess.run(
+            [py, str(root / "analysis" / "python" / "export_analysis_data.py")],
+            cwd=root,
+        )
         if r.returncode != 0:
             return r.returncode
+
+        print("==> Step 2: Figures (analysis/python/medevac_summaries.py → outputs/figures/)")
+        r = subprocess.run([py, str(root / "analysis" / "python" / "medevac_summaries.py")], cwd=root)
+        if r.returncode != 0:
+            return r.returncode
+
+        # Step 2b: R statistical analysis (optional — skips gracefully if Rscript unavailable)
+        rscript = which("Rscript")
+        if rscript:
+            print("==> Step 2b: R stats (analysis/R/paper1_stats.R → outputs/stats/)")
+            r = subprocess.run(
+                [rscript, str(root / "analysis" / "R" / "paper1_stats.R")],
+                cwd=root,
+            )
+            if r.returncode != 0:
+                print("WARNING: R stats failed (p-values will show as '—' in tables).", file=sys.stderr)
+        else:
+            print("WARNING: Rscript not on PATH — skipping R stats (p-values will show as '—').")
 
     if not args.skip_quarto:
         quarto = which("quarto")

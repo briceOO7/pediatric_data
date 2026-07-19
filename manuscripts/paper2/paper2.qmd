@@ -31,7 +31,7 @@ if (_proj / "analysis").exists():
     _root = _proj
 else:
     _root = _proj.parents[1]
-sys.path.insert(0, str(_root / "analysis"))
+sys.path.insert(0, str(_root / "analysis" / "python"))
 
 import matplotlib.pyplot as plt
 import pandas as pd

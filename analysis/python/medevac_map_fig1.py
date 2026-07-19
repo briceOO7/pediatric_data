@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 MAP_DIR = ROOT / "mapping_data"
 FAC_SHP = MAP_DIR / "healthcare_facilities_safetynet" / "healthcare_facilities_safetynet.shp"
 BOROUGH_SHP = MAP_DIR / "Boroughs2020" / "Boroughs2020.shp"

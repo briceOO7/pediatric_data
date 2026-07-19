@@ -4,7 +4,7 @@
 
 | Approach | When to use |
 |----------|-------------|
-| **Referenced (preferred)** | Tie `xmin` / `xmax` / `ymin` / `ymax` to **named places** plus fixed offsets in the map CRS (here EPSG:3338, meters). If facility coordinates update, the frame moves consistently. Implemented in `_map_bounds_manuscript()` in `analysis/medevac_map_fig1.py`. |
+| **Referenced (preferred)** | Tie `xmin` / `xmax` / `ymin` / `ymax` to **named places** plus fixed offsets in the map CRS (here EPSG:3338, meters). If facility coordinates update, the frame moves consistently. Implemented in `_map_bounds_manuscript()` in `analysis/python/medevac_map_fig1.py`. |
 | **Hard-coded axis limits** | Only for quick fixes or exports that must match an exact prior figure. Document why and the date. |
 | **External config (YAML/JSON)** | Optional if non-coders need to tweak framing without editing Python. Same logic reads numeric offsets from file. |
 

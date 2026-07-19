@@ -29,7 +29,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_CHIEF_COMPLAINTS_LONG = REPO / "data" / "pediatric_chiefcomplaints_long.csv"
-sys.path.insert(0, str(REPO / "analysis"))
+sys.path.insert(0, str(REPO / "analysis" / "python"))
 
 from medevac_summaries import (  # noqa: E402
     CHIEF_COMPLAINTS_WIDE,

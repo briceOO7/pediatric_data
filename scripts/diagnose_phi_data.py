@@ -147,7 +147,7 @@ def _pipeline_checks(root: Path) -> dict[str, Any]:
     try:
         import sys
 
-        sys.path.insert(0, str(root / "analysis"))
+        sys.path.insert(0, str(root / "analysis" / "python"))
         import medevac_summaries as ms  # type: ignore
 
         df = ms.load_data()

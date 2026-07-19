@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "analysis"))
+sys.path.insert(0, str(ROOT / "analysis" / "python"))
 
 import pandas as pd
 from medevac_summaries import load_data, filter_journeys_village_to_mhc, DATA
