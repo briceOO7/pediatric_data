@@ -393,6 +393,33 @@ def load_raw() -> pd.DataFrame:
         c for c in timing.columns
         if c not in ("journey_id", "MRN", "origin_type") and c not in journeys.columns
     ]
+
+    # Guard against upstream pipeline staleness: journey_id is assigned as a
+    # bare sequential counter in medevac_pipeline_project's step3, not a
+    # stable natural key. If pediatric_medevac_journeys.csv (wide) and
+    # pediatric_medevac_timing.csv were generated from pipeline runs at
+    # different times (e.g. someone re-ran step3 without re-running step5
+    # afterward — confirmed to have happened once already, corrupting 64 of
+    # 384 journeys), the same journey_id string can silently refer to a
+    # DIFFERENT patient in each file. Detect that via MRN and null out the
+    # timing columns for any row where the two disagree, rather than
+    # cross-contaminating one patient's demographics with another's timing.
+    if "MRN" in timing.columns:
+        mrn_check = journeys[["journey_id", "MRN"]].merge(
+            timing[["journey_id", "MRN"]], on="journey_id", how="inner", suffixes=("_wide", "_timing")
+        )
+        bad_ids = set(mrn_check.loc[mrn_check["MRN_wide"] != mrn_check["MRN_timing"], "journey_id"])
+        if bad_ids:
+            print(f"  ⚠️  {len(bad_ids)} journey_id(s) have a MISMATCHED MRN between "
+                  f"pediatric_medevac_journeys.csv and pediatric_medevac_timing.csv "
+                  f"(stale/out-of-sync upstream pipeline files) — nulling out timing "
+                  f"columns for these rows rather than merging in another patient's data. "
+                  f"Re-run medevac_pipeline_project's scripts/0_run_complete_pipeline.py "
+                  f"(the full master orchestrator, not individual step scripts) to "
+                  f"regenerate all files from a single consistent run.")
+            timing = timing.copy()
+            timing.loc[timing["journey_id"].isin(bad_ids), timing_extra] = float("nan")
+
     df = journeys.merge(timing[["journey_id"] + timing_extra], on="journey_id", how="left")
 
     for base in [f"medevac{i}_{s}" for i in (1, 2, 3) for s in ("from", "to", "id")] + ["facility_1_name"]:
