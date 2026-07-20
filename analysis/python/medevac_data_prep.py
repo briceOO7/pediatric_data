@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -438,12 +439,86 @@ def _village_name_for_journey(row: pd.Series) -> str:
 
 # ── Derived variable computation ───────────────────────────────────────────────
 
+_INSYSTEM_FACILITIES = {"ANMC", "MHC"}
+
+
+_MEDEVAC_HOP_RE = re.compile(r"Medevac\([^)]*\)")
+
+
+def _pattern_facilities(pattern: object) -> list[str]:
+    """Extract real facility base-names (no dept suffix) from a journey_pattern
+    string, in order, excluding Medevac(...) hops and the Death marker.
+
+    Medevac hop labels themselves contain a "→" (e.g. "Medevac(Noorvik→MHC)"),
+    so they must be stripped as whole units BEFORE splitting the pattern on
+    "→" — otherwise the hop's own destination leaks through as a fake trailing
+    facility token (e.g. splitting naively on "→" turns "...→Medevac(Noorvik→MHC)"
+    into "...", "Medevac(Noorvik", "MHC)").
+    """
+    p = _safe_str(pattern)
+    if not p:
+        return []
+    p = _MEDEVAC_HOP_RE.sub("→", p)
+    out = []
+    for tok in p.split("→"):
+        tok = tok.strip()
+        if not tok or tok == "Death":
+            continue
+        out.append(tok.split("_")[0])
+    return out
+
+
+def _verify_destination_facility(row: pd.Series) -> tuple[str, bool]:
+    """
+    Defense-in-depth check against a known upstream failure mode (see
+    medevac_pipeline_project step7_create_journey_timetables.py — fixed July
+    2026): destination_facility was computed via an MRN-wide medevac lookup
+    that, before the fix, could occasionally grab an unrelated medevac from a
+    different clinical episode for the same MRN years apart, mislabeling a
+    patient who never left ANMC as having gone to Providence/Alaska
+    Regional/Mat-Su (or vice versa for real outside transfers). This directly
+    corrupted Paper 3's "outcomes by destination facility" table (13 of 75
+    "Direct tertiary" journeys were affected in an audit of this dataset).
+
+    journey_pattern is built independently in step5 via a per-journey-scoped
+    encounter chain and has proven reliable — use it as ground truth for
+    whether the journey stayed in-system (ANMC/MHC) or truly left
+    (Outside/named outside hospital). Only overrides when the two disagree on
+    that in-system/out-of-system distinction; a more specific outside hospital
+    name (e.g. "Providence") is kept as-is when the pattern just says the
+    generic "Outside".
+    """
+    recorded = _safe_str(row.get("destination_facility"))
+    pattern_facilities = _pattern_facilities(row.get("journey_pattern"))
+    if not recorded or not pattern_facilities:
+        return recorded, False
+
+    pattern_last = pattern_facilities[-1]
+    recorded_insystem = recorded.upper() in _INSYSTEM_FACILITIES
+    pattern_insystem = pattern_last.upper() in _INSYSTEM_FACILITIES
+
+    if recorded_insystem == pattern_insystem:
+        return recorded, False  # Agree on in-system vs. out-of-system — trust recorded (may be more specific).
+    return pattern_last, True  # Disagree — journey_pattern is the more reliable source.
+
+
 def compute_derived(df: pd.DataFrame, cc: pd.DataFrame | None = None) -> pd.DataFrame:
     """Add route_type, village_name, age_group, CEDIS columns to journey DataFrame."""
     df = df.copy()
 
     df["route_type"] = df.apply(classify_route, axis=1)
     df["village_name"] = df.apply(_village_name_for_journey, axis=1)
+
+    if "destination_facility" in df.columns:
+        _verified = df.apply(_verify_destination_facility, axis=1)
+        df["destination_facility_raw"] = df["destination_facility"]
+        df["destination_facility"] = [v[0] for v in _verified]
+        df["destination_facility_overridden"] = [v[1] for v in _verified]
+        n_over = int(df["destination_facility_overridden"].sum())
+        if n_over:
+            print(f"  [compute_derived] destination_facility overridden for {n_over} "
+                  f"journey(s) — disagreed with journey_pattern on in-system vs. "
+                  f"out-of-system (see destination_facility_raw for original value)")
 
     df["age_at_medevac_num"] = pd.to_numeric(df.get("age_at_medevac"), errors="coerce")
     df["age_group"] = df["age_at_medevac_num"].map(age_group)
