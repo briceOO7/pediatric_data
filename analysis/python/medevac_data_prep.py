@@ -148,7 +148,15 @@ def _is_study_facility(place: object) -> bool:
 
 
 def is_village_origin(place: object) -> bool:
-    s = str(place).strip()
+    # Must go through _safe_str, not a bare str(place).strip(): a NaN input
+    # (e.g. medevac2_from/medevac3_from on a single-leg journey) stringifies
+    # to the literal text "nan", which is non-empty and matches no known
+    # study-facility pattern — in "infer" mode that gets misread as "not a
+    # study facility, so it must be a village" (see July 2026: 74/383 real
+    # PHI journeys with only 1 medevac leg were spuriously flagged as
+    # village-originating bypasses purely from their unused medevac2/3_from
+    # slots turning into the string "nan").
+    s = _safe_str(place)
     if not s:
         return False
     if _origin_mode() == "infer":
@@ -184,9 +192,9 @@ def _dest_label(to_raw: str) -> str:
 
 def _origin_with_fallback(row: pd.Series, leg_idx: int) -> str:
     fc = f"medevac{leg_idx}_from"
-    a = str(row.get(fc, "")).strip()
+    a = _safe_str(row.get(fc))
     if leg_idx == 1 and (not a or _is_study_facility(a)):
-        f1 = str(row.get("facility_1_name", "")).strip()
+        f1 = _safe_str(row.get("facility_1_name"))
         if f1:
             return f1
     return a
@@ -454,11 +462,11 @@ def _village_name_for_journey(row: pd.Series) -> str:
     (e.g. secondary transfers where facility_1 is MHC) still get the correct village
     name rather than falling back to 'MHC'.  Returns '' if no village is found.
     """
-    f1 = str(row.get("facility_1_name", "")).strip()
+    f1 = _safe_str(row.get("facility_1_name"))
     if f1 and is_village_origin(f1):
         return f1
     for i in (1, 2, 3):
-        m = str(row.get(f"medevac{i}_from", "")).strip()
+        m = _safe_str(row.get(f"medevac{i}_from"))
         if m and is_village_origin(m):
             return m
     return ""
