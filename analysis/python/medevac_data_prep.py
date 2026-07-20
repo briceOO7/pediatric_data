@@ -508,6 +508,16 @@ def compute_derived(df: pd.DataFrame, cc: pd.DataFrame | None = None) -> pd.Data
 
     df["route_type"] = df.apply(classify_route, axis=1)
     df["village_name"] = df.apply(_village_name_for_journey, axis=1)
+    # True village origin (any leg starts at a village), independent of whether
+    # the journey has a village->MHC leg. Distinguishes real village-originating
+    # "Direct tertiary" journeys (e.g. village -> Providence, bypassing MHC
+    # entirely) from MHC-presenting ones that just happen to end up at a
+    # tertiary facility. See _qualifies_for_primary_cohort — that check
+    # requires a village->MHC leg specifically, so a true bypass journey would
+    # NOT qualify for the primary cohort (Tables 1/2/4) even though it did
+    # originate at a village; origin_is_village lets any consumer recover that
+    # distinction without relying on cohort membership.
+    df["origin_is_village"] = df["village_name"].fillna("").astype(str).str.strip() != ""
 
     if "destination_facility" in df.columns:
         _verified = df.apply(_verify_destination_facility, axis=1)
@@ -797,10 +807,19 @@ def build_cohort_flow(df: pd.DataFrame, df_primary: pd.DataFrame) -> pd.DataFram
     Cohort flow for the PRISMA diagram.
 
     Stages (rows):
-      "All records in database"      – every journey record in the extract
-      "MHC-presenting (excluded)"    – records whose first leg starts at MHC,
-                                       not village-originating air ambulance
-      "Village-originating (cohort)" – primary cohort: village → MHC journeys
+      "All records in database"          – every journey record in the extract
+      "MHC-presenting (excluded)"        – first leg starts at MHC, not a
+                                            village air ambulance at all
+      "Village-originating, bypassed MHC
+       (excluded)"                       – true village origin (real air
+                                            ambulance from a village) but no
+                                            village->MHC leg, e.g. a direct
+                                            village->tertiary flight. Reported
+                                            as its own stage (not lumped into
+                                            "MHC-presenting") so these patients
+                                            are never mistaken for having
+                                            presented at MHC first.
+      "Village-originating (cohort)"     – primary cohort: village -> MHC journeys
     """
 
     def _complete_dest(subset: pd.DataFrame) -> int:
@@ -827,19 +846,14 @@ def build_cohort_flow(df: pd.DataFrame, df_primary: pd.DataFrame) -> pd.DataFram
             n_complete_timing=_complete_timing(subset),
         )
 
-    n_all  = int(df["journey_id"].nunique())
-    n_prim = int(df_primary["journey_id"].nunique())
+    excluded = df[~df["journey_id"].isin(df_primary["journey_id"])]
+    bypass_mask = excluded.get("origin_is_village", pd.Series(False, index=excluded.index)).fillna(False)
+    s_bypass = _stage(excluded[bypass_mask], "Village-originating, bypassed MHC (excluded)")
+    s_mhc    = _stage(excluded[~bypass_mask], "MHC-presenting (excluded)")
 
     s_all  = _stage(df, "All records in database")
     s_prim = _stage(df_primary, "Village-originating (cohort)")
-    s_excl: dict = dict(
-        stage="MHC-presenting (excluded)",
-        n_journeys=n_all - n_prim,
-        n_patients=None,
-        n_complete_dest=None,
-        n_complete_timing=None,
-    )
-    return pd.DataFrame([s_all, s_excl, s_prim])
+    return pd.DataFrame([s_all, s_mhc, s_bypass, s_prim])
 
 
 # ── Leg breakdown ───────────────────────────────────────────────────────────────
@@ -889,6 +903,23 @@ def main(synthetic: bool = False) -> None:
     mask = df.apply(_qualifies_for_primary_cohort, axis=1)
     df_primary = df[mask].copy()
 
+    # A true village->tertiary bypass (real village origin, but no village->MHC
+    # leg — e.g. a direct village->outside flight) would fail
+    # _qualifies_for_primary_cohort and be silently absent from Tables 1/2/4.
+    # Surface it loudly here rather than letting it disappear quietly; also
+    # export for manual review since this would be a first-of-its-kind case.
+    df_bypass = df[df["origin_is_village"] & ~mask]
+    if len(df_bypass):
+        print(f"  ⚠️  {len(df_bypass)} journey(s) are village-originating but have "
+              f"NO village→MHC leg (e.g. direct village→tertiary bypass) — "
+              f"excluded from Tables 1/2/4 (village→MHC cohort) by design, but "
+              f"reported here so they are never missed. See "
+              f"outputs/data/village_bypass_review.csv and the "
+              f"'Village-originating, bypassed MHC' row in cohort_flow.csv.")
+        _write(df_bypass, "village_bypass_review")
+    else:
+        print("  No village-originating bypass journeys found (every village leg lands at MHC).")
+
     print("Exporting analysis-ready CSVs:")
     _write(df, "journeys_all")
     _write(df_primary, "journeys_primary")
@@ -897,7 +928,12 @@ def main(synthetic: bool = False) -> None:
     _write(build_village_census(), "village_census")
     _write(build_village_summary(df_primary), "village_summary")
     _write(build_cohort_flow(df, df_primary), "cohort_flow")
-    _write(build_leg_breakdown(df_primary), "leg_breakdown")
+    # build_leg_breakdown evaluates village-origin per LEG, not per journey's
+    # cohort membership — pass the full dataset (not df_primary) so a true
+    # village->tertiary bypass leg (which fails _qualifies_for_primary_cohort
+    # since it has no village->MHC leg) still gets counted in the
+    # village->ANMC / village->other leg tallies instead of silently reading 0.
+    _write(build_leg_breakdown(df), "leg_breakdown")
 
     print(f"\nDone. {len(df_primary):,} primary journeys, {df_primary['MRN'].nunique():,} unique patients.")
 

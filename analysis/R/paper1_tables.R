@@ -51,9 +51,11 @@ cohort_counts <- function() {
   cf <- get_cohort_flow()
   lb <- get_leg_breakdown()
 
-  all_row  <- cf[cf$stage == "All records in database", ]
-  coh_row  <- cf[cf$stage == "Village-originating (cohort)", ]
-  excl_row <- cf[cf$stage == "MHC-presenting (excluded)", ]
+  all_row    <- cf[cf$stage == "All records in database", ]
+  coh_row    <- cf[cf$stage == "Village-originating (cohort)", ]
+  excl_row   <- cf[cf$stage == "MHC-presenting (excluded)", ]
+  bypass_row <- cf[cf$stage == "Village-originating, bypassed MHC (excluded)", ]
+  n_village_bypass_mhc <- if (nrow(bypass_row)) as.integer(bypass_row$n_journeys) else 0L
 
   # Leg counts by route segment (village-originating journeys only)
   is_mhc_from  <- grepl("MHC|Maniilaq", lb$from_type)
@@ -87,6 +89,11 @@ cohort_counts <- function() {
     # DB totals (for PRISMA context)
     n_db_total           = as.integer(all_row$n_journeys),
     n_mhc_presenting     = as.integer(excl_row$n_journeys),
+    # Village-originating but no village->MHC leg (e.g. direct village->tertiary
+    # flight, bypassing MHC entirely) — 0 in current data (every village-origin
+    # medevac leg lands at MHC first) but reported explicitly so a future such
+    # case is never silently absent from the PRISMA diagram.
+    n_village_bypass_mhc = n_village_bypass_mhc,
     # Route breakdown within cohort
     n_primary_only       = n_primary_only,
     n_secondary          = n_secondary,
@@ -117,42 +124,84 @@ fig_prisma_diagram <- function() {
   cf <- get_cohort_flow()
   jp <- get_journeys_primary()
 
-  all_row  <- cf[cf$stage == "All records in database", ]
-  coh_row  <- cf[cf$stage == "Village-originating (cohort)", ]
-  excl_row <- cf[cf$stage == "MHC-presenting (excluded)", ]
+  all_row    <- cf[cf$stage == "All records in database", ]
+  coh_row    <- cf[cf$stage == "Village-originating (cohort)", ]
+  excl_row   <- cf[cf$stage == "MHC-presenting (excluded)", ]
+  bypass_row <- cf[cf$stage == "Village-originating, bypassed MHC (excluded)", ]
+  n_bypass   <- if (nrow(bypass_row)) as.integer(bypass_row$n_journeys) else 0L
 
   n_villages <- n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""])
   pct <- function(n, d) paste0(round(100 * as.numeric(n) / as.numeric(d)), "%")
 
-  # Two-branch layout: DB record → [village cohort | excluded MHC-local]
-  dot <- sprintf(
-    'digraph PRISMA {
-      graph [rankdir=TB, splines=ortho, nodesep=1.2, ranksep=0.9]
-      node [shape=rectangle, style=filled, fontname="Helvetica", fontsize=12, margin="0.25,0.15"]
-      edge [fontsize=11]
+  # Three-branch layout when any village->tertiary bypass exists (e.g. a
+  # direct village->outside flight that never touched MHC); otherwise the
+  # bypass branch is 0 and omitted so the diagram stays clean for the common
+  # case, exactly as it has been historically.
+  if (n_bypass > 0) {
+    dot <- sprintf(
+      'digraph PRISMA {
+        graph [rankdir=TB, splines=ortho, nodesep=1.0, ranksep=0.9]
+        node [shape=rectangle, style=filled, fontname="Helvetica", fontsize=12, margin="0.25,0.15"]
+        edge [fontsize=11]
 
-      A [fillcolor="#D6EAF8",
-         label="All pediatric air ambulance records\\nin database, 2020\\u20132024\\nn = %d journeys"]
+        A [fillcolor="#D6EAF8",
+           label="All pediatric air ambulance records\\nin database, 2020\\u20132024\\nn = %d journeys"]
 
-      B [fillcolor="#A9DFBF",
-         label="Village-originating flights (cohort)\\n%d journeys  \\u00b7  %d unique patients\\n%d communities\\nComplete destination data: %d (%s)\\nComplete timing data: %d (%s)"]
+        B [fillcolor="#A9DFBF",
+           label="Village-originating flights (cohort)\\n%d journeys  \\u00b7  %d unique patients\\n%d communities\\nComplete destination data: %d (%s)\\nComplete timing data: %d (%s)"]
 
-      Ex [fillcolor="#FADBD8",
-          label="Excluded: n = %d\\nMHC-presenting patients\\n(not village air ambulance)\\nLocal or ground-transport arrivals\\nrequiring air transfer to ANMC"]
+        Ex [fillcolor="#FADBD8",
+            label="Excluded: n = %d\\nMHC-presenting patients\\n(not village air ambulance)\\nLocal or ground-transport arrivals\\nrequiring air transfer to ANMC"]
 
-      A -> B
-      A -> Ex
-      {rank=same; B; Ex}
-    }',
-    as.integer(all_row$n_journeys),
-    as.integer(coh_row$n_journeys), as.integer(coh_row$n_patients),
-    n_villages,
-    as.integer(coh_row$n_complete_dest),
-      pct(coh_row$n_complete_dest, coh_row$n_journeys),
-    as.integer(coh_row$n_complete_timing),
-      pct(coh_row$n_complete_timing, coh_row$n_journeys),
-    as.integer(excl_row$n_journeys)
-  )
+        Byp [fillcolor="#FCF3CF",
+             label="Excluded from village\\u2192MHC cohort: n = %d\\nVillage-originating, bypassed MHC\\n(e.g. direct village\\u2192tertiary flight)\\nReal air ambulance from a village\\u2014\\nnot MHC-presenting"]
+
+        A -> B
+        A -> Ex
+        A -> Byp
+        {rank=same; B; Ex; Byp}
+      }',
+      as.integer(all_row$n_journeys),
+      as.integer(coh_row$n_journeys), as.integer(coh_row$n_patients),
+      n_villages,
+      as.integer(coh_row$n_complete_dest),
+        pct(coh_row$n_complete_dest, coh_row$n_journeys),
+      as.integer(coh_row$n_complete_timing),
+        pct(coh_row$n_complete_timing, coh_row$n_journeys),
+      as.integer(excl_row$n_journeys),
+      n_bypass
+    )
+  } else {
+    # Two-branch layout: DB record → [village cohort | excluded MHC-local]
+    dot <- sprintf(
+      'digraph PRISMA {
+        graph [rankdir=TB, splines=ortho, nodesep=1.2, ranksep=0.9]
+        node [shape=rectangle, style=filled, fontname="Helvetica", fontsize=12, margin="0.25,0.15"]
+        edge [fontsize=11]
+
+        A [fillcolor="#D6EAF8",
+           label="All pediatric air ambulance records\\nin database, 2020\\u20132024\\nn = %d journeys"]
+
+        B [fillcolor="#A9DFBF",
+           label="Village-originating flights (cohort)\\n%d journeys  \\u00b7  %d unique patients\\n%d communities\\nComplete destination data: %d (%s)\\nComplete timing data: %d (%s)"]
+
+        Ex [fillcolor="#FADBD8",
+            label="Excluded: n = %d\\nMHC-presenting patients\\n(not village air ambulance)\\nLocal or ground-transport arrivals\\nrequiring air transfer to ANMC"]
+
+        A -> B
+        A -> Ex
+        {rank=same; B; Ex}
+      }',
+      as.integer(all_row$n_journeys),
+      as.integer(coh_row$n_journeys), as.integer(coh_row$n_patients),
+      n_villages,
+      as.integer(coh_row$n_complete_dest),
+        pct(coh_row$n_complete_dest, coh_row$n_journeys),
+      as.integer(coh_row$n_complete_timing),
+        pct(coh_row$n_complete_timing, coh_row$n_journeys),
+      as.integer(excl_row$n_journeys)
+    )
+  }
 
   grViz(dot)
 }
