@@ -26,6 +26,7 @@ format:
     papersize: letter
     geometry: "margin=1in"
     pdf-engine: pdflatex
+    latex-auto-install: false
     keep-tex: false
 execute:
   echo: false
