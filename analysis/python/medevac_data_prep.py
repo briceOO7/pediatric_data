@@ -60,6 +60,18 @@ OUT_DATA          = ROOT / "outputs" / "data"
 AGE_GROUPS = ["<1 yr", "1–<5 yr", "5–12 yr", "13–18 yr"]
 AGE_GROUP_ORDER = {v: i for i, v in enumerate(AGE_GROUPS)}
 
+# Defense-in-depth timing ceiling: no single air ambulance interval (decision,
+# response/transfer, or total) is medically plausible beyond 3 days in this
+# system. Upstream journey-linking bugs can occasionally attach an unrelated,
+# much-later encounter to a journey (e.g. Buckland MRN M000887, journey
+# J_000758: a Feb 4 medevac got linked to an unrelated ANMC ED visit 20 days
+# later, producing an "activate_to_arrive_min" of ~28,300). Upstream columns
+# (activation_complete, activate_to_arrive_valid, timing_suspect) only guard
+# against a LOWER floor (round-trip flight time) — this ceiling guards the
+# upper end so a data glitch like this can never silently inflate a published
+# table, even before the upstream pipeline fix has been re-run.
+MAX_PLAUSIBLE_TIMING_MIN = 3 * 24 * 60  # 4320 min = 3 days
+
 # ── Village / facility resolution ──────────────────────────────────────────────
 
 _VILLAGE_NAMES_CACHE: frozenset[str] | None = None
@@ -618,8 +630,14 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
     dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
     total_min = (dest - orig).dt.total_seconds() / 60
 
-    valid_act        = _bool_col("activation_complete")
-    total_valid_mask = _bool_col("total_travel_valid")
+    # Defense-in-depth ceiling (see MAX_PLAUSIBLE_TIMING_MIN docstring above):
+    # exclude any interval upstream flags missed, regardless of reason.
+    ata_ok   = ata.isna()       | (ata       <= MAX_PLAUSIBLE_TIMING_MIN)
+    tta_ok   = tta.isna()       | (tta       <= MAX_PLAUSIBLE_TIMING_MIN)
+    total_ok = total_min.isna() | (total_min <= MAX_PLAUSIBLE_TIMING_MIN)
+
+    valid_act        = _bool_col("activation_complete") & ata_ok & tta_ok
+    total_valid_mask = _bool_col("total_travel_valid") & total_ok
 
     # ── Study period ───────────────────────────────────────────────────────────
     yr = pd.to_numeric(j.get("journey_start_year"), errors="coerce")

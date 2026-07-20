@@ -13,6 +13,18 @@ import seaborn as sns
 # Paths
 ROOT = Path(__file__).resolve().parents[2]
 
+# Defense-in-depth timing ceiling: no single air ambulance interval (decision,
+# response/transfer, or total) is medically plausible beyond 3 days in this
+# system. Upstream journey-linking bugs can occasionally attach an unrelated,
+# much-later encounter to a journey (e.g. Buckland MRN M000887, journey
+# J_000758: a Feb 4 medevac got linked to an unrelated ANMC ED visit 20 days
+# later, producing an "activate_to_arrive_min" of ~28,300). Upstream columns
+# (activation_complete, activate_to_arrive_valid, total_travel_valid) only
+# guard against a LOWER floor (round-trip flight time) — this ceiling guards
+# the upper end so a data glitch like this can never silently inflate a
+# published table, even before the upstream pipeline fix has been re-run.
+MAX_PLAUSIBLE_TIMING_MIN = 3 * 24 * 60  # 4320 min = 3 days
+
 # Pediatric CSV source directory.
 # On the PHI machine the medevac_pipeline_project produces all pediatric CSVs in
 # data/final/pediatric/.  Point DATA at that directory so no manual copy step is needed.
@@ -1287,6 +1299,7 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     orig = pd.to_datetime(j.get("origin_datetime"), errors="coerce")
     dest = pd.to_datetime(j.get("destination_datetime"), errors="coerce")
     bad_dir_mask = dest.notna() & orig.notna() & (dest < orig)  # tautological, not a "refined" threshold
+    total_min_all = (dest - orig).dt.total_seconds() / 60
 
     # ── activate_to_arrive_min (interval 2) ───────────────────────────────────
     ata = pd.to_numeric(j.get("activate_to_arrive_min", pd.Series(dtype=float, index=j.index)),
@@ -1295,25 +1308,30 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
     n_ata_direction = int(_reason.str.contains("direction_error").sum())
     n_ata_below_floor = int(_reason.str.contains("below_floor").sum())
     n_ata_raw   = int(ata.notna().sum())
-    n_ata_final = int(_bool_col("activate_to_arrive_valid").sum())
+    # Defense-in-depth ceiling (see MAX_PLAUSIBLE_TIMING_MIN docstring above).
+    _ata_ok = ata.isna() | (ata <= MAX_PLAUSIBLE_TIMING_MIN)
+    n_ata_above_ceiling = int((ata > MAX_PLAUSIBLE_TIMING_MIN).sum())
+    n_ata_final = int((_bool_col("activate_to_arrive_valid") & _ata_ok).sum())
 
     # ── time_to_activate_min (interval 1) ─────────────────────────────────────
     tta = pd.to_numeric(j.get("time_to_activate_min", pd.Series(dtype=float, index=j.index)),
                         errors="coerce")
     n_tta_raw   = int(tta.notna().sum())
     n_tta_neg   = int((tta < 0).sum())
-    n_tta_final = int(_bool_col("time_to_activate_valid").sum())
+    _tta_ok = tta.isna() | (tta <= MAX_PLAUSIBLE_TIMING_MIN)
+    n_tta_final = int((_bool_col("time_to_activate_valid") & _tta_ok).sum())
 
-    # Journeys with COMPLETE activation timing (both intervals valid)
-    n_activation_complete = int(_bool_col("activation_complete").sum())
+    # Journeys with COMPLETE activation timing (both intervals valid, both within ceiling)
+    n_activation_complete = int((_bool_col("activation_complete") & _ata_ok & _tta_ok).sum())
 
     # ── Total travel (interval 3): origin_datetime → destination_datetime ─────
     n_miss_origin = int(orig.isna().sum())
     n_miss_dest   = int(dest.isna().sum())
     n_miss_either = int((orig.isna() | dest.isna()).sum())
+    _total_ok = total_min_all.isna() | (total_min_all <= MAX_PLAUSIBLE_TIMING_MIN)
     n_total_raw       = int((orig.notna() & dest.notna()).sum())
     n_total_direction = int(bad_dir_mask.sum())
-    n_total_final     = int(_bool_col("total_travel_valid").sum())
+    n_total_final     = int((_bool_col("total_travel_valid") & _total_ok).sum())
 
     return dict(
         floors=floors,
@@ -1321,6 +1339,7 @@ def _compute_timing_qc(df: pd.DataFrame) -> dict:
         n_ata_raw=n_ata_raw,
         n_ata_direction=n_ata_direction,
         n_ata_below_floor=n_ata_below_floor,
+        n_ata_above_ceiling=n_ata_above_ceiling,
         n_ata_final=n_ata_final,
         n_tta_raw=n_tta_raw,
         n_tta_neg=n_tta_neg,
@@ -1575,8 +1594,17 @@ def build_table1_village_characteristics(df: pd.DataFrame) -> pd.DataFrame:
     def _bool_col(name: str) -> pd.Series:
         return j[name].fillna(False).astype(bool) if name in j.columns else pd.Series(False, index=j.index)
 
-    _total_valid_all = _bool_col("total_travel_valid")
-    _act_complete_all = _bool_col("activation_complete")
+    # Defense-in-depth ceiling (see MAX_PLAUSIBLE_TIMING_MIN docstring at module top).
+    _total_min_all = (_dest_all - _orig_all).dt.total_seconds() / 60
+    _tta_all = pd.to_numeric(
+        j.get("time_to_activate_min", pd.Series(dtype=float, index=j.index)), errors="coerce"
+    )
+    _total_ok_all = _total_min_all.isna() | (_total_min_all <= MAX_PLAUSIBLE_TIMING_MIN)
+    _ata_ok_all   = _ata_all.isna()       | (_ata_all       <= MAX_PLAUSIBLE_TIMING_MIN)
+    _tta_ok_all   = _tta_all.isna()       | (_tta_all       <= MAX_PLAUSIBLE_TIMING_MIN)
+
+    _total_valid_all = _bool_col("total_travel_valid") & _total_ok_all
+    _act_complete_all = _bool_col("activation_complete") & _ata_ok_all & _tta_ok_all
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _med_iqr_range_n(series: pd.Series) -> tuple[str, int]:
