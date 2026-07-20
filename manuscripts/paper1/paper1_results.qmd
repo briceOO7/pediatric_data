@@ -25,6 +25,7 @@ format:
     number-sections: true
     papersize: letter
     geometry: "margin=1in"
+    pdf-engine: pdflatex
     keep-tex: false
 execute:
   echo: false
