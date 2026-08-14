@@ -54,7 +54,15 @@ clinic — defined as an emergency originating in one of the 11 communities serv
 by the Maniilaq Health System that required air evacuation. During the five-year
 study period (2020–2024), `r cc$n_journeys` such flights were identified,
 involving `r cc$n_patients` unique patients across `r cc$n_villages` communities.
-This village-originating cohort forms the basis of all analyses below. An
+Because a single patient may require air evacuation more than once — at
+different ages and for different indications — journeys, not unique patients,
+are the primary analytic unit throughout this paper unless otherwise noted.
+`r cc$pct_multi_medevac_patients` of patients (`r cc$n_multi_medevac_patients`
+of `r cc$n_patients`) had more than one air ambulance transport during the
+study period, together accounting for `r cc$pct_journeys_from_multi` of all
+journeys (`r cc$n_journeys_from_multi` of `r cc$n_journeys`); @tbl-t1 reports
+the distribution of transports per patient overall and by village. This
+village-originating cohort forms the basis of all analyses below. An
 additional `r cc$n_mhc_presenting` air transport records in the database
 (MHC → tertiary center) were excluded, as these represent patients who presented
 locally to MHC — by walk-in, ground transport, or scheduled transfer — rather
@@ -95,7 +103,7 @@ fig1_choropleth_map()
 
 ```{r}
 #| label: tbl-t2
-#| tbl-cap: "Air ambulance patient characteristics by age group (n = 309 village-originating journeys). % (n) within each age-group column."
+#| tbl-cap: !expr paste0("Air ambulance patient characteristics by age group (n = ", cc$n_journeys, " village-originating journeys). % (n) within each age-group column.")
 tbl2_patient_characteristics()
 ```
 
@@ -107,8 +115,7 @@ Transports were classified by facility sequence. Overall,
 `r cc$route_village_mhc_str` of journeys were village → MHC,
 `r cc$route_mhc_tertiary_str` were MHC → tertiary hub, and
 `r cc$route_direct_tertiary_str` was direct village → tertiary hub, bypassing MHC.
-Of the `r cc$n_secondary` journeys with secondary transfer, 30 proceeded to ANMC,
-2 to Providence Alaska Medical Center, and 1 to Alaska Regional Hospital. The
+Of the `r cc$n_secondary` journeys with secondary transfer, `r cc$sec_dest_str`. The
 direct tertiary route was excluded from comparative analysis in @tbl-t3 due to
 small n. @tbl-t3 compares patient age, sex, and chief complaint between primary
 and secondary route groups.
@@ -121,7 +128,7 @@ tbl3_route_comparison()
 
 ```{r}
 #| label: fig-routes-village
-#| fig-cap: "Figure 2. Pediatric air ambulance routes by village (n = 309 journeys). Village clinics (left) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities."
+#| fig-cap: !expr paste0("Figure 2. Pediatric air ambulance routes by village (n = ", cc$n_journeys, " journeys). Village clinics (left) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities.")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
 ```
@@ -144,28 +151,28 @@ and by age group for all village-originating journeys; @fig-annual-village and
 
 ```{r}
 #| label: fig-monthly-village
-#| fig-cap: "Figure 3a. Monthly pediatric air ambulance journeys by village of origin (2020–2024; n = 309 village-originating journeys)."
+#| fig-cap: !expr paste0("Figure 3a. Monthly pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1a_monthly_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-monthly-age
-#| fig-cap: "Figure 3b. Monthly pediatric air ambulance journeys by age group (2020–2024; n = 309 village-originating journeys)."
+#| fig-cap: !expr paste0("Figure 3b. Monthly pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1b_monthly_by_age.png"))
 ```
 
 ```{r}
 #| label: fig-annual-village
-#| fig-cap: "Figure 4a. Annual pediatric air ambulance journeys by village of origin (2020–2024; n = 309 village-originating journeys)."
+#| fig-cap: !expr paste0("Figure 4a. Annual pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig2a_annual_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-annual-age
-#| fig-cap: "Figure 4b. Annual pediatric air ambulance journeys by age group (2020–2024; n = 309 village-originating journeys)."
+#| fig-cap: !expr paste0("Figure 4b. Annual pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 ```
@@ -209,7 +216,7 @@ for each pre-transport vital sign, overall and by age group.
 
 ```{r}
 #| label: tbl-completeness
-#| tbl-cap: "Table 5. Clinical data completeness (n = 309 village-originating journeys). Timing data and complete PEWS data report % (n) with sufficient data; vital-sign rows (including GCS/AVPU for PEWS consciousness) report missing % (n)."
+#| tbl-cap: !expr paste0("Table 5. Clinical data completeness (n = ", cc$n_journeys, " village-originating journeys). Timing data and complete PEWS data report % (n) with sufficient data; vital-sign rows (including GCS/AVPU for PEWS consciousness) report missing % (n).")
 tbl_completeness_vitals_pews()
 ```
 

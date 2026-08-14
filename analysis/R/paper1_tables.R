@@ -48,6 +48,7 @@ get_leg_breakdown <- function() {
 
 cohort_counts <- function() {
   jp <- get_journeys_primary()
+  pp <- get_patients_primary()
   cf <- get_cohort_flow()
   lb <- get_leg_breakdown()
 
@@ -69,9 +70,46 @@ cohort_counts <- function() {
   n_legs_mhc_anmc      <- sum(lb$n_legs[is_mhc_from &  is_anmc_to])
   n_legs_mhc_other     <- sum(lb$n_legs[is_mhc_from & !is_anmc_to])
 
+  # Utilization is concentrated among a subset of patients with >1 medevac
+  # ("multi-medevac" / repeat patients) — journeys, not unique patients, is
+  # the primary analytic unit throughout this paper, so this quantifies how
+  # much that denominator choice matters.
+  n_multi_medevac_patients   <- sum(pp$n_journeys_primary > 1, na.rm = TRUE)
+  n_journeys_from_multi      <- sum(pp$n_journeys_primary[pp$n_journeys_primary > 1], na.rm = TRUE)
+  pct_multi_medevac_patients <- fmt_pct_of_n(n_multi_medevac_patients, nrow(pp))
+  pct_journeys_from_multi    <- fmt_pct_of_n(n_journeys_from_multi, n_distinct(jp$journey_id))
+
   n_primary_only    <- sum(jp$route_type == "Primary (village \u2192 MHC)", na.rm = TRUE)
   n_secondary       <- sum(jp$route_type == "Secondary transfer", na.rm = TRUE)
   n_direct_tertiary <- sum(grepl("tertiary", jp$route_type, ignore.case = TRUE), na.rm = TRUE)
+
+  # Final destination of secondary-transfer journeys (village->MHC->tertiary):
+  # take the last non-missing medevac{1,2,3}_to leg, since destination_facility
+  # itself reflects where the patient was ultimately managed/discharged (often
+  # still "MHC" if returned there) rather than the tertiary transfer target.
+  sec_dest <- character(0)
+  if (n_secondary > 0) {
+    sec_jp <- jp[jp$route_type == "Secondary transfer", ]
+    to_cols <- intersect(c("medevac1_to", "medevac2_to", "medevac3_to"), names(sec_jp))
+    if (length(to_cols) > 0) {
+      last_to <- apply(sec_jp[, to_cols, drop = FALSE], 1, function(r) {
+        r <- r[!is.na(r) & nzchar(trimws(r))]
+        if (length(r) == 0) NA_character_ else r[length(r)]
+      })
+      sec_dest <- last_to[!is.na(last_to)]
+    }
+  }
+  sec_dest_tbl <- sort(table(sec_dest), decreasing = TRUE)
+  sec_dest_str <- if (length(sec_dest_tbl) > 0) {
+    parts <- sprintf("%d to %s", as.integer(sec_dest_tbl), names(sec_dest_tbl))
+    if (length(parts) == 1) {
+      parts
+    } else {
+      paste0(paste(parts[-length(parts)], collapse = ", "), ", and ", parts[length(parts)])
+    }
+  } else {
+    NA_character_
+  }
   n_journeys_coh    <- n_distinct(jp$journey_id)
   n_village_to_mhc  <- n_primary_only + n_secondary
   n_managed_at_mhc  <- n_primary_only
@@ -86,6 +124,11 @@ cohort_counts <- function() {
     n_journeys           = n_journeys_coh,
     n_patients           = n_distinct(jp$MRN),
     n_villages           = n_distinct(jp$village_name[!is.na(jp$village_name) & jp$village_name != ""]),
+    # Multi-medevac ("repeat"/high-utilizer) patient concentration
+    n_multi_medevac_patients   = n_multi_medevac_patients,
+    n_journeys_from_multi      = n_journeys_from_multi,
+    pct_multi_medevac_patients = pct_multi_medevac_patients,
+    pct_journeys_from_multi    = pct_journeys_from_multi,
     # DB totals (for PRISMA context)
     n_db_total           = as.integer(all_row$n_journeys),
     n_mhc_presenting     = as.integer(excl_row$n_journeys),
@@ -98,6 +141,7 @@ cohort_counts <- function() {
     n_primary_only       = n_primary_only,
     n_secondary          = n_secondary,
     n_direct_tertiary    = n_direct_tertiary,
+    sec_dest_str         = sec_dest_str,
     n_village_to_mhc   = n_village_to_mhc,
     n_managed_at_mhc     = n_managed_at_mhc,
     pct_managed_at_mhc   = pct_managed_at_mhc,
@@ -420,7 +464,13 @@ tbl1_village_characteristics <- function() {
     metric_rows, dat,
     bold_header_rows = c("Pediatric population (under 18)",
                          "Air ambulance transports per patient"),
-    shaded_rows      = "Air ambulance transports per patient"
+    shaded_rows      = "Air ambulance transports per patient",
+    footnotes = list(
+      list(
+        footnote  = "Denominator is unique patients (n varies by column), not journeys, unlike every other row in this table \u2014 a patient with multiple transports is counted once here but contributes one row per transport elsewhere in this paper's journey-level analyses.",
+        locations = cells_stub(rows = Metric == "Air ambulance transports per patient")
+      )
+    )
   )
 }
 
@@ -457,7 +507,7 @@ tbl4_timing_by_village <- function() {
   )
 }
 
-# ── Table 2: Journey characteristics by age group (n = 309 journeys) ──────────
+# ── Table 2: Journey characteristics by age group ──────────────────────────────
 
 tbl2_patient_characteristics <- function() {
   jp <- get_journeys_primary()
@@ -578,7 +628,10 @@ tbl2_patient_characteristics <- function() {
     add_overall(last = FALSE) |>
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
-    modify_caption("**Table 2.** Air ambulance patient characteristics by age group (n = 309 village-originating journeys). % (n) within each age-group column.") |>
+    modify_caption(sprintf(
+      "**Table 2.** Air ambulance patient characteristics by age group (n = %d village-originating journeys). %% (n) within each age-group column.",
+      n_distinct(jp$journey_id)
+    )) |>
     .as_gt_or_flex()
 }
 
