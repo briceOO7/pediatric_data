@@ -47,12 +47,14 @@ else:
 
 VILLAGE_CODEBOOK = ROOT / "docs" / "village_name_codebook.csv"
 FACILITY_CODEBOOK = ROOT / "docs" / "facility_name_codebook.csv"
+EXTERNAL_VILLAGE_CODEBOOK = ROOT / "docs" / "external_village_codebook.csv"
 # infer = real PHI CSV community names (default)
 # codebook = de-ID + village_name_codebook (set MEDEVAC_VILLAGE_ORIGINS=codebook
 # or MEDEVAC_SYNTHETIC=1 on local dev machine).
 MEDEVAC_VILLAGE_ORIGINS = os.environ.get("MEDEVAC_VILLAGE_ORIGINS", "").strip().lower()
 OUT_TABLES = ROOT / "outputs" / "tables"
 OUT_FIGS = ROOT / "outputs" / "figures"
+OUT_FIGS_EXTERNAL = ROOT / "outputs" / "figures_external"
 
 sns.set_theme(style="whitegrid", context="talk", font_scale=0.85)
 plt.rcParams["figure.dpi"] = 120
@@ -63,6 +65,7 @@ _VILLAGE_NAMES_CACHE: frozenset[str] | None = None
 _FACILITY_DISPLAY_CACHE: dict[str, str] | None = None
 _VILLAGE_ORIGIN_MODE_CACHE: str | None = None
 _VILLAGE_CODE_TO_NAME_CACHE: dict[str, str] | None = None
+_EXTERNAL_VILLAGE_CODEBOOK_CACHE: dict[str, str] | None = None
 
 
 def facility_display_map() -> dict[str, str]:
@@ -112,6 +115,41 @@ def _decode_village_name(x: object) -> object:
     if not s.startswith("Village_"):
         return x
     return village_code_to_name_map().get(s, x)
+
+
+def _external_village_codebook() -> dict[str, str]:
+    """
+    Real community name -> "Village A".."Village K" placeholder, for the
+    external (anonymized) manuscript. See docs/external_village_codebook.md.
+
+    This codebook is intentionally gitignored (it's the re-identification
+    key), so it must exist locally before generating anonymized figures.
+    """
+    global _EXTERNAL_VILLAGE_CODEBOOK_CACHE
+    if _EXTERNAL_VILLAGE_CODEBOOK_CACHE is None:
+        if not EXTERNAL_VILLAGE_CODEBOOK.exists():
+            raise FileNotFoundError(
+                f"Cannot anonymize village names: {EXTERNAL_VILLAGE_CODEBOOK} does not exist.\n"
+                "This file is intentionally gitignored (it's the re-identification key) "
+                "-- see docs/external_village_codebook.md for how to create it locally."
+            )
+        cb = pd.read_csv(EXTERNAL_VILLAGE_CODEBOOK)
+        _EXTERNAL_VILLAGE_CODEBOOK_CACHE = {
+            str(orig): str(coded).replace("Village_", "Village ")
+            for orig, coded in zip(cb["original_village"], cb["coded_village"], strict=True)
+        }
+    return _EXTERNAL_VILLAGE_CODEBOOK_CACHE
+
+
+def _anonymize_village(name: object) -> object:
+    """Map a real village/community name to its Village A-K placeholder.
+
+    Names not present in the codebook (e.g. "Overall") pass through unchanged.
+    """
+    s = str(name).strip()
+    if not s:
+        return name
+    return _external_village_codebook().get(s, name)
 
 
 def village_origin_mode() -> str:
@@ -2728,13 +2766,28 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
         "Trauma":           "Trauma/Injury",
         "Orthopedic":       "Trauma/Injury",
     }
+    # Sweeps in every complaint whose description names a physical injury
+    # mechanism, even outside the Trauma/Orthopedic categories (frostbite is
+    # "Environmental", burns/lacerations are "Skin"). Kept separate: "Sexual
+    # assault" (OB/GYN) and "Cardiac arrest (traumatic)" (a resuscitation
+    # event, not a general injury complaint). Keep in sync with
+    # analysis/python/medevac_data_prep.py's _CC_GROUPED_COMPLAINTS.
     _GROUPED_COMPLAINTS = {
-        "Head injury":      "Trauma/Injury",
-        "Facial trauma":    "Trauma/Injury",
-        "Neck trauma":      "Trauma/Injury",
-        "Genital trauma":   "Trauma/Injury",
-        "Eye trauma":       "Trauma/Injury",
-        "URTI complaints":  "Respiratory",
+        "Head injury":           "Trauma/Injury",
+        "Facial trauma":         "Trauma/Injury",
+        "Neck trauma":           "Trauma/Injury",
+        "Genital trauma":        "Trauma/Injury",
+        "Eye trauma":            "Trauma/Injury",
+        "Ear injury":            "Trauma/Injury",
+        "Anal/rectal trauma":    "Trauma/Injury",
+        "Frostbite/cold injury": "Trauma/Injury",
+        "Electrical injury":     "Trauma/Injury",
+        "Bite":                  "Trauma/Injury",
+        "Sting":                 "Trauma/Injury",
+        "Abrasion":              "Trauma/Injury",
+        "Laceration/puncture":   "Trauma/Injury",
+        "Burn":                  "Trauma/Injury",
+        "URTI complaints":       "Respiratory",
     }
 
     def _custom_group(row: pd.Series) -> str:
@@ -3860,6 +3913,7 @@ def plot_fig1a_monthly_by_village(
     df: pd.DataFrame,
     start_year: int = 2020,
     end_year:   int = 2024,
+    anonymize: bool = False,
 ) -> plt.Figure:
     """Figure 1A: Monthly medevac volume, stacked by village (2020–2024)."""
     title = f"Monthly Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
@@ -3867,6 +3921,8 @@ def plot_fig1a_monthly_by_village(
     d = d[d["_village"].astype(str).str.strip().ne("")].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
+    if anonymize:
+        d["_village"] = d["_village"].map(_anonymize_village)
 
     village_order = (
         d.groupby("_village")["journey_id"]
@@ -3962,6 +4018,7 @@ def plot_fig2a_annual_by_village(
     df: pd.DataFrame,
     start_year: int = 2020,
     end_year:   int = 2024,
+    anonymize: bool = False,
 ) -> plt.Figure:
     """Figure 2A: Annual medevac volume, stacked by village (2020–2024)."""
     title = f"Annual Pediatric Medevac Volume ({start_year}–{end_year}); n = 0"
@@ -3969,6 +4026,8 @@ def plot_fig2a_annual_by_village(
     d = d[d["_village"].astype(str).str.strip().ne("")].copy()
     if d.empty:
         return _empty_temporal_figure(title.replace("n = 0", "n = 0"))
+    if anonymize:
+        d["_village"] = d["_village"].map(_anonymize_village)
 
     village_order = (
         d.groupby("_village")["journey_id"]
@@ -4060,7 +4119,9 @@ def plot_fig2b_annual_by_age(
     return fig
 
 
-def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
+def plot_fig4_sankey_transport_routes(
+    df_all: pd.DataFrame, anonymize: bool = False
+) -> plt.Figure:
     """
     Figure 2: Network flow diagram — village-level air ambulance routing.
 
@@ -4120,6 +4181,8 @@ def plot_fig4_sankey_transport_routes(df_all: pd.DataFrame) -> plt.Figure:
                 break
         if not vname:
             continue
+        if anonymize:
+            vname = str(_anonymize_village(vname))
         legs = [_dest_label(r.get(f"medevac{i}_to")) for i in (1, 2, 3)]
         legs = [l for l in legs if l]   # drop blanks
 
@@ -4393,6 +4456,36 @@ def save_all_figures(df: pd.DataFrame) -> None:
         )
         plt.close(fig_sankey)
         print(f"Wrote {OUT_FIGS / 'fig4_sankey_transport_routes.png'}")
+
+        # Anonymized copies for manuscripts/paper1/external_manuscript.qmd
+        # (Village A..K instead of real community names). Skipped with a
+        # warning if the local re-identification codebook isn't present --
+        # see docs/external_village_codebook.md.
+        try:
+            OUT_FIGS_EXTERNAL.mkdir(parents=True, exist_ok=True)
+            external_specs = [
+                ("fig1a_monthly_by_village.png",
+                 plot_fig1a_monthly_by_village(jp, anonymize=True)),
+                ("fig2a_annual_by_village.png",
+                 plot_fig2a_annual_by_village(jp, anonymize=True)),
+            ]
+            for name, fig in external_specs:
+                fig.savefig(OUT_FIGS_EXTERNAL / name, bbox_inches="tight", pad_inches=0.05)
+                plt.close(fig)
+                print(f"Wrote {OUT_FIGS_EXTERNAL / name}")
+
+            fig_sankey_ext = plot_fig4_sankey_transport_routes(jp, anonymize=True)
+            fig_sankey_ext.savefig(
+                OUT_FIGS_EXTERNAL / "fig4_sankey_transport_routes.png",
+                bbox_inches="tight",
+                pad_inches=0.05,
+            )
+            plt.close(fig_sankey_ext)
+            print(f"Wrote {OUT_FIGS_EXTERNAL / 'fig4_sankey_transport_routes.png'}")
+        except FileNotFoundError as e:
+            print(
+                f"  \u26a0\ufe0f  Skipping anonymized figures for external_manuscript.qmd: {e}"
+            )
 
 
 def main():

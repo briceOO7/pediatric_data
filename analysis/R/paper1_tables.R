@@ -307,12 +307,18 @@ fig_prisma_diagram <- function() {
   list(vs_fmt = vs_fmt, transport_fmt = transport_fmt, col_order = col_order)
 }
 
-.village_column_labels <- function(vs_fmt, col_order) {
+.village_column_labels <- function(vs_fmt, col_order, anonymize = FALSE) {
   is_pdf <- .output_format() == "pdf"
   labels <- lapply(col_order, function(vname) {
     row <- vs_fmt |> filter(village_name == vname)
     n <- if (nrow(row) == 0 || is.na(row$n_journeys[1])) 0L else as.integer(row$n_journeys[1])
-    label <- if (vname == "Overall") "Overall" else vname
+    label <- if (vname == "Overall") {
+      "Overall"
+    } else if (anonymize) {
+      anonymize_village_name(vname)
+    } else {
+      vname
+    }
     if (is_pdf) {
       # LaTeX tables don't handle md() linebreaks; use plain text
       sprintf("%s (N=%d)", label, n)
@@ -372,7 +378,8 @@ fig_prisma_diagram <- function() {
 }
 
 .render_village_gt <- function(metric_rows, dat, bold_header_rows = character(0),
-                               shaded_rows = character(0), footnotes = list()) {
+                               shaded_rows = character(0), footnotes = list(),
+                               anonymize = FALSE) {
   vs_fmt        <- dat$vs_fmt
   transport_fmt <- dat$transport_fmt
   col_order     <- dat$col_order
@@ -396,7 +403,21 @@ fig_prisma_diagram <- function() {
     tbl_wide[[cn]] <- sapply(metric_rows$metric_id, function(m) get_val(cn, m))
   }
   tbl_wide <- tbl_wide |> select(-metric_id)
-  col_labels <- .village_column_labels(vs_fmt, col_order)
+  col_labels <- .village_column_labels(vs_fmt, col_order, anonymize = anonymize)
+
+  # gt derives HTML column ids/`headers` attributes from the underlying
+  # data-frame column names, not from cols_label()'s display text -- so when
+  # anonymizing, the real village name must be scrubbed from the column name
+  # itself (not just its printed label), or it would leak into the raw HTML.
+  if (anonymize) {
+    display_names <- vapply(
+      col_order,
+      function(v) if (v == "Overall") v else anonymize_village_name(v),
+      character(1)
+    )
+    names(tbl_wide) <- c("Metric", display_names)
+    names(col_labels) <- display_names
+  }
 
   tbl <- tbl_wide |>
     gt(rowname_col = "Metric") |>
@@ -446,7 +467,7 @@ fig_prisma_diagram <- function() {
 
 # ── Table 1: Village summary (population, journeys, transport counts) ──────────
 
-tbl1_village_characteristics <- function() {
+tbl1_village_characteristics <- function(anonymize = FALSE) {
   dat <- .village_table_data()
 
   metric_rows <- tribble(
@@ -470,13 +491,14 @@ tbl1_village_characteristics <- function() {
         footnote  = "Denominator is unique patients (n varies by column), not journeys, unlike every other row in this table \u2014 a patient with multiple transports is counted once here but contributes one row per transport elsewhere in this paper's journey-level analyses.",
         locations = cells_stub(rows = Metric == "Air ambulance transports per patient")
       )
-    )
+    ),
+    anonymize = anonymize
   )
 }
 
 # ── Table 4: Air ambulance timing by village ───────────────────────────────────
 
-tbl4_timing_by_village <- function() {
+tbl4_timing_by_village <- function(anonymize = FALSE) {
   dat <- .village_table_data()
 
   metric_rows <- tribble(
@@ -503,15 +525,24 @@ tbl4_timing_by_village <- function() {
         footnote  = "Utilization rate = village \u2192 MHC journeys per 1,000 pediatric residents under 18 (2020 Census).",
         locations = cells_stub(rows = Metric == "Utilization rate per 1,000 pediatric residents")
       )
-    )
+    ),
+    anonymize = anonymize
   )
 }
 
 # ── Table 2: Journey characteristics by age group ──────────────────────────────
+# grouped = TRUE  (Table 2): chief complaint uses the collapsed
+#   primary_cedis_custom_group categories (Respiratory, Gastrointestinal, and
+#   Trauma/Injury are each merged into a single row; other complaints keep
+#   their own raw text since they aren't in a collapsed category).
+# grouped = FALSE (Table 2a, via tbl2a_patient_characteristics()): chief
+#   complaint uses discrete/raw primary_cedis_complaint text throughout,
+#   including for respiratory, GI, and trauma complaints.
 
-tbl2_patient_characteristics <- function() {
+tbl2_patient_characteristics <- function(grouped = TRUE) {
   jp <- get_journeys_primary()
   pp <- get_patients_primary()
+  cc_col <- if (grouped) "primary_cedis_custom_group" else "primary_cedis_complaint"
 
   # Join patient-level demographics (RaceDSC, insurance_cat) that may not be
   # present on the journey file
@@ -572,18 +603,17 @@ tbl2_patient_characteristics <- function() {
     )
   }
 
-  # Chief complaint: groups with ≥10 journeys overall, sorted high → low
-  if ("primary_cedis_custom_group" %in% names(jp)) {
+  # Chief complaint: groups/complaints with ≥10 journeys overall, sorted high → low
+  if (cc_col %in% names(jp)) {
     reported_cc <- jp |>
-      filter(!is.na(primary_cedis_custom_group)) |>
-      count(primary_cedis_custom_group, sort = TRUE) |>
+      filter(!is.na(.data[[cc_col]])) |>
+      count(.data[[cc_col]], sort = TRUE) |>
       filter(n >= 10) |>
-      pull(primary_cedis_custom_group)
+      pull(1)
 
     jp <- jp |> mutate(
-      primary_cedis_custom_group = factor(
-        ifelse(primary_cedis_custom_group %in% reported_cc,
-               primary_cedis_custom_group, NA_character_),
+      "{cc_col}" := factor(
+        ifelse(.data[[cc_col]] %in% reported_cc, .data[[cc_col]], NA_character_),
         levels = reported_cc
       )
     )
@@ -595,17 +625,20 @@ tbl2_patient_characteristics <- function() {
     if ("female"        %in% names(jp)) "female",
     if ("ai_an"         %in% names(jp)) "ai_an",
     if ("insurance_cat" %in% names(jp)) "insurance_cat",
-    "primary_cedis_custom_group"
+    cc_col
   )
   include_vars <- intersect(ordered_vars, names(jp))
   jp_sel <- jp |> select(all_of(c(include_vars, "age_group")))
 
+  cc_label_text <- if (grouped) "Chief Complaint" else "Chief Complaint (discrete CEDIS)"
+  cc_formula <- stats::as.formula(paste0("`", cc_col, "` ~ \"", cc_label_text, "\""))
+
   all_labels <- list(
-    age_at_medevac_num         ~ "Age, years - Median (IQR)",
-    female                     ~ "Sex",
-    ai_an                      ~ "Race",
-    insurance_cat              ~ "Insurance type",
-    primary_cedis_custom_group ~ "Chief Complaint"
+    age_at_medevac_num ~ "Age, years - Median (IQR)",
+    female             ~ "Sex",
+    ai_an              ~ "Race",
+    insurance_cat      ~ "Insurance type",
+    cc_formula
   )
   label_vars    <- lapply(all_labels, function(x) as.character(x[[2]]))
   active_labels <- all_labels[unlist(label_vars) %in% include_vars]
@@ -629,10 +662,18 @@ tbl2_patient_characteristics <- function() {
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
     modify_caption(sprintf(
-      "**Table 2.** Air ambulance patient characteristics by age group (n = %d village-originating journeys). %% (n) within each age-group column.",
-      n_distinct(jp$journey_id)
+      "**%s.** Air ambulance patient characteristics by age group (n = %d village-originating journeys). %% (n) within each age-group column.%s",
+      if (grouped) "Table 2" else "Table 2a",
+      n_distinct(jp$journey_id),
+      if (grouped) "" else " Chief complaint shown as discrete CEDIS complaints (not grouped)."
     )) |>
     .as_gt_or_flex()
+}
+
+# Table 2a: same breakdown as Table 2, but using discrete/raw CEDIS chief
+# complaints instead of the collapsed primary_cedis_custom_group categories.
+tbl2a_patient_characteristics <- function() {
+  tbl2_patient_characteristics(grouped = FALSE)
 }
 
 # ── Table 3: Primary vs. Secondary comparison ──────────────────────────────────
@@ -1085,4 +1126,108 @@ tbl_completeness_vitals_pews <- function() {
   }
 
   .completeness_gt(df, col_labels)
+}
+
+# ── Table 6: Chief complaint (CEDIS) by age group ───────────────────────────────
+# Wide table: rows = CEDIS chief complaints with >=min_overall journeys
+# overall, columns = Overall + age groups. Restores the standalone breakdown
+# from the retired Python build_table3_cedis_chief_complaints().
+#
+# grouped = FALSE (Table 6): discrete/raw primary_cedis_complaint rows.
+# grouped = TRUE  (Table 6a, via tbl6a_chief_complaint_by_age()): rows use the
+# same collapsed primary_cedis_custom_group categories as Table 2/3 (Respiratory,
+# Gastrointestinal, and Trauma/Injury are each merged into a single row).
+
+.cc_age_cols <- list(
+  c("Overall",       NA),
+  c("<1 yr",         "<1 yr"),
+  c("1\u2013<5 yr",  "1\u2013<5 yr"),
+  c("5\u201312 yr",  "5\u201312 yr"),
+  c("13\u201318 yr", "13\u201318 yr")
+)
+
+.cc_age_column_labels <- function(jp) {
+  col_names <- vapply(.cc_age_cols, `[[`, character(1), 1)
+  is_pdf <- .output_format() == "pdf"
+  labels <- lapply(seq_along(.cc_age_cols), function(i) {
+    x <- .cc_age_cols[[i]]
+    age_label <- x[[2]]
+    sub <- if (is.na(age_label)) jp else jp[jp$age_group == age_label, , drop = FALSE]
+    if (is_pdf) {
+      sprintf("%s (N=%d)", x[[1]], nrow(sub))
+    } else {
+      md(sprintf("**%s**  \nN = %d", x[[1]], nrow(sub)))
+    }
+  })
+  setNames(labels, col_names)
+}
+
+tbl6_chief_complaint_by_age <- function(min_overall = 10, grouped = FALSE) {
+  jp <- get_journeys_primary()
+  col_names <- vapply(.cc_age_cols, `[[`, character(1), 1)
+  cc_col <- if (grouped) "primary_cedis_custom_group" else "primary_cedis_complaint"
+
+  if (!cc_col %in% names(jp) || nrow(jp) == 0) {
+    empty <- tibble(`Chief Complaint (CEDIS)` = "\u2014") |>
+      bind_cols(as_tibble(as.list(setNames(rep("\u2014", length(col_names)), col_names))))
+    return(gt(empty) |> .paper1_gt_theme())
+  }
+
+  col_labels <- .cc_age_column_labels(jp)
+
+  valid <- jp |>
+    filter(!is.na(.data[[cc_col]]), .data[[cc_col]] != "") |>
+    mutate(cc_label = .data[[cc_col]])
+
+  top_complaints <- valid |>
+    count(cc_label, sort = TRUE) |>
+    filter(n >= min_overall) |>
+    pull(cc_label)
+
+  cell <- function(sub, complaint, denom) {
+    if (denom == 0) return("\u2014")
+    n <- sum(sub$cc_label == complaint, na.rm = TRUE)
+    fmt_pct_n(n, denom)
+  }
+
+  rows <- lapply(top_complaints, function(complaint) {
+    vals <- vapply(.cc_age_cols, function(x) {
+      age_label <- x[[2]]
+      sub    <- if (is.na(age_label)) valid else valid[valid$age_group == age_label, , drop = FALSE]
+      denom  <- if (is.na(age_label)) nrow(jp) else sum(jp$age_group == age_label, na.rm = TRUE)
+      cell(sub, complaint, denom)
+    }, character(1))
+    tibble(`Chief Complaint (CEDIS)` = complaint) |>
+      bind_cols(as_tibble(as.list(setNames(vals, col_names))))
+  })
+
+  if (length(rows) == 0) {
+    df <- tibble(`Chief Complaint (CEDIS)` = "\u2014") |>
+      bind_cols(as_tibble(as.list(setNames(rep("\u2014", length(col_names)), col_names))))
+  } else {
+    df <- bind_rows(rows)
+  }
+
+  gt(df, rowname_col = "Chief Complaint (CEDIS)") |>
+    cols_label(!!!col_labels) |>
+    tab_stubhead(label = "Chief Complaint (CEDIS)") |>
+    tab_style(style = cell_text(weight = "bold", color = "#000000"),
+              locations = cells_column_labels()) |>
+    tab_style(style = cell_text(weight = "bold"),
+              locations = cells_body(columns = "Overall")) |>
+    tab_footnote(
+      footnote  = sprintf(
+        "%s with < %d journeys overall are not shown. %% (n) within each age-group column, including journeys without a recorded complaint in the denominator.",
+        if (grouped) "Complaint groups" else "Complaints", min_overall
+      ),
+      locations = cells_column_labels(columns = "Overall")
+    ) |>
+    .paper1_gt_theme()
+}
+
+# Table 6a: same breakdown as Table 6, but using the collapsed chief-complaint
+# groups (Respiratory, Gastrointestinal, Trauma/Injury, etc.) from Table 2/3
+# instead of discrete/raw CEDIS complaint text.
+tbl6a_chief_complaint_by_age <- function(min_overall = 10) {
+  tbl6_chief_complaint_by_age(min_overall = min_overall, grouped = TRUE)
 }

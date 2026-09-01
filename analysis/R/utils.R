@@ -29,6 +29,42 @@ source_data_dir <- function() {
   NA_character_
 }
 
+# ── External village anonymization (Village A–K) ────────────────────────────
+# Maps real Maniilaq community names to anonymous placeholders for
+# manuscripts/paper1/external_manuscript.qmd. See docs/external_village_codebook.md.
+# The codebook itself is gitignored (it's the re-identification key), so it
+# must exist locally before rendering the external manuscript.
+
+.external_village_codebook_cache <- new.env(parent = emptyenv())
+
+.load_external_village_codebook <- function() {
+  if (!is.null(.external_village_codebook_cache$map)) {
+    return(.external_village_codebook_cache$map)
+  }
+  path <- here("docs", "external_village_codebook.csv")
+  if (!file.exists(path)) {
+    stop(
+      "Cannot anonymize village names: ", path, " does not exist.\n",
+      "This file is intentionally gitignored (it's the re-identification key) ",
+      "-- see docs/external_village_codebook.md for how to create it locally."
+    )
+  }
+  cb <- read_csv(path, show_col_types = FALSE)
+  map <- setNames(
+    gsub("^Village_", "Village ", cb$coded_village),
+    cb$original_village
+  )
+  .external_village_codebook_cache$map <- map
+  map
+}
+
+#' Map a real village/community name to its "Village A".."Village K" placeholder.
+#' Names not present in the codebook (e.g. "Overall") pass through unchanged.
+anonymize_village_name <- function(name) {
+  map <- .load_external_village_codebook()
+  ifelse(name %in% names(map), unname(map[name]), name)
+}
+
 vitals_csv_path <- function() {
   env <- Sys.getenv("MEDEVAC_VITALS_CSV", unset = "")
   if (nzchar(env)) return(env)

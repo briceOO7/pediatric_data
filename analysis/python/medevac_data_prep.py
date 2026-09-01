@@ -297,14 +297,29 @@ _CC_GROUPED_CATS: dict[str, str] = {
 }
 
 # Individual complaint text overrides (case-insensitive; take priority over category rule)
+# Trauma/Injury sweeps in every CEDIS complaint whose *description* names a
+# physical injury mechanism, even when its CEDIS category isn't "Trauma" or
+# "Orthopedic" (e.g. frostbite is filed under "Environmental", burns/lacerations
+# under "Skin"). Deliberately excluded as separate, clinically distinct
+# categories: "Sexual assault" (OB/GYN) and "Cardiac arrest (traumatic)"
+# (Cardiovascular, reported as a resuscitation event, not a general injury).
 _CC_GROUPED_COMPLAINTS: dict[str, str] = {
-    "Head injury":       "Trauma/Injury",
-    "Facial trauma":     "Trauma/Injury",
-    "Neck trauma":       "Trauma/Injury",
-    "Genital trauma":    "Trauma/Injury",
-    "Eye trauma":        "Trauma/Injury",
-    "Trauma/Orthopedic": "Trauma/Injury",
-    "URTI complaints":   "Respiratory",
+    "Head injury":            "Trauma/Injury",
+    "Facial trauma":          "Trauma/Injury",
+    "Neck trauma":            "Trauma/Injury",
+    "Genital trauma":         "Trauma/Injury",
+    "Eye trauma":             "Trauma/Injury",
+    "Ear injury":             "Trauma/Injury",
+    "Anal/rectal trauma":     "Trauma/Injury",
+    "Frostbite/cold injury":  "Trauma/Injury",
+    "Electrical injury":      "Trauma/Injury",
+    "Bite":                   "Trauma/Injury",
+    "Sting":                  "Trauma/Injury",
+    "Abrasion":               "Trauma/Injury",
+    "Laceration/puncture":    "Trauma/Injury",
+    "Burn":                   "Trauma/Injury",
+    "Trauma/Orthopedic":      "Trauma/Injury",
+    "URTI complaints":        "Respiratory",
 }
 
 

@@ -155,6 +155,26 @@ def main() -> int:
         if r.returncode != 0:
             return r.returncode
 
+        # Step 3b: external (village-anonymized) manuscript — HTML only. Needs
+        # docs/external_village_codebook.csv locally (gitignored, see
+        # docs/external_village_codebook.md); warn and continue if missing
+        # rather than failing the whole pipeline.
+        print("==> Step 3b: Quarto render (external_manuscript.qmd — anonymized villages)")
+        ext_cmd = [
+            quarto, "render",
+            str(root / "manuscripts" / "paper1" / "external_manuscript.qmd"),
+            "--to", "html",
+        ]
+        print("==> Quarto:", " ".join(ext_cmd))
+        r = subprocess.run(ext_cmd, cwd=root)
+        if r.returncode != 0:
+            print(
+                "WARNING: external_manuscript.qmd render failed (often means "
+                "docs/external_village_codebook.csv is missing locally — see "
+                "docs/external_village_codebook.md). Internal report above is unaffected.",
+                file=sys.stderr,
+            )
+
     print("Pipeline finished OK.")
     return 0
 

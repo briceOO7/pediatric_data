@@ -1,11 +1,11 @@
 ---
 title: "Pediatric Air Ambulance Operations in a Remote Arctic Health System"
-subtitle: "Utilization, Timeliness, and Regional Variation — Results"
+subtitle: "Utilization, Timeliness, and Regional Variation — External Summary"
 date: today
 date-format: long
 format:
   html:
-    output-file: paper1_results_r.html
+    output-file: external_manuscript.html
     toc: true
     toc-depth: 3
     toc-title: "Contents"
@@ -13,21 +13,6 @@ format:
     theme: cosmo
     embed-resources: true
     page-layout: full
-  docx:
-    output-file: paper1_results_r.docx
-    toc: true
-    number-sections: true
-    reference-doc: _reference.docx
-    prefer-html: false
-  pdf:
-    output-file: paper1_results_r.pdf
-    toc: true
-    number-sections: true
-    papersize: letter
-    geometry: "margin=1in"
-    pdf-engine: pdflatex
-    latex-auto-install: false
-    keep-tex: false
 execute:
   echo: false
   warning: false
@@ -44,6 +29,13 @@ source(here("analysis", "R", "paper1_figures.R"))
 cc <- cohort_counts()
 ts <- temporal_stats()
 ```
+
+::: {.callout-note}
+This is a de-identified version of this report prepared for external
+collaborators. Village/community names have been replaced with anonymous
+labels (Village A–K, consistent across all tables and figures below), and
+the geographic service-district map has been omitted.
+:::
 
 ## Results
 
@@ -70,9 +62,8 @@ than village-originating emergencies.
 
 @tbl-t1 summarizes air ambulance characteristics by village, including total
 journeys, unique patients, mean journeys per year, air ambulance timing, and
-per-village utilization rate. @fig-map shows the geographic distribution of
-utilization across the Maniilaq service area. @tbl-t2 summarizes patient
-characteristics by age group.
+per-village utilization rate. @tbl-t2 summarizes patient characteristics by
+age group.
 
 #### Flight Segment Breakdown
 
@@ -88,17 +79,8 @@ and destination:
 
 ```{r}
 #| label: tbl-t1
-#| tbl-cap: "Table 1. Air ambulance characteristics by village. Sorted by utilization rate (highest to lowest). Transport counts are % (n) of patients within each village column. Utilization rate = journeys per 1,000 pediatric residents (2020 Census)."
-tbl1_village_characteristics()
-```
-
-```{r}
-#| label: fig-map
-#| fig-cap: "Figure 1. Approximate air ambulance service districts: Northwest Arctic Borough divided by nearest village clinic (Voronoi tessellation). Color = pediatric air ambulance utilization rate per 1,000 residents (2020 Census)."
-#| fig-width: 8.5
-#| fig-height: 6.5
-#| out-width: 100%
-fig1_choropleth_map()
+#| tbl-cap: "Table 1. Air ambulance characteristics by village. Sorted by utilization rate (highest to lowest). Transport counts are % (n) of patients within each village column. Utilization rate = journeys per 1,000 pediatric residents (2020 Census). Village identities have been replaced with anonymous labels."
+tbl1_village_characteristics(anonymize = TRUE)
 ```
 
 ```{r}
@@ -139,9 +121,9 @@ tbl3_route_comparison()
 
 ```{r}
 #| label: fig-routes-village
-#| fig-cap: !expr paste0("Figure 2. Pediatric air ambulance routes by village (n = ", cc$n_journeys, " journeys). Village clinics (left) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities.")
+#| fig-cap: !expr paste0("Figure 1. Pediatric air ambulance routes by village (n = ", cc$n_journeys, " journeys). Village clinics (left, anonymized) connect to the regional critical access hospital (center) and tertiary referral hospitals (right); line width is proportional to transfer volume. Grey flows denote secondary transfers to tertiary facilities.")
 #| out-width: 100%
-knitr::include_graphics(here("outputs", "figures", "fig4_sankey_transport_routes.png"))
+knitr::include_graphics(here("outputs", "figures_external", "fig4_sankey_transport_routes.png"))
 ```
 
 ---
@@ -162,28 +144,28 @@ and by age group for all village-originating journeys; @fig-annual-village and
 
 ```{r}
 #| label: fig-monthly-village
-#| fig-cap: !expr paste0("Figure 3a. Monthly pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
+#| fig-cap: !expr paste0("Figure 2a. Monthly pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys). Village identities have been replaced with anonymous labels.")
 #| out-width: 100%
-knitr::include_graphics(here("outputs", "figures", "fig1a_monthly_by_village.png"))
+knitr::include_graphics(here("outputs", "figures_external", "fig1a_monthly_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-monthly-age
-#| fig-cap: !expr paste0("Figure 3b. Monthly pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
+#| fig-cap: !expr paste0("Figure 2b. Monthly pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig1b_monthly_by_age.png"))
 ```
 
 ```{r}
 #| label: fig-annual-village
-#| fig-cap: !expr paste0("Figure 4a. Annual pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
+#| fig-cap: !expr paste0("Figure 3a. Annual pediatric air ambulance journeys by village of origin (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys). Village identities have been replaced with anonymous labels.")
 #| out-width: 100%
-knitr::include_graphics(here("outputs", "figures", "fig2a_annual_by_village.png"))
+knitr::include_graphics(here("outputs", "figures_external", "fig2a_annual_by_village.png"))
 ```
 
 ```{r}
 #| label: fig-annual-age
-#| fig-cap: !expr paste0("Figure 4b. Annual pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
+#| fig-cap: !expr paste0("Figure 3b. Annual pediatric air ambulance journeys by age group (2020\u20132024; n = ", cc$n_journeys, " village-originating journeys).")
 #| out-width: 100%
 knitr::include_graphics(here("outputs", "figures", "fig2b_annual_by_age.png"))
 ```
@@ -201,8 +183,8 @@ across a geographically dispersed Arctic region.
 
 ```{r}
 #| label: tbl-t4
-#| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Complete timing row is % (n). Other times: Median (IQR); Range."
-tbl4_timing_by_village()
+#| tbl-cap: "Table 4. Air ambulance total, decision-making, and response time by village. Columns sorted by utilization rate (highest to lowest). Complete timing row is % (n). Other times: Median (IQR); Range. Village identities have been replaced with anonymous labels."
+tbl4_timing_by_village(anonymize = TRUE)
 ```
 
 ---
@@ -253,5 +235,3 @@ single rows, as in @tbl-t2) instead of discrete complaints.
 #| tbl-cap: "Table 6a. Chief complaint (CEDIS) by age group, grouped categories. % (n) within each age-group column."
 tbl6a_chief_complaint_by_age()
 ```
-
-

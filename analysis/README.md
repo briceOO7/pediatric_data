@@ -106,6 +106,24 @@ Outputs:
 
 Placeholder `Village_*` labels in the medevac CSVs were replaced with **Maniilaq community names** using rank alignment to reference journey shares. See **`docs/village_name_codebook.md`** and **`docs/village_name_codebook.csv`**. To re-apply after restoring anonymous data: `python scripts/apply_village_names.py`.
 
+## External village anonymization (for `external_manuscript.qmd`)
+
+This is the **inverse** of the above: real community names → `Village A`–`Village K`,
+for sharing results with external collaborators. Driven by
+**`docs/external_village_codebook.csv`** (gitignored — never commit; it's the
+re-identification key), documented in **`docs/external_village_codebook.md`**.
+
+- R: `anonymize_village_name()` in `analysis/R/utils.R`; used via `anonymize = TRUE`
+  on `tbl1_village_characteristics()` and `tbl4_timing_by_village()` in `paper1_tables.R`.
+- Python: `_anonymize_village()` in `analysis/python/medevac_summaries.py`; used via
+  `anonymize=True` on the three village-labeled figure functions
+  (`plot_fig1a_monthly_by_village`, `plot_fig2a_annual_by_village`,
+  `plot_fig4_sankey_transport_routes`), which write anonymized copies to
+  `outputs/figures_external/` on every pipeline run.
+
+Both helpers raise a clear error if the codebook file doesn't exist locally,
+rather than silently falling back to real names.
+
 ## Data sources
 
 | File | Role |
