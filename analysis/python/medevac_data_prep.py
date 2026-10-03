@@ -7,7 +7,8 @@ Run from project root:
   python analysis/python/medevac_data_prep.py -synthetic   # de-ID + codebook
 
 Outputs (outputs/data/):
-  journeys_all.csv      — all journeys, route-classified, all computed columns
+  journeys_all.csv      — all journeys kept by JOURNEY_ORIGINS (journey_origin.py),
+                          route-classified, all computed columns
   journeys_primary.csv  — village→MHC cohort only
   patients_primary.csv  — one row per patient (earliest qualifying journey)
   legs_primary.csv      — one row per medevac leg in primary cohort
@@ -22,6 +23,13 @@ import re
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from journey_origin import ENV_VAR as JOURNEY_ORIGINS_ENV
+    from journey_origin import parse_journey_origins, split_by_journey_origin
+except ImportError:  # imported as analysis.python.medevac_data_prep
+    from analysis.python.journey_origin import ENV_VAR as JOURNEY_ORIGINS_ENV
+    from analysis.python.journey_origin import parse_journey_origins, split_by_journey_origin
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parents[2]
@@ -405,8 +413,13 @@ def _build_definitive_cc(cc_long: pd.DataFrame) -> pd.DataFrame:
 
 # ── Data loading ───────────────────────────────────────────────────────────────
 
-def load_raw() -> pd.DataFrame:
-    """Load and merge all source files into a journey-level DataFrame."""
+def load_raw(return_origin_dropped: bool = False):
+    """Load and merge all source files into a journey-level DataFrame.
+
+    Journeys whose `journey_origin` is not in JOURNEY_ORIGINS are dropped here
+    (see journey_origin.py); `return_origin_dropped=True` also returns them so
+    the cohort flow can still count them.
+    """
     journeys = pd.read_csv(DATA / "pediatric_medevac_journeys.csv")
     timing   = pd.read_csv(DATA / "pediatric_medevac_timing.csv")
     outcomes = pd.read_csv(DATA / "pediatric_outcomes.csv")
@@ -467,7 +480,8 @@ def load_raw() -> pd.DataFrame:
             if c in df.columns:
                 df[c] = df[c].map(_decode_village)
 
-    return df
+    df, origin_dropped = split_by_journey_origin(df, label="data_prep journey_origin")
+    return (df, origin_dropped) if return_origin_dropped else df
 
 
 def _village_name_for_journey(row: pd.Series) -> str:
@@ -852,14 +866,19 @@ def build_village_summary(df_primary: pd.DataFrame) -> pd.DataFrame:
 
 # ── Cohort flow (PRISMA nodes) ─────────────────────────────────────────────────
 
-def build_cohort_flow(df: pd.DataFrame, df_primary: pd.DataFrame) -> pd.DataFrame:
+def build_cohort_flow(
+    df: pd.DataFrame, df_primary: pd.DataFrame, origin_dropped: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """
     Cohort flow for the PRISMA diagram.
 
     Stages (rows):
-      "All records in database"          – every journey record in the extract
+      "All records in database"          – every journey record in the extract,
+                                            including those dropped at load by
+                                            JOURNEY_ORIGINS (`origin_dropped`)
       "MHC-presenting (excluded)"        – first leg starts at MHC, not a
                                             village air ambulance at all
+                                            (plus `origin_dropped`)
       "Village-originating, bypassed MHC
        (excluded)"                       – true village origin (real air
                                             ambulance from a village) but no
@@ -896,12 +915,15 @@ def build_cohort_flow(df: pd.DataFrame, df_primary: pd.DataFrame) -> pd.DataFram
             n_complete_timing=_complete_timing(subset),
         )
 
+    if origin_dropped is None:
+        origin_dropped = df.iloc[0:0]
     excluded = df[~df["journey_id"].isin(df_primary["journey_id"])]
     bypass_mask = excluded.get("origin_is_village", pd.Series(False, index=excluded.index)).fillna(False)
     s_bypass = _stage(excluded[bypass_mask], "Village-originating, bypassed MHC (excluded)")
-    s_mhc    = _stage(excluded[~bypass_mask], "MHC-presenting (excluded)")
+    s_mhc    = _stage(pd.concat([excluded[~bypass_mask], origin_dropped], ignore_index=True),
+                      "MHC-presenting (excluded)")
 
-    s_all  = _stage(df, "All records in database")
+    s_all  = _stage(pd.concat([df, origin_dropped], ignore_index=True), "All records in database")
     s_prim = _stage(df_primary, "Village-originating (cohort)")
     return pd.DataFrame([s_all, s_mhc, s_bypass, s_prim])
 
@@ -944,7 +966,7 @@ def main(synthetic: bool = False) -> None:
     print(f"[data_prep] mode={_origin_mode()}  data={data_display}")
 
     print("Loading source data...")
-    df_raw = load_raw()
+    df_raw, df_origin_dropped = load_raw(return_origin_dropped=True)
 
     print("Computing derived variables...")
     df = compute_derived(df_raw)
@@ -977,7 +999,7 @@ def main(synthetic: bool = False) -> None:
     _write(build_legs_primary(df_primary), "legs_primary")
     _write(build_village_census(), "village_census")
     _write(build_village_summary(df_primary), "village_summary")
-    _write(build_cohort_flow(df, df_primary), "cohort_flow")
+    _write(build_cohort_flow(df, df_primary, df_origin_dropped), "cohort_flow")
     # build_leg_breakdown evaluates village-origin per LEG, not per journey's
     # cohort membership — pass the full dataset (not df_primary) so a true
     # village->tertiary bypass leg (which fails _qualifies_for_primary_cohort
@@ -991,5 +1013,9 @@ def main(synthetic: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-synthetic", "--synthetic", action="store_true")
+    parser.add_argument("--journey-origins", default=None,
+                        help="Comma-separated journey start locations to keep (village, mhc).")
     args = parser.parse_args()
+    if args.journey_origins:
+        os.environ[JOURNEY_ORIGINS_ENV] = ",".join(parse_journey_origins(args.journey_origins))
     main(synthetic=args.synthetic)

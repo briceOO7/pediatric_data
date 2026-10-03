@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from journey_origin import split_by_journey_origin
+
 # Paths
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -367,6 +369,7 @@ def load_data():
         for c in ("facility_1_name", "medevac1_from", "medevac2_from", "medevac3_from"):
             if c in df.columns:
                 df[c] = df[c].map(_decode_village_name)
+    df, _ = split_by_journey_origin(df, label="summaries journey_origin")
     return df
 
 
@@ -464,6 +467,7 @@ def build_table0_medevac_routes(journeys: pd.DataFrame | None = None) -> pd.Data
     """
     if journeys is None:
         journeys = pd.read_csv(DATA / "pediatric_medevac_journeys.csv")
+        journeys, _ = split_by_journey_origin(journeys, label="table0 journey_origin")
     from collections import Counter
 
     c: Counter[tuple[str, str]] = Counter()

@@ -20,6 +20,7 @@ Usage (from repo root or anywhere):
   python scripts/run_full_pipeline.py --skip-quarto
   python scripts/run_full_pipeline.py --skip-analysis --quarto-to html
   python scripts/run_full_pipeline.py --fetch-census   # refresh Census denominators
+  python scripts/run_full_pipeline.py --journey-origins village,mhc   # include MHC-start journeys
 
 Requires: Python deps (requirements.txt), R + renv packages, quarto on PATH.
 """
@@ -65,6 +66,12 @@ def main() -> int:
         action="store_true",
         help="Local de-identified data: use village_name_codebook.csv (not infer). Omit on PHI.",
     )
+    parser.add_argument(
+        "--journey-origins",
+        default=None,
+        help="Comma-separated journey start locations to keep (village, mhc). "
+        "Default: JOURNEY_ORIGINS in analysis/python/journey_origin.py, or the JOURNEY_ORIGINS env var.",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -91,6 +98,13 @@ def main() -> int:
                 os.environ["MEDEVAC_VILLAGE_ORIGINS"] = "infer"
                 mode = "real data (infer default)"
     print(f"==> Pipeline mode: {mode}")
+
+    sys.path.insert(0, str(root / "analysis" / "python"))
+    from journey_origin import ENV_VAR, journey_origins, parse_journey_origins
+
+    if args.journey_origins:
+        os.environ[ENV_VAR] = ",".join(parse_journey_origins(args.journey_origins))
+    print(f"==> Journey origins kept: {', '.join(journey_origins())}")
 
     py = sys.executable
 
