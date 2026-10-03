@@ -116,6 +116,13 @@ python scripts/run_full_pipeline.py --skip-analysis
 
 Run all steps in order via `make all` (or `make all SYNTHETIC=1` for de-identified data).
 
+**Journey origin:** `JOURNEY_ORIGINS` in `analysis/python/journey_origin.py`
+(default `["village"]`) sets which pipeline `journey_origin` values are loaded;
+MHC-start journeys are dropped at load and counted in the "MHC-presenting
+(excluded)" cohort-flow row. Override with `JOURNEY_ORIGINS=village,mhc` or
+`--journey-origins village,mhc`. Older pipeline outputs without `journey_origin`
+load unfiltered (the village → MHC leg rule still defines the cohort).
+
 ### External / anonymized manuscript
 
 `manuscripts/paper1/external_manuscript.qmd` renders the same results with
