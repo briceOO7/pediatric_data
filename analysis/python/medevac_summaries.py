@@ -10,6 +10,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from cedis_policy import (
+    FOLLOW_UP,
+    UNKNOWN,
+    complaint_label,
+    parse_code,
+    pick_definitive,
+    protected_code,
+)
 from journey_origin import split_by_journey_origin
 
 # Paths
@@ -2600,7 +2608,7 @@ def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame
         for e in events:
             c = e["cc_cedis_code"]
             cs = "" if pd.isna(c) else str(c).strip()
-            if cs and cs not in {"888", "999"}:
+            if cs and cs not in {str(FOLLOW_UP), str(UNKNOWN)}:
                 expanded_code = c
                 expanded_cmp = e["cc_cedis_complaint"] if _has_value(e["cc_cedis_complaint"]) else expanded_cmp
                 break
@@ -2655,12 +2663,13 @@ def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame
     return out.sort_values(["expanded_cc_fu", "journey_id", "cc_sequence"], ascending=[False, True, True]).reset_index(drop=True)
 
 
-# Lower-cased complaint texts treated as "no definitive complaint". 888 was renamed
-# "Follow-up visit" -> "Follow-up/Return Visit" (CEDIS codebook sync); keep both.
+# Lower-cased texts that identify CEDIS 888. 888 was renamed "Follow-up visit" ->
+# "Follow-up/Return Visit" (CEDIS codebook sync); keep both. Identification only:
+# 888 is never excluded (see cedis_policy.py).
 _FOLLOWUP_CC_TEXTS = frozenset({"follow-up visit", "follow-up/return visit"})
-_SKIP_CC = _FOLLOWUP_CC_TEXTS | {"unknown"}
 
-# Official CEDIS code → major category lookup (889 Well visit, 891 Planned telehealth; 890 retired)
+# Official CEDIS code → major category lookup (888 Follow-up/Return Visit, 889 Well visit,
+# 891 Planned telehealth; 890 retired). 888/889/891 are never excluded — see cedis_policy.py
 _CEDIS_CATEGORY_MAP: dict[int, str] = {
     **{c: "Cardiovascular"    for c in range(1,   13)},
     **{c: "ENT"               for c in range(51,  57)},
@@ -2686,14 +2695,18 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     """
     One row per cohort journey: age bucket + cc_definitive.
 
-    cc_definitive = first non-'Follow-up/Return Visit' / non-'Unknown' CEDIS complaint
-    found by scanning slots in this order across the full journey:
+    cc_definitive = definitive complaint (cedis_policy.pick_definitive) found by
+    scanning slots in this order across the full journey:
       village_cedis_complaint_1..19
       mhc_ed_cedis_complaint_1..8
       mhc_inpatient_cedis_complaint_1..5
       anmc_ed_cedis_complaint_1..2
 
-    If every slot is empty, follow-up, or unknown → "Undefined".
+    The first real complaint wins (889 Well visit and 891 Planned telehealth
+    count as real). Only if there is none does the first 888 Follow-up/Return Visit
+    win, so a journey is never dropped or left "Undefined" because of 888/889/891.
+    "Undefined" is reserved for journeys with no usable complaint at all
+    (all slots empty or 999/Unknown).
     """
     base = df.drop_duplicates("journey_id")[["journey_id", "age_at_medevac"]].copy()
     base["age_years"]   = pd.to_numeric(base["age_at_medevac"], errors="coerce")
@@ -2733,22 +2746,21 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
 
     def _first_definitive(row: pd.Series) -> tuple[str, str, str]:
         """Returns (complaint_text, cedis_code_str, category)."""
-        for comp_col, code_col in col_pairs:
-            val = row[comp_col]
-            if pd.isna(val):
-                continue
-            s = str(val).strip()
-            if s and s.lower() not in _SKIP_CC:
-                raw_code = row[code_col]
-                try:
-                    code_int = int(float(raw_code))
-                    code_str = str(code_int)
-                    category = _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor")
-                except (ValueError, TypeError):
-                    code_str = ""
-                    category = "General and Minor"
-                return s, code_str, category
-        return "Undefined", "", "Undefined"
+        pairs = [(row[code_col], row[comp_col]) for comp_col, code_col in col_pairs]
+        i = pick_definitive(pairs)
+        if i is None:
+            return "Undefined", "", "Undefined"
+        raw_code, raw_comp = pairs[i]
+        code_int = parse_code(raw_code)
+        if code_int is None:
+            code_int = protected_code(raw_code, raw_comp)
+        if code_int is None:
+            return complaint_label(raw_code, raw_comp), "", "General and Minor"
+        return (
+            complaint_label(raw_code, raw_comp),
+            str(code_int),
+            _CEDIS_CATEGORY_MAP.get(code_int, "General and Minor"),
+        )
 
     results = sub[
         [c for pair in col_pairs for c in pair]

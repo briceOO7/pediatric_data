@@ -28,8 +28,11 @@ def test_code_maps_cover_889_891_not_890(cmap):
 
 
 @pytest.mark.parametrize("text", ["Follow-up/Return Visit", "follow-up/return visit", "Follow-up visit"])
-def test_skip_cc_accepts_new_and_old_follow_up_names(text):
-    assert text.lower() in summ._SKIP_CC
+def test_follow_up_names_old_and_new_are_recognised_as_888(text):
+    from cedis_policy import FOLLOW_UP, protected_code
+
+    assert text.lower() in summ._FOLLOWUP_CC_TEXTS
+    assert protected_code(None, text) == FOLLOW_UP
 
 
 def _cc_frame():
@@ -60,7 +63,7 @@ def _cohort():
     )
 
 
-def test_definitive_cc_skips_renamed_follow_up(monkeypatch, tmp_path):
+def test_definitive_cc_prefers_real_complaint_over_renamed_follow_up(monkeypatch, tmp_path):
     f = tmp_path / "cc.csv"
     _cc_frame().to_csv(f, index=False)
     monkeypatch.setattr(summ, "CHIEF_COMPLAINTS_WIDE", f)

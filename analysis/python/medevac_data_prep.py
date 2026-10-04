@@ -25,9 +25,11 @@ from pathlib import Path
 import pandas as pd
 
 try:
+    from cedis_policy import complaint_label, definitive_rank, parse_code
     from journey_origin import ENV_VAR as JOURNEY_ORIGINS_ENV
     from journey_origin import parse_journey_origins, split_by_journey_origin
 except ImportError:  # imported as analysis.python.medevac_data_prep
+    from analysis.python.cedis_policy import complaint_label, definitive_rank, parse_code
     from analysis.python.journey_origin import ENV_VAR as JOURNEY_ORIGINS_ENV
     from analysis.python.journey_origin import parse_journey_origins, split_by_journey_origin
 
@@ -364,8 +366,11 @@ def _build_definitive_cc(cc_long: pd.DataFrame) -> pd.DataFrame:
     This ensures a complaint entered late at an earlier site still wins over
     one entered first at a later site (guards against registration-order errors).
 
-    Take the first complaint whose CEDIS code is not 888 or 999.
-    Journeys where every complaint is 888/999 → None (excluded from table).
+    Pick the definitive complaint with cedis_policy.definitive_rank: the first
+    real complaint in that order (889/891 count as real); only if none exists,
+    the first 888 Follow-up/Return Visit. 999/"Unknown" placeholders are never
+    chosen. 888/889/891 never remove a journey: a journey whose only complaint
+    is 888 is reported with 888.
 
     Returns a DataFrame with columns:
       journey_id, primary_cedis_code, primary_cedis_complaint,
@@ -373,29 +378,18 @@ def _build_definitive_cc(cc_long: pd.DataFrame) -> pd.DataFrame:
     """
     df = cc_long.copy()
 
-    def _is_skip_code(x: object) -> bool:
-        try:
-            return int(float(x)) in (888, 999)
-        except (ValueError, TypeError):
-            return False
-
-    df["_skip"]      = df["cedis_code"].map(_is_skip_code)
+    df["_rank"]      = [definitive_rank(c, t) for c, t in zip(df["cedis_code"], df["cedis_complaint"])]
     df["_phase_ord"] = df["facility_phase"].map(_CC_PHASE_ORDER).fillna(99)
     df["_ts"]        = pd.to_datetime(df["EncounterStartDTS"], errors="coerce")
 
     df = df.sort_values(["journey_id", "_phase_ord", "_ts", "cc_sequence"])
 
-    # Take first non-skipped complaint per journey
-    valid = df[~df["_skip"] & df["cedis_complaint"].notna() & (df["cedis_complaint"].str.strip() != "")]
-    first = valid.groupby("journey_id", sort=False).first().reset_index()
+    valid = df[df["_rank"].notna()].copy()
+    valid["cedis_complaint"] = [complaint_label(c, t) for c, t in zip(valid["cedis_code"], valid["cedis_complaint"])]
+    valid = valid.sort_values("_rank", kind="stable")
+    first = valid.drop_duplicates("journey_id", keep="first").reset_index(drop=True)
 
-    def _safe_code(x: object) -> int | None:
-        try:
-            return int(float(x))
-        except (ValueError, TypeError):
-            return None
-
-    first["_code_int"]  = first["cedis_code"].map(_safe_code)
+    first["_code_int"]  = first["cedis_code"].map(parse_code)
     first["_category"]  = first["_code_int"].map(lambda c: _CEDIS_CATEGORY_MAP.get(c, "General and Minor") if c else None)
     first["_cg"]        = first.apply(
         lambda r: _cc_custom_group(str(r["cedis_complaint"]).strip(), r["_code_int"] or 0)
