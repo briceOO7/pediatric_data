@@ -293,7 +293,7 @@ _CEDIS_CATEGORY_MAP: dict[int, str] = {
     **{c: "Skin"              for c in range(701, 718)},
     **{c: "Substance Misuse"  for c in range(751, 754)},
     **{c: "Trauma"            for c in range(801, 807)},
-    **{c: "General and Minor" for c in range(851, 891)},
+    **{c: "General and Minor" for c in (*range(851, 890), 891)},  # 890 retired
 }
 
 # Categories collapsed to a group label in the custom grouping
