@@ -149,7 +149,7 @@ rather than silently falling back to real names.
 - **Table 2.4** (`table2_4_vitals_repeated_by_age.csv`): Table 2.2 repeated-vitals rate, stratified by age groups.
 - **Table 3** (`table3_pews_data_availability_by_age.csv`): proportion with PEWS-required data (RR, HR, systolic BP, Temp, GCS) by age group; patient counted if any village-vitals row has all required fields.
 - **Table 4** (`table4_chief_complaints_overall.csv`): top 10 village **CEDIS code + complaint** pairs per journey (first non-missing village CEDIS slot); **%** of cohort journeys. **Tables 4.1–4.4** (`table4_1` … `table4_4_chief_complaints.csv`): same within age bucket; **%** of journeys in that age group.
-- **Table 4.5** (`table4_followup_prior_visit_check.csv`): validation for **Follow-up visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
+- **Table 4.5** (`table4_followup_prior_visit_check.csv`): validation for **Follow-up/Return Visit (CEDIS 888)** showing how often the journey has a prior encounter in `pediatric_missed_opportunities.csv` (`days_until_medevac > 0`).
 - **Table 4.6** (`table4_6_expanded_followup_cc_review.csv`): event-level review for village CEDIS `888` journeys with all CC entries (location/text/CEDIS), `hours_since_previous_cc`, and expanded follow-up fields where expanded code is the first non-`888`/`999` CEDIS in journey order.
 - **Table 5** (`table5_journeys_by_year.csv`): cohort journeys by calendar year.
 - **Table 6** (`table6_decision_time_category.csv`, `table6_flight_time_category.csv`, `table6_flight_time_extended.csv`): timing category distributions.

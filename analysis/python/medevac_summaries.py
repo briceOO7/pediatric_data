@@ -2655,9 +2655,12 @@ def build_table4_6_expanded_followup_cc_review(df: pd.DataFrame) -> pd.DataFrame
     return out.sort_values(["expanded_cc_fu", "journey_id", "cc_sequence"], ascending=[False, True, True]).reset_index(drop=True)
 
 
-_SKIP_CC = frozenset({"follow-up visit", "unknown"})
+# Lower-cased complaint texts treated as "no definitive complaint". 888 was renamed
+# "Follow-up visit" -> "Follow-up/Return Visit" (CEDIS codebook sync); keep both.
+_FOLLOWUP_CC_TEXTS = frozenset({"follow-up visit", "follow-up/return visit"})
+_SKIP_CC = _FOLLOWUP_CC_TEXTS | {"unknown"}
 
-# Official CEDIS code → major category lookup (codes 888/999 excluded as non-clinical)
+# Official CEDIS code → major category lookup (889 Well visit, 891 Planned telehealth; 890 retired)
 _CEDIS_CATEGORY_MAP: dict[int, str] = {
     **{c: "Cardiovascular"    for c in range(1,   13)},
     **{c: "ENT"               for c in range(51,  57)},
@@ -2675,7 +2678,7 @@ _CEDIS_CATEGORY_MAP: dict[int, str] = {
     **{c: "Skin"              for c in range(701, 718)},
     **{c: "Substance Misuse"  for c in range(751, 754)},
     **{c: "Trauma"            for c in range(801, 807)},
-    **{c: "General and Minor" for c in range(851, 891)},
+    **{c: "General and Minor" for c in (*range(851, 890), 891)},  # 890 retired
 }
 
 
@@ -2683,7 +2686,7 @@ def _definitive_cc_per_journey(df: pd.DataFrame) -> pd.DataFrame:
     """
     One row per cohort journey: age bucket + cc_definitive.
 
-    cc_definitive = first non-'Follow-up visit' / non-'Unknown' CEDIS complaint
+    cc_definitive = first non-'Follow-up/Return Visit' / non-'Unknown' CEDIS complaint
     found by scanning slots in this order across the full journey:
       village_cedis_complaint_1..19
       mhc_ed_cedis_complaint_1..8
@@ -3125,7 +3128,7 @@ def build_table3_chief_complaints_by_age(
 
 def build_table3_followup_prior_visit_check(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Validation table: do Follow-up visit chief complaints have documented prior visits?
+    Validation table: do Follow-up/Return Visit chief complaints have documented prior visits?
 
     Prior visit source: pediatric_missed_opportunities.csv with days_until_medevac > 0.
     """
@@ -3156,7 +3159,7 @@ def build_table3_followup_prior_visit_check(df: pd.DataFrame) -> pd.DataFrame:
 
     cc["journey_id"] = cc["journey_id"].astype(str).str.strip()
     cmp = cc["cedis_complaint"].fillna("").astype(str).str.strip().str.lower()
-    follow_mask = (cc["cedis_code"].astype(str) == "888") | (cmp == "follow-up visit")
+    follow_mask = (cc["cedis_code"].astype(str) == "888") | cmp.isin(_FOLLOWUP_CC_TEXTS)
     has_cedis = cc["cedis_code"].notna() & (cc["cedis_code"].astype(str).str.strip() != "")
 
     def _row(name: str, sub: pd.DataFrame) -> dict[str, object]:
@@ -3170,7 +3173,7 @@ def build_table3_followup_prior_visit_check(df: pd.DataFrame) -> pd.DataFrame:
         }
 
     rows = [
-        _row("Follow-up visit (CEDIS 888)", cc[follow_mask]),
+        _row("Follow-up/Return Visit (CEDIS 888)", cc[follow_mask]),
         _row("All other chief complaints with CEDIS", cc[has_cedis & ~follow_mask]),
         _row("All cohort journeys", cc),
     ]
