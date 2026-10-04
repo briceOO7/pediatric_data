@@ -13,7 +13,10 @@ import seaborn as sns
 from cedis_policy import (
     FOLLOW_UP,
     UNKNOWN,
+    UNKNOWN_UNDEFINED,
+    complaint_display_groups,
     complaint_label,
+    is_unknown_complaint,
     parse_code,
     pick_definitive,
     protected_code,
@@ -398,6 +401,15 @@ def load_journeys_primary_prepared() -> pd.DataFrame:
             if c in j.columns:
                 j[c] = j[c].map(_decode_village_name)
     return j
+
+
+def _write_other_members(members: dict[str, int], table_name: str) -> None:
+    """List the complaints pooled into a table's "Other" row (counts only)."""
+    OUT_TABLES.mkdir(parents=True, exist_ok=True)
+    rows = [{"complaint": k, "n_journeys": v} for k, v in sorted(members.items(), key=lambda kv: (-kv[1], kv[0]))]
+    pd.DataFrame(rows, columns=["complaint", "n_journeys"]).to_csv(
+        OUT_TABLES / f"{table_name}_other_complaints.csv", index=False
+    )
 
 
 def write_table(df: pd.DataFrame, name: str):
@@ -1259,26 +1271,21 @@ def build_table2_patient_characteristics_by_age(df: pd.DataFrame) -> pd.DataFram
     # Respiratory, GI, and Trauma/Injury are collapsed to their category;
     # all other complaints keep their individual CEDIS complaint name.
     cc = _definitive_cc_per_journey(df)
-    valid_cc = cc[cc["cc_definitive_custom_grouping"] != "Undefined"].copy()
+    cc["_cc_row"], cc_levels, cc_other = complaint_display_groups(
+        cc["cc_definitive_custom_grouping"], min_n=10
+    )
+    _write_other_members(cc_other, "table2_patient_characteristics_by_age")
 
     col_order = ["Metric of Interest", "Overall"] + [lbl for lbl, _ in AGE_GROUPS]
     bucket_totals = {bk: int((cc["age_bucket"] == bk).sum()) for _, bk in AGE_GROUPS}
     n_overall_cc = len(cc)
 
-    reported_cc = (
-        valid_cc.groupby("cc_definitive_custom_grouping", dropna=False)
-        .size()
-        .sort_values(ascending=False)
-    )
-    reported_cc = reported_cc[reported_cc >= 10].index.tolist()
-
     cc_rows = [["Chief Complaints (CEDIS):"] + [""] * (len(col_order) - 1)]
-    for grp in reported_cc:
-        n_ov = int((valid_cc["cc_definitive_custom_grouping"] == grp).sum())
+    for grp in cc_levels:
+        n_ov = int((cc["_cc_row"] == grp).sum())
         row = [f"  {grp}", fmt_pct_n(n_ov, n_overall_cc)]
         for _, bk in AGE_GROUPS:
-            sub_cc = valid_cc[valid_cc["age_bucket"] == bk]
-            n_bk = int((sub_cc["cc_definitive_custom_grouping"] == grp).sum())
+            n_bk = int(((cc["_cc_row"] == grp) & (cc["age_bucket"] == bk)).sum())
             row.append(fmt_pct_n(n_bk, bucket_totals[bk]))
         cc_rows.append(row)
 
@@ -2874,14 +2881,10 @@ def _top10_chief_complaints(
     """CEDIS complaints; output rank, Chief Complaint, n(%).
 
     If min_overall is set, include all complaints with n >= min_overall (sorted by n).
-    Otherwise return the top 10 by frequency.
+    Otherwise return the top 10 by frequency. No journey is dropped: complaints not
+    shown are pooled into an "Other" row and journeys with no usable complaint get an
+    "Unknown/Undefined" row, so the n column sums to ``denominator_journeys``.
     """
-    valid = cc_df[
-        cc_df["cedis_code"].notna()
-        & (cc_df["cedis_code"].astype(str).str.strip() != "")
-        & cc_df["cedis_complaint"].notna()
-        & (cc_df["cedis_complaint"].astype(str).str.strip() != "")
-    ]
     if denominator_journeys <= 0:
         return pd.DataFrame(
             [
@@ -2892,39 +2895,47 @@ def _top10_chief_complaints(
                 }
             ]
         )
-    if valid.empty:
-        msg = (
-            "No village CEDIS code/complaint in this subset"
-            if CHIEF_COMPLAINTS_WIDE.is_file()
-            else f"Add {CHIEF_COMPLAINTS_WIDE.name}"
-        )
-        return pd.DataFrame(
-            [
-                {
-                    "rank": "—",
-                    "Chief Complaint": msg,
-                    "n(%)": "0 (0.0%)",
-                }
-            ]
-        )
-    top = (
-        valid.groupby(["cedis_code", "cedis_complaint"], dropna=False)
-        .size()
-        .reset_index(name="n")
-        .sort_values(["n", "cedis_code", "cedis_complaint"], ascending=[False, True, True])
+    labels = pd.Series(
+        [
+            complaint_label(code, cmp)
+            for code, cmp in zip(cc_df["cedis_code"], cc_df["cedis_complaint"])
+        ],
+        index=cc_df.index,
     )
+    counts = labels[~labels.map(is_unknown_complaint)].value_counts()
+    top = counts.reset_index()
+    top.columns = ["cedis_complaint", "n"]
+    top = top.sort_values(["n", "cedis_complaint"], ascending=[False, True])
     if min_overall is not None:
-        top = top[top["n"] >= min_overall]
+        shown = top[top["n"] >= min_overall]
     else:
-        top = top.head(10)
+        shown = top.head(10)
+    rest = top.drop(shown.index)
+    n_unknown = int(labels.map(is_unknown_complaint).sum())
+
     rows = []
-    for i, r in enumerate(top.itertuples(index=False), 1):
-        n = int(r.n)
+    for i, r in enumerate(shown.itertuples(index=False), 1):
         rows.append(
             {
                 "rank": i,
                 "Chief Complaint": str(r.cedis_complaint),
-                "n(%)": fmt_n_pct(n, denominator_journeys),
+                "n(%)": fmt_n_pct(int(r.n), denominator_journeys),
+            }
+        )
+    if len(rest):
+        rows.append(
+            {
+                "rank": "—",
+                "Chief Complaint": f"Other ({len(rest)} complaints not shown above)",
+                "n(%)": fmt_n_pct(int(rest["n"].sum()), denominator_journeys),
+            }
+        )
+    if n_unknown:
+        rows.append(
+            {
+                "rank": "—",
+                "Chief Complaint": UNKNOWN_UNDEFINED,
+                "n(%)": fmt_n_pct(n_unknown, denominator_journeys),
             }
         )
     return pd.DataFrame(rows)
@@ -3024,25 +3035,20 @@ def build_table3_route_comparison(df_all: pd.DataFrame) -> pd.DataFrame:
     # ── Chief Complaint (custom grouping, top 10) ─────────────────────────────
     cc_j = _definitive_cc_per_journey(df_all)
     cc_j = cc_j.merge(j[["journey_id","_grp"]], on="journey_id", how="inner")
-    valid_cc = cc_j[cc_j["cc_definitive_custom_grouping"] != "Undefined"]
-
-    reported_cc = (
-        valid_cc.groupby("cc_definitive_custom_grouping")
-        .size().sort_values(ascending=False)
+    cc_j["_cc_row"], reported_cc, cc_other = complaint_display_groups(
+        cc_j["cc_definitive_custom_grouping"], min_n=10
     )
-    reported_cc = reported_cc[reported_cc >= 10].index.tolist()
+    _write_other_members(cc_other, "table3_route_comparison")
 
-    # Chi-square across reported categories (≥10 overall)
-    ct_cc = pd.DataFrame(
-        {g: valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"].value_counts()
-         for g in groups_order}
-    ).fillna(0).reindex(reported_cc, fill_value=0)
+    # Every journey is in exactly one row (reported, "Other" or
+    # "Unknown/Undefined"); the chi-square p-value (R paper1_stats.R) is
+    # computed over these same rows.
     p_cc_str = _pv.get("chi_chief_complaint", "—")
 
     rows.append(["Chief Complaint (CEDIS), n (%)"] + [""] * len(groups_order) + [p_cc_str])
     for cc_grp in reported_cc:
         cells = [fmt_pct_n(
-            int((valid_cc[valid_cc["_grp"] == g]["cc_definitive_custom_grouping"] == cc_grp).sum()),
+            int(((cc_j["_grp"] == g) & (cc_j["_cc_row"] == cc_grp)).sum()),
             ns[g]
         ) for g in groups_order]
         rows.append([f"  {cc_grp}"] + cells + [""])
@@ -3074,23 +3080,17 @@ def build_table3_cedis_chief_complaints(
     ]
 
     cc = _chief_complaint_per_journey(df)
-    valid = cc[
-        cc["cedis_complaint"].notna()
-        & (cc["cedis_complaint"].astype(str).str.strip() != "")
-        & cc["cedis_code"].notna()
-        & (cc["cedis_code"].astype(str).str.strip() != "")
-    ].copy()
-
-    # Complaints with ≥ min_overall journeys overall
-    overall_counts = (
-        valid.groupby("cedis_complaint", dropna=False)
-        .size()
-        .sort_values(ascending=False)
+    cc["_cc_row"], top_complaints, cc_other = complaint_display_groups(
+        pd.Series(
+            [complaint_label(c, t) for c, t in zip(cc["cedis_code"], cc["cedis_complaint"])],
+            index=cc.index,
+        ),
+        min_n=min_overall,
     )
-    top_complaints = overall_counts[overall_counts >= min_overall].index.tolist()
+    _write_other_members(cc_other, "table3_cedis_chief_complaints")
 
     def _cell(sub: pd.DataFrame, complaint: str, denom: int) -> str:
-        n = int((sub["cedis_complaint"] == complaint).sum())
+        n = int((sub["_cc_row"] == complaint).sum())
         if denom == 0:
             return "—"
         return fmt_n_pct(n, denom)
@@ -3099,7 +3099,7 @@ def build_table3_cedis_chief_complaints(
     for complaint in top_complaints:
         row = {"Chief Complaint (CEDIS)": complaint}
         for col_label, bucket in _BUCKETS:
-            sub = valid if bucket is None else valid[valid["age_bucket"] == bucket]
+            sub = cc if bucket is None else cc[cc["age_bucket"] == bucket]
             denom = len(cc) if bucket is None else int((cc["age_bucket"] == bucket).sum())
             row[col_label] = _cell(sub, complaint, denom)
         rows.append(row)

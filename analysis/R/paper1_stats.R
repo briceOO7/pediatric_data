@@ -12,6 +12,7 @@
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(readr))
 suppressPackageStartupMessages(library(here))
+source(here("analysis", "R", "complaint_groups.R"))
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -78,17 +79,14 @@ chi_age_p <- tryCatch({
   }
 }, error = function(e) NA_real_)
 
-# ── Chi-square: chief complaint (custom grouping) ─────────────────────────────
+# ── Chi-square: chief complaint (custom grouping, incl. Other + Unknown/Undefined rows) ──
 
 chi_cc_p <- tryCatch({
-  valid_cc <- routes |> filter(!is.na(cc_definitive_custom_grouping))
-  # Keep only complaints with ≥10 journeys overall (matches Python logic)
-  reported_cc <- valid_cc |>
-    count(cc_definitive_custom_grouping, sort = TRUE) |>
-    filter(n >= 10) |>
-    pull(cc_definitive_custom_grouping)
-  valid_cc <- valid_cc |> filter(cc_definitive_custom_grouping %in% reported_cc)
-  ct <- table(valid_cc$cc_definitive_custom_grouping, valid_cc$grp)
+  # Every journey is in exactly one row (reported complaint, "Other" or
+  # "Unknown/Undefined"), matching the rows of the published table.
+  cc_row <- cc_display_factor(routes$cc_definitive_custom_grouping, min_n = 10)
+  ct <- table(cc_row, routes$grp)
+  ct <- ct[rowSums(ct) > 0, , drop = FALSE]
   if (nrow(ct) >= 2 && ncol(ct) >= 2 && all(colSums(ct) > 0)) {
     suppressWarnings(chisq.test(ct))$p.value
   } else {

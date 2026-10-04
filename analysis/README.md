@@ -63,6 +63,17 @@ source of truth for how the definitive primary complaint is chosen on a journey:
 complaint in journey order wins (889 and 891 count as real), otherwise the first 888, otherwise
 (only 999/Unknown or nothing) the journey has no complaint. Tests: `python3 -m pytest tests`.
 
+## Chief complaint never drops a journey
+
+No chief complaint (any code or text, including 999/Unknown, blank, "Undefined") is used to filter a journey,
+patient or row. Journeys with no usable complaint stay in every non-complaint analysis (counts, routes,
+outcomes, flows). In complaint tables (Table 2 and 2a, Table 3 route comparison, Table 6/6a, the village
+complaint tables, and the Table 3 chi-square p-value) they appear as an explicit **Unknown/Undefined** row, and
+complaints with fewer than 10 journeys overall are pooled into an **Other** row, so every column's rows sum to
+the journey total. The pooled complaints are listed in `outputs/tables/*_other_complaints.csv`. The helpers are
+`complaint_display_groups()` in `cedis_policy.py` and `cc_display_factor()` in `analysis/R/complaint_groups.R`
+(tests: `python3 -m pytest tests`, `Rscript tests/test_complaint_groups.R`).
+
 ## Figure 1 map (`plot_fig1_medevac_activation_map`)
 
 Requires **`mapping_data/`** shapefiles (boroughs + Maniilaq healthcare facilities; PC-safe names, see `docs/mapping_data_layout.md`). Counts **village → MHC (CAH_01)** medevac legs. Rates use **residents under 18** from **`docs/maniilaq_village_census2020_pediatric.csv`** (2020 Census DHC). Refresh: `python scripts/fetch_maniilaq_census_pediatric.py`. Needs **`geopandas`**.
