@@ -76,7 +76,7 @@ documentation); CHAM adherence (clinical standards).
 ## Table 1. Chief complaints
 
 Overall distribution of chief complaints (CEDIS categorized) across all village → MHC journeys.
-Percent denominator = all journeys with a documented village chief complaint.
+Percent denominator = all village → MHC journeys; journeys without a usable complaint appear in an explicit "Unknown/Undefined" row and rarer complaints in "Other", so rows sum to the total.
 
 ```{python}
 show_tbl(build_table3_chief_complaints_overall(df))

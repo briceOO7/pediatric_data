@@ -603,20 +603,11 @@ tbl2_patient_characteristics <- function(grouped = TRUE) {
     )
   }
 
-  # Chief complaint: groups/complaints with ≥10 journeys overall, sorted high → low
+  # Chief complaint: groups/complaints with >=10 journeys overall, sorted high -> low,
+  # then "Other" (rarer complaints) and "Unknown/Undefined" so every journey is
+  # in exactly one row (see complaint_groups.R).
   if (cc_col %in% names(jp)) {
-    reported_cc <- jp |>
-      filter(!is.na(.data[[cc_col]])) |>
-      count(.data[[cc_col]], sort = TRUE) |>
-      filter(n >= 10) |>
-      pull(1)
-
-    jp <- jp |> mutate(
-      "{cc_col}" := factor(
-        ifelse(.data[[cc_col]] %in% reported_cc, .data[[cc_col]], NA_character_),
-        levels = reported_cc
-      )
-    )
+    jp[[cc_col]] <- cc_display_factor(jp[[cc_col]], min_n = 10)
   }
 
   # Ordered variable list
@@ -662,7 +653,7 @@ tbl2_patient_characteristics <- function(grouped = TRUE) {
     bold_labels() |>
     modify_header(label ~ "**Characteristic**") |>
     modify_caption(sprintf(
-      "**%s.** Air ambulance patient characteristics by age group (n = %d village-originating journeys). %% (n) within each age-group column.%s",
+      "**%s.** Air ambulance patient characteristics by age group (n = %d village-originating journeys). %% (n) within each age-group column. Complaints with fewer than 10 journeys overall are pooled into Other; journeys with no usable complaint are shown as Unknown/Undefined.%s",
       if (grouped) "Table 2" else "Table 2a",
       n_distinct(jp$journey_id),
       if (grouped) "" else " Chief complaint shown as discrete CEDIS complaints (not grouped)."
@@ -715,22 +706,11 @@ tbl3_route_comparison <- function() {
     )
   }
 
-  # Chief complaints with ≥10 journeys overall, sorted high → low
-  reported_cc <- village_journeys |>
-    filter(!is.na(primary_cedis_custom_group)) |>
-    count(primary_cedis_custom_group, sort = TRUE) |>
-    filter(n >= 10) |>
-    pull(primary_cedis_custom_group)
-
   village_journeys <- village_journeys |>
     mutate(
       age_group = factor(age_group,
         levels = c("<1 yr", "1\u2013<5 yr", "5\u201312 yr", "13\u201318 yr")),
-      primary_cedis_custom_group = factor(
-        ifelse(primary_cedis_custom_group %in% reported_cc,
-               primary_cedis_custom_group, NA_character_),
-        levels = reported_cc
-      )
+      primary_cedis_custom_group = cc_display_factor(primary_cedis_custom_group, min_n = 10)
     )
 
   include_vars <- intersect(
@@ -770,7 +750,9 @@ tbl3_route_comparison <- function() {
       "**Table 3.** Patient characteristics by transport route type ",
       "(n\u00a0=\u00a0", nrow(village_journeys), " journeys). ",
       "Primary only: village \u2192 MHC, no further transfer. ",
-      "Secondary: village \u2192 MHC \u2192 ANMC or outside facility."
+      "Secondary: village \u2192 MHC \u2192 ANMC or outside facility. ",
+      "Complaints with fewer than 10 journeys overall are pooled into Other; ",
+      "journeys with no usable complaint are shown as Unknown/Undefined."
     ))
 
   if (.output_format() == "docx") {
@@ -1176,13 +1158,9 @@ tbl6_chief_complaint_by_age <- function(min_overall = 10, grouped = FALSE) {
   col_labels <- .cc_age_column_labels(jp)
 
   valid <- jp |>
-    filter(!is.na(.data[[cc_col]]), .data[[cc_col]] != "") |>
-    mutate(cc_label = .data[[cc_col]])
+    mutate(cc_label = cc_display_factor(.data[[cc_col]], min_n = min_overall))
 
-  top_complaints <- valid |>
-    count(cc_label, sort = TRUE) |>
-    filter(n >= min_overall) |>
-    pull(cc_label)
+  top_complaints <- levels(valid$cc_label)
 
   cell <- function(sub, complaint, denom) {
     if (denom == 0) return("\u2014")
@@ -1217,7 +1195,7 @@ tbl6_chief_complaint_by_age <- function(min_overall = 10, grouped = FALSE) {
               locations = cells_body(columns = "Overall")) |>
     tab_footnote(
       footnote  = sprintf(
-        "%s with < %d journeys overall are not shown. %% (n) within each age-group column, including journeys without a recorded complaint in the denominator.",
+        "%s with < %d journeys overall are pooled into Other; journeys without a usable complaint are shown as Unknown/Undefined. %% (n) within each age-group column; rows sum to the column total.",
         if (grouped) "Complaint groups" else "Complaints", min_overall
       ),
       locations = cells_column_labels(columns = "Overall")

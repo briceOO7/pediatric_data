@@ -10,6 +10,8 @@ library(gt)
 library(flextable)
 library(labelled)
 
+source(here("analysis", "R", "complaint_groups.R"))
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 DATA_DIR <- here("outputs", "data")

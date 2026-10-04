@@ -112,3 +112,50 @@ def pick_definitive(pairs: Iterable[tuple[object, object]] | Sequence[tuple[obje
         if r == RANK_FOLLOW_UP and first_follow_up is None:
             first_follow_up = i
     return first_follow_up
+
+
+# ── Complaint-specific tables: never drop a journey ────────────────────────────
+# A journey with no usable complaint (missing, blank, 999/"Unknown", "Undefined")
+# stays in every non-complaint analysis. In complaint tables it gets an explicit
+# row, and complaints rarer than the table's reporting threshold are pooled into
+# "Other", so every column's rows sum to the journey total.
+
+UNKNOWN_UNDEFINED = "Unknown/Undefined"
+OTHER_COMPLAINTS = "Other"
+
+_UNKNOWN_TEXTS = {"", "undefined", "unknown", "unknown/undefined", "nan", "none", "<na>"}
+
+
+def is_unknown_complaint(x: object) -> bool:
+    """True for missing / blank / 999-style placeholder complaint labels."""
+    return _text(x).lower() in _UNKNOWN_TEXTS
+
+
+def complaint_display_groups(
+    labels: pd.Series, min_n: int = 10
+) -> tuple[pd.Series, list[str], dict[str, int]]:
+    """
+    Map per-journey complaint labels to table rows, keeping every journey.
+
+    Returns ``(display, levels, other_members)``:
+      display        Series aligned to ``labels``: the label if it has >= ``min_n``
+                     journeys overall, else "Other"; placeholders -> "Unknown/Undefined".
+      levels         row order: reported labels (most frequent first), then "Other"
+                     (if any), then "Unknown/Undefined" (if any).
+      other_members  {label: n} for every label pooled into "Other" (to be listed).
+    """
+    unknown = labels.map(is_unknown_complaint)
+    named = labels.where(~unknown).astype("string").str.strip()
+    counts = named.value_counts()
+    reported = sorted(counts[counts >= min_n].index, key=lambda c: (-int(counts[c]), c))
+    pooled = {str(c): int(n) for c, n in counts.items() if n < min_n}
+
+    display = named.where(named.isin(reported), OTHER_COMPLAINTS)
+    display = display.where(~unknown, UNKNOWN_UNDEFINED)
+
+    levels = list(reported)
+    if pooled:
+        levels.append(OTHER_COMPLAINTS)
+    if bool(unknown.any()):
+        levels.append(UNKNOWN_UNDEFINED)
+    return display, levels, pooled
