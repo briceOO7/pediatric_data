@@ -25,7 +25,7 @@ import cedis_policy as pol  # noqa: E402
 import medevac_data_prep as prep  # noqa: E402
 import medevac_summaries as summ  # noqa: E402
 
-FU, WELL, TELE = "Follow-up visit", "Well visit", "Planned telehealth"
+FU, WELL, TELE = "Follow-up/Return Visit", "Well visit", "Planned telehealth"
 
 
 def test_policy_ranks():
@@ -83,7 +83,8 @@ def test_data_prep_keeps_journeys_whose_only_complaint_is_protected():
     assert out.loc["D", "primary_cedis_code"] == 891
     assert out.loc["D", "primary_cedis_complaint"] == TELE
     assert out.loc["E", "primary_cedis_code"] == 888
-    assert out.loc["F", "primary_cedis_complaint"] == FU
+    assert out.loc["F", "primary_cedis_complaint"] == "Follow-up/Return Visit"
+    assert pol.complaint_label(888) == "Follow-up/Return Visit"
     assert out.loc["A", "primary_cedis_category"] == "General and Minor"
     assert out.loc["D", "primary_cedis_category"] == "General and Minor"
     # Unknown-only journeys have no usable complaint (not an 888/889/891 case).

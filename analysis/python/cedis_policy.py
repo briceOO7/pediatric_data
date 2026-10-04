@@ -31,7 +31,7 @@ PLANNED_TELEHEALTH = 891
 UNKNOWN = 999
 
 PROTECTED_CODES: dict[int, str] = {
-    FOLLOW_UP: "Follow-up visit",
+    FOLLOW_UP: "Follow-up/Return Visit",
     WELL_VISIT: "Well visit",
     PLANNED_TELEHEALTH: "Planned telehealth",
 }
